@@ -24,3 +24,11 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* A lista de opções de um <select> aberto é desenhada pelo navegador/sistema
+   operacional (não segue o dark mode do resto do site), então fixamos texto
+   escuro sobre fundo claro aqui pra nunca ficar ilegível. */
+select option {
+  color: #000;
+  background: #fff;
+}

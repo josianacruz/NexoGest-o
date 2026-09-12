@@ -61,6 +61,7 @@ export default function VendasPage() {
   const [valorPagamento, setValorPagamento] = useState<Record<number, string>>({});
   const [salvando, setSalvando] = useState(false);
   const [carregando, setCarregando] = useState(true);
+  const [busca, setBusca] = useState("");
   const router = useRouter();
 
   function getToken() {
@@ -370,21 +371,58 @@ export default function VendasPage() {
           {erro && <p className="text-sm text-red-600 mt-3">{erro}</p>}
         </div>
 
-        <h2 className="text-sm font-medium text-black/60 dark:text-white/60 mb-3">Histórico de vendas</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-medium text-black/60 dark:text-white/60">Histórico de vendas</h2>
+        </div>
+
+        {vendas.length > 0 && (
+          <div className="relative mb-4 max-w-xs">
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 dark:text-white/40"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar por nome do cliente..."
+              className={`${inputStyle} w-full pl-9`}
+            />
+          </div>
+        )}
+
         <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-black/50 dark:text-white/50 border-b border-black/10 dark:border-white/10">
                 <th className="py-2 px-4 font-medium">Data</th>
+                <th className="py-2 px-4 font-medium">Cliente</th>
                 <th className="py-2 px-4 font-medium">Total</th>
                 <th className="py-2 px-4 font-medium">Pagamento</th>
                 <th className="py-2 px-4 font-medium">Detalhe</th>
               </tr>
             </thead>
             <tbody>
-              {vendas.map((v) => (
+              {vendas
+                .filter((v) => {
+                  const termo = busca.trim().toLowerCase();
+                  if (!termo) return true;
+                  return (v.clienteNome ?? "").toLowerCase().includes(termo);
+                })
+                .map((v) => (
                 <tr key={v.id} className="border-b border-black/5 dark:border-white/5 last:border-0">
                   <td className="py-2 px-4">{new Date(v.data).toLocaleString("pt-BR")}</td>
+                  <td className="py-2 px-4">
+                    {v.clienteNome ?? <span className="text-black/30 dark:text-white/30">—</span>}
+                  </td>
                   <td className="py-2 px-4">R$ {v.total.toFixed(2)}</td>
                   <td className="py-2 px-4">
                     {v.formaPagamento}
@@ -420,11 +458,19 @@ export default function VendasPage() {
               ))}
               {vendas.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                  <td colSpan={5} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
                     {carregando ? "Carregando..." : "Nenhuma venda registrada."}
                   </td>
                 </tr>
               )}
+              {vendas.length > 0 &&
+                vendas.filter((v) => (v.clienteNome ?? "").toLowerCase().includes(busca.trim().toLowerCase())).length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                      Nenhuma venda encontrada pra essa busca.
+                    </td>
+                  </tr>
+                )}
             </tbody>
           </table>
         </div>
