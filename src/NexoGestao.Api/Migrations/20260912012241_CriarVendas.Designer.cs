@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NexoGestao.Api.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NexoGestao.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260912012241_CriarVendas")]
+    partial class CriarVendas
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -249,38 +252,6 @@ namespace NexoGestao.Api.Migrations
                     b.ToTable("Clientes");
                 });
 
-            modelBuilder.Entity("NexoGestao.Api.Domain.Comanda", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("DataAbertura")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("EmpresaId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Numero")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("VendaId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmpresaId");
-
-                    b.HasIndex("VendaId");
-
-                    b.ToTable("Comandas");
-                });
-
             modelBuilder.Entity("NexoGestao.Api.Domain.Empresa", b =>
                 {
                     b.Property<int>("Id")
@@ -302,32 +273,6 @@ namespace NexoGestao.Api.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Empresas");
-                });
-
-            modelBuilder.Entity("NexoGestao.Api.Domain.ItemComanda", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ComandaId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ProdutoId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Quantidade")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ComandaId");
-
-                    b.HasIndex("ProdutoId");
-
-                    b.ToTable("ItensComanda");
                 });
 
             modelBuilder.Entity("NexoGestao.Api.Domain.ItemVenda", b =>
@@ -519,42 +464,6 @@ namespace NexoGestao.Api.Migrations
                     b.Navigation("Empresa");
                 });
 
-            modelBuilder.Entity("NexoGestao.Api.Domain.Comanda", b =>
-                {
-                    b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
-                        .WithMany()
-                        .HasForeignKey("EmpresaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("NexoGestao.Api.Domain.Venda", "Venda")
-                        .WithMany()
-                        .HasForeignKey("VendaId");
-
-                    b.Navigation("Empresa");
-
-                    b.Navigation("Venda");
-                });
-
-            modelBuilder.Entity("NexoGestao.Api.Domain.ItemComanda", b =>
-                {
-                    b.HasOne("NexoGestao.Api.Domain.Comanda", "Comanda")
-                        .WithMany("Itens")
-                        .HasForeignKey("ComandaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("NexoGestao.Api.Domain.Produto", "Produto")
-                        .WithMany()
-                        .HasForeignKey("ProdutoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Comanda");
-
-                    b.Navigation("Produto");
-                });
-
             modelBuilder.Entity("NexoGestao.Api.Domain.ItemVenda", b =>
                 {
                     b.HasOne("NexoGestao.Api.Domain.Produto", "Produto")
@@ -611,11 +520,6 @@ namespace NexoGestao.Api.Migrations
                     b.Navigation("Cliente");
 
                     b.Navigation("Empresa");
-                });
-
-            modelBuilder.Entity("NexoGestao.Api.Domain.Comanda", b =>
-                {
-                    b.Navigation("Itens");
                 });
 
             modelBuilder.Entity("NexoGestao.Api.Domain.Empresa", b =>
