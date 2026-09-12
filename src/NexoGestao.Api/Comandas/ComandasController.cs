@@ -83,4 +83,51 @@ public class ComandasController : TenantControllerBase
 
         return Ok(new { item.Id, item.ProdutoId, produto.Nome, item.Quantidade });
     }
+
+    [HttpPost("{comandaId:int}/fechar")]
+    public async Task<IActionResult> Fechar(int empresaId, int comandaId, FecharComandaRequest request)
+    {
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        if (empresaAutorizada is null)
+            return Forbid();
+
+        var comanda = await Context.Comandas
+            .Include(c => c.Itens)
+            .ThenInclude(i => i.Produto)
+            .FirstOrDefaultAsync(c => c.Id == comandaId);
+
+        if (comanda is null || comanda.Status != StatusComanda.Aberta)
+            return NotFound(new { mensagem = "Comanda não encontrada ou já fechada." });
+
+        if (comanda.Itens.Count == 0)
+            return BadRequest(new { mensagem = "A comanda precisa ter pelo menos um item para ser fechada." });
+
+        var venda = new Venda
+        {
+            EmpresaId = empresaAutorizada.Value,
+            FormaPagamento = request.FormaPagamento,
+        };
+
+        decimal total = 0;
+        foreach (var item in comanda.Itens)
+        {
+            venda.Itens.Add(new ItemVenda
+            {
+                ProdutoId = item.ProdutoId,
+                Quantidade = item.Quantidade,
+                PrecoUnitario = item.Produto.Preco,
+            });
+            total += item.Produto.Preco * item.Quantidade;
+            item.Produto.Estoque -= item.Quantidade;
+        }
+        venda.Total = total;
+
+        Context.Vendas.Add(venda);
+        comanda.Venda = venda;
+        comanda.Status = StatusComanda.Fechada;
+
+        await Context.SaveChangesAsync();
+
+        return Ok(new { venda.Id, venda.Total, comanda.Status });
+    }
 }
