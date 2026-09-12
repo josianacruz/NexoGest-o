@@ -98,6 +98,56 @@ curl -X POST https://SUA-URL-DO-RENDER.onrender.com/api/auth/registrar \
 ```
 Depois entre normalmente pela tela de login do Vercel.
 
+## Dar acesso técnico a sócios
+
+Se um sócio for ajudar de verdade no código, no backend, no banco — não é
+acesso de usuário do sistema (login normal), é acesso de desenvolvedor
+mesmo. São 4 lugares separados, um convite em cada:
+
+1. **GitHub (código)** — no repositório, **Settings → Collaborators and
+   teams → Add people**, com o usuário ou email do GitHub do sócio.
+2. **Render (backend)** — clique no nome do workspace (canto superior
+   esquerdo) → configurações do workspace/team → **Invite Member**.
+3. **Vercel (site)** — no projeto, **Settings → Members** (pode pedir pra
+   criar um "Team", já que hoje a conta é pessoal).
+4. **Neon (banco de dados)** — no projeto, **Settings → People**.
+
+Cada sócio precisa da própria conta gratuita em cada serviço — não dá pra
+usar a mesma conta/senha de todo mundo.
+
+> No Vercel, dependendo das regras do momento, colaborar num projeto às
+> vezes empurra pra um plano "Team" que pode pedir cartão. Se isso
+> acontecer na hora de convidar, é melhor combinar que só uma pessoa mexe
+> no Vercel e os outros ficam com GitHub/Render/Neon.
+
+## Monitorar o site com clientes de verdade usando
+
+Quando tiver gente de verdade usando (ex: 5 clientes testando), os lugares
+pra acompanhar se está tudo funcionando são:
+
+- **Render → aba "Logs"** do serviço: mostra cada requisição e qualquer
+  erro do backend em tempo real. É o primeiro lugar pra olhar se alguém
+  reclamar de algo não funcionando.
+- **Render → aba "Events"**: histórico de deploys e reinícios do serviço
+  (útil pra saber se ele caiu sozinho em algum momento).
+- **Neon → aba "Monitoring"**: uso de armazenamento e de "compute" do
+  banco — vale checar de vez em quando pra não estourar o limite do plano
+  gratuito conforme os clientes forem cadastrando dados de verdade.
+- **Um monitor de "site no ar" gratuito** (recomendado): crie uma conta
+  grátis no [UptimeRobot](https://uptimerobot.com) e cadastre a URL da API
+  do Render (`https://nexogestao.onrender.com`) como um monitor HTTP(S).
+  Ele testa o site a cada alguns minutos e te avisa por email/WhatsApp se
+  cair — assim você fica sabendo antes do cliente reclamar, sem precisar
+  ficar checando manualmente.
+
+**Ponto de atenção real com clientes usando:** o plano gratuito do Render
+"dorme" a API depois de ~15 min sem uso. Se um cliente abrir o site depois
+de um tempo parado, a primeira ação demora uns 30-50s (ele está
+"acordando"). Com 5 clientes testando, isso pode acontecer bastante e
+parecer que "travou". Se virar reclamação constante, esse é o sinal de que
+vale migrar o Render pro plano pago (a partir de uns $7/mês) — que remove
+esse soninho.
+
 ## Se algo der errado
 
 Me manda a mensagem de erro (ou um print) e de onde ela apareceu — os
