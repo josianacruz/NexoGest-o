@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Nav from "../_components/Nav";
 
 interface Produto {
   id: number;
@@ -23,14 +24,8 @@ interface Venda {
   data: string;
 }
 
-const inputStyle = {
-  padding: 6,
-  border: "1px solid #999",
-  borderRadius: 4,
-  background: "#fff",
-  color: "#000",
-  marginRight: 8,
-};
+const inputStyle =
+  "px-3 py-2 rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-black/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
 export default function VendasPage() {
   const [empresaId, setEmpresaId] = useState<number | null>(null);
@@ -132,7 +127,8 @@ export default function VendasPage() {
     });
 
     if (!res.ok) {
-      setErro("Não foi possível registrar a venda.");
+      const data = await res.json().catch(() => null);
+      setErro(data?.mensagem ?? "Não foi possível registrar a venda.");
       return;
     }
 
@@ -141,98 +137,109 @@ export default function VendasPage() {
   }
 
   return (
-    <main style={{ maxWidth: 700, margin: "40px auto", padding: 20 }}>
-      <h1>Vendas {empresaNome && `— ${empresaNome}`}</h1>
+    <>
+      <Nav empresaNome={empresaNome} />
+      <main className="max-w-4xl mx-auto px-5 py-8">
+        <h1 className="text-xl font-semibold tracking-tight mb-6">Vendas</h1>
 
-      <h3>Adicionar produto</h3>
-      <div style={{ marginBottom: 16 }}>
-        <select
-          value={produtoSelecionado}
-          onChange={(e) => setProdutoSelecionado(e.target.value)}
-          style={inputStyle}
-        >
-          <option value="">Selecione um produto</option>
-          {produtos.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nome} — R$ {p.preco}
-            </option>
-          ))}
-        </select>
-        <input
-          type="number"
-          min="1"
-          value={quantidade}
-          onChange={(e) => setQuantidade(e.target.value)}
-          style={{ ...inputStyle, width: 60 }}
-        />
-        <button
-          onClick={adicionarAoCarrinho}
-          style={{ padding: "6px 12px", border: "1px solid #999", borderRadius: 4, background: "#eee", color: "#000" }}
-        >
-          Adicionar
-        </button>
-      </div>
+        <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-5 shadow-sm mb-6">
+          <h2 className="text-sm font-medium text-black/60 dark:text-white/60 mb-3">Adicionar produto</h2>
+          <div className="flex flex-wrap gap-3 items-end mb-4">
+            <select
+              value={produtoSelecionado}
+              onChange={(e) => setProdutoSelecionado(e.target.value)}
+              className={inputStyle}
+            >
+              <option value="">Selecione um produto</option>
+              {produtos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome} — R$ {p.preco}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min="1"
+              value={quantidade}
+              onChange={(e) => setQuantidade(e.target.value)}
+              className={`${inputStyle} w-20`}
+            />
+            <button onClick={adicionarAoCarrinho} className="px-4 py-2 rounded-md bg-black/5 dark:bg-white/10 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/20">
+              Adicionar
+            </button>
+          </div>
 
-      <h3>Carrinho</h3>
-      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 8 }}>
-        <tbody>
-          {carrinho.map((item, i) => (
-            <tr key={i}>
-              <td>{item.nome}</td>
-              <td>{item.quantidade}x</td>
-              <td>R$ {(item.precoUnitario * item.quantidade).toFixed(2)}</td>
-              <td>
-                <button onClick={() => removerDoCarrinho(i)} style={{ color: "red" }}>
-                  remover
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p>
-        <strong>Total: R$ {totalCarrinho.toFixed(2)}</strong>
-      </p>
+          {carrinho.length > 0 && (
+            <table className="w-full text-sm mb-3">
+              <tbody>
+                {carrinho.map((item, i) => (
+                  <tr key={i} className="border-b border-black/5 dark:border-white/5 last:border-0">
+                    <td className="py-2">{item.nome}</td>
+                    <td className="py-2">{item.quantidade}x</td>
+                    <td className="py-2">R$ {(item.precoUnitario * item.quantidade).toFixed(2)}</td>
+                    <td className="py-2 text-right">
+                      <button onClick={() => removerDoCarrinho(i)} className="text-red-600 hover:underline">
+                        remover
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <p className="font-semibold mb-4">Total: R$ {totalCarrinho.toFixed(2)}</p>
 
-      <select
-        value={formaPagamento}
-        onChange={(e) => setFormaPagamento(e.target.value)}
-        style={inputStyle}
-      >
-        <option value="PIX">PIX</option>
-        <option value="Dinheiro">Dinheiro</option>
-        <option value="Débito">Débito</option>
-        <option value="Crédito">Crédito</option>
-      </select>
-      <button
-        onClick={finalizarVenda}
-        disabled={carrinho.length === 0}
-        style={{ padding: "6px 12px", border: "1px solid #999", borderRadius: 4, background: "#eee", color: "#000" }}
-      >
-        Finalizar venda
-      </button>
+          <div className="flex flex-wrap gap-3 items-center">
+            <select
+              value={formaPagamento}
+              onChange={(e) => setFormaPagamento(e.target.value)}
+              className={inputStyle}
+            >
+              <option value="PIX">PIX</option>
+              <option value="Dinheiro">Dinheiro</option>
+              <option value="Débito">Débito</option>
+              <option value="Crédito">Crédito</option>
+            </select>
+            <button
+              onClick={finalizarVenda}
+              disabled={carrinho.length === 0}
+              className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Finalizar venda
+            </button>
+          </div>
+          {erro && <p className="text-sm text-red-600 mt-3">{erro}</p>}
+        </div>
 
-      {erro && <p style={{ color: "red" }}>{erro}</p>}
-
-      <h3 style={{ marginTop: 32 }}>Histórico de vendas</h3>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>Data</th>
-            <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>Total</th>
-            <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>Pagamento</th>
-          </tr>
-        </thead>
-        <tbody>
-          {vendas.map((v) => (
-            <tr key={v.id}>
-              <td>{new Date(v.data).toLocaleString("pt-BR")}</td>
-              <td>R$ {v.total.toFixed(2)}</td>
-              <td>{v.formaPagamento}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </main>
+        <h2 className="text-sm font-medium text-black/60 dark:text-white/60 mb-3">Histórico de vendas</h2>
+        <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl overflow-hidden shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-black/50 dark:text-white/50 border-b border-black/10 dark:border-white/10">
+                <th className="py-2 px-4 font-medium">Data</th>
+                <th className="py-2 px-4 font-medium">Total</th>
+                <th className="py-2 px-4 font-medium">Pagamento</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vendas.map((v) => (
+                <tr key={v.id} className="border-b border-black/5 dark:border-white/5 last:border-0">
+                  <td className="py-2 px-4">{new Date(v.data).toLocaleString("pt-BR")}</td>
+                  <td className="py-2 px-4">R$ {v.total.toFixed(2)}</td>
+                  <td className="py-2 px-4">{v.formaPagamento}</td>
+                </tr>
+              ))}
+              {vendas.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                    Nenhuma venda registrada.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </>
   );
 }

@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Nav from "../_components/Nav";
 
 interface Cliente {
   id: number;
@@ -10,14 +11,8 @@ interface Cliente {
   email?: string;
 }
 
-const inputStyle = {
-  padding: 6,
-  border: "1px solid #999",
-  borderRadius: 4,
-  background: "#fff",
-  color: "#000",
-  marginRight: 8,
-};
+const inputStyle =
+  "px-3 py-2 rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-black/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
 export default function ClientesPage() {
   const [empresaId, setEmpresaId] = useState<number | null>(null);
@@ -84,7 +79,8 @@ export default function ClientesPage() {
     });
 
     if (!res.ok) {
-      setErro("Não foi possível cadastrar o cliente.");
+      const data = await res.json().catch(() => null);
+      setErro(data?.mensagem ?? "Não foi possível cadastrar o cliente.");
       return;
     }
 
@@ -95,57 +91,63 @@ export default function ClientesPage() {
   }
 
   return (
-    <main style={{ maxWidth: 600, margin: "40px auto", padding: 20 }}>
-      <h1>Clientes {empresaNome && `— ${empresaNome}`}</h1>
+    <>
+      <Nav empresaNome={empresaNome} />
+      <main className="max-w-4xl mx-auto px-5 py-8">
+        <h1 className="text-xl font-semibold tracking-tight mb-6">Clientes</h1>
 
-      <form onSubmit={handleAdicionar} style={{ marginBottom: 24 }}>
-        <input
-          placeholder="Nome"
-          value={nome}
-          onChange={(e) => setNome(e.target.value)}
-          required
-          style={inputStyle}
-        />
-        <input
-          placeholder="Telefone"
-          value={telefone}
-          onChange={(e) => setTelefone(e.target.value)}
-          style={inputStyle}
-        />
-        <input
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={inputStyle}
-        />
-        <button
-          type="submit"
-          style={{ padding: "6px 12px", border: "1px solid #999", borderRadius: 4, background: "#eee", color: "#000" }}
-        >
-          Adicionar
-        </button>
-      </form>
+        <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-5 shadow-sm mb-6">
+          <form onSubmit={handleAdicionar} className="flex flex-wrap gap-3 items-end">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-black/60 dark:text-white/60">Nome</label>
+              <input value={nome} onChange={(e) => setNome(e.target.value)} required className={inputStyle} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-black/60 dark:text-white/60">Telefone</label>
+              <input value={telefone} onChange={(e) => setTelefone(e.target.value)} className={inputStyle} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-black/60 dark:text-white/60">Email</label>
+              <input value={email} onChange={(e) => setEmail(e.target.value)} className={inputStyle} />
+            </div>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+            >
+              Adicionar
+            </button>
+          </form>
+          {erro && <p className="text-sm text-red-600 mt-3">{erro}</p>}
+        </div>
 
-      {erro && <p style={{ color: "red" }}>{erro}</p>}
-
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>Nome</th>
-            <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>Telefone</th>
-            <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>Email</th>
-          </tr>
-        </thead>
-        <tbody>
-          {clientes.map((c) => (
-            <tr key={c.id}>
-              <td>{c.nome}</td>
-              <td>{c.telefone}</td>
-              <td>{c.email}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </main>
+        <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl overflow-hidden shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-black/50 dark:text-white/50 border-b border-black/10 dark:border-white/10">
+                <th className="py-2 px-4 font-medium">Nome</th>
+                <th className="py-2 px-4 font-medium">Telefone</th>
+                <th className="py-2 px-4 font-medium">Email</th>
+              </tr>
+            </thead>
+            <tbody>
+              {clientes.map((c) => (
+                <tr key={c.id} className="border-b border-black/5 dark:border-white/5 last:border-0">
+                  <td className="py-2 px-4">{c.nome}</td>
+                  <td className="py-2 px-4">{c.telefone}</td>
+                  <td className="py-2 px-4">{c.email}</td>
+                </tr>
+              ))}
+              {clientes.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                    Nenhum cliente cadastrado.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </>
   );
 }

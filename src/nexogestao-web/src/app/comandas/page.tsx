@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Nav from "../_components/Nav";
 
 interface Produto {
   id: number;
@@ -22,22 +23,16 @@ interface Comanda {
   itens: ItemComanda[];
 }
 
-const inputStyle = {
-  padding: 6,
-  border: "1px solid #999",
-  borderRadius: 4,
-  background: "#fff",
-  color: "#000",
-  marginRight: 8,
-};
+const inputStyle =
+  "px-3 py-2 rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-black/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
-const botaoStyle = {
-  padding: "6px 12px",
-  border: "1px solid #999",
-  borderRadius: 4,
-  background: "#eee",
-  color: "#000",
-};
+const botaoSecundario =
+  "px-4 py-2 rounded-md bg-black/5 dark:bg-white/10 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/20";
+
+async function mensagemDeErro(res: Response, padrao: string) {
+  const data = await res.json().catch(() => null);
+  return data?.mensagem ?? padrao;
+}
 
 export default function ComandasPage() {
   const [empresaId, setEmpresaId] = useState<number | null>(null);
@@ -108,7 +103,7 @@ export default function ComandasPage() {
     });
 
     if (!res.ok) {
-      setErro("Não foi possível abrir a comanda.");
+      setErro(await mensagemDeErro(res, "Não foi possível abrir a comanda."));
       return;
     }
 
@@ -138,7 +133,7 @@ export default function ComandasPage() {
     );
 
     if (!res.ok) {
-      setErro("Não foi possível adicionar o item.");
+      setErro(await mensagemDeErro(res, "Não foi possível adicionar o item."));
       return;
     }
 
@@ -167,7 +162,7 @@ export default function ComandasPage() {
     );
 
     if (!res.ok) {
-      setErro("Não foi possível fechar a comanda.");
+      setErro(await mensagemDeErro(res, "Não foi possível fechar a comanda."));
       return;
     }
 
@@ -175,106 +170,115 @@ export default function ComandasPage() {
   }
 
   return (
-    <main style={{ maxWidth: 800, margin: "40px auto", padding: 20 }}>
-      <h1>Comandas {empresaNome && `— ${empresaNome}`}</h1>
+    <>
+      <Nav empresaNome={empresaNome} />
+      <main className="max-w-4xl mx-auto px-5 py-8">
+        <h1 className="text-xl font-semibold tracking-tight mb-6">Comandas</h1>
 
-      <h3>Abrir nova comanda</h3>
-      <div style={{ marginBottom: 24 }}>
-        <input
-          placeholder="Número"
-          type="number"
-          min="1"
-          value={numeroNovaComanda}
-          onChange={(e) => setNumeroNovaComanda(e.target.value)}
-          style={{ ...inputStyle, width: 90 }}
-        />
-        <button onClick={abrirComanda} style={botaoStyle}>
-          Abrir comanda
-        </button>
-      </div>
-
-      {erro && <p style={{ color: "red" }}>{erro}</p>}
-
-      {comandas.length === 0 && <p>Nenhuma comanda aberta.</p>}
-
-      {comandas.map((comanda) => {
-        const total = comanda.itens.reduce((soma, item) => soma + item.preco * item.quantidade, 0);
-
-        return (
-          <div
-            key={comanda.id}
-            style={{ border: "1px solid #ccc", borderRadius: 6, padding: 16, marginBottom: 16 }}
-          >
-            <h3>Comanda {comanda.numero}</h3>
-
-            <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 8 }}>
-              <tbody>
-                {comanda.itens.map((item, i) => (
-                  <tr key={i}>
-                    <td>{item.nome}</td>
-                    <td>{item.quantidade}x</td>
-                    <td>R$ {(item.preco * item.quantidade).toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p>
-              <strong>Total: R$ {total.toFixed(2)}</strong>
-            </p>
-
-            <div style={{ marginBottom: 8 }}>
-              <select
-                value={produtoSelecionado[comanda.id] ?? ""}
-                onChange={(e) =>
-                  setProdutoSelecionado({ ...produtoSelecionado, [comanda.id]: e.target.value })
-                }
-                style={inputStyle}
-              >
-                <option value="">Selecione um produto</option>
-                {produtos.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nome} — R$ {p.preco}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="number"
-                min="1"
-                value={quantidadeSelecionada[comanda.id] ?? "1"}
-                onChange={(e) =>
-                  setQuantidadeSelecionada({ ...quantidadeSelecionada, [comanda.id]: e.target.value })
-                }
-                style={{ ...inputStyle, width: 60 }}
-              />
-              <button onClick={() => adicionarItem(comanda.id)} style={botaoStyle}>
-                Adicionar item
-              </button>
-            </div>
-
-            <div>
-              <select
-                value={formaPagamento[comanda.id] ?? "PIX"}
-                onChange={(e) =>
-                  setFormaPagamento({ ...formaPagamento, [comanda.id]: e.target.value })
-                }
-                style={inputStyle}
-              >
-                <option value="PIX">PIX</option>
-                <option value="Dinheiro">Dinheiro</option>
-                <option value="Débito">Débito</option>
-                <option value="Crédito">Crédito</option>
-              </select>
-              <button
-                onClick={() => fecharComanda(comanda.id)}
-                disabled={comanda.itens.length === 0}
-                style={botaoStyle}
-              >
-                Fechar comanda
-              </button>
-            </div>
+        <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-5 shadow-sm mb-6">
+          <h2 className="text-sm font-medium text-black/60 dark:text-white/60 mb-3">Abrir nova comanda</h2>
+          <div className="flex gap-3">
+            <input
+              placeholder="Número"
+              type="number"
+              min="1"
+              value={numeroNovaComanda}
+              onChange={(e) => setNumeroNovaComanda(e.target.value)}
+              className={`${inputStyle} w-28`}
+            />
+            <button onClick={abrirComanda} className={botaoSecundario}>
+              Abrir comanda
+            </button>
           </div>
-        );
-      })}
-    </main>
+        </div>
+
+        {erro && <p className="text-sm text-red-600 mb-4">{erro}</p>}
+
+        {comandas.length === 0 && (
+          <p className="text-black/40 dark:text-white/40 text-sm">Nenhuma comanda aberta.</p>
+        )}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {comandas.map((comanda) => {
+            const total = comanda.itens.reduce((soma, item) => soma + item.preco * item.quantidade, 0);
+
+            return (
+              <div
+                key={comanda.id}
+                className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-5 shadow-sm flex flex-col gap-3"
+              >
+                <h3 className="font-semibold">Comanda {comanda.numero}</h3>
+
+                {comanda.itens.length > 0 && (
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {comanda.itens.map((item, i) => (
+                        <tr key={i}>
+                          <td className="py-0.5">{item.nome}</td>
+                          <td className="py-0.5">{item.quantidade}x</td>
+                          <td className="py-0.5 text-right">R$ {(item.preco * item.quantidade).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                <p className="font-semibold text-sm">Total: R$ {total.toFixed(2)}</p>
+
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    value={produtoSelecionado[comanda.id] ?? ""}
+                    onChange={(e) =>
+                      setProdutoSelecionado({ ...produtoSelecionado, [comanda.id]: e.target.value })
+                    }
+                    className={`${inputStyle} flex-1 min-w-0`}
+                  >
+                    <option value="">Selecione um produto</option>
+                    {produtos.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nome} — R$ {p.preco}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    min="1"
+                    value={quantidadeSelecionada[comanda.id] ?? "1"}
+                    onChange={(e) =>
+                      setQuantidadeSelecionada({ ...quantidadeSelecionada, [comanda.id]: e.target.value })
+                    }
+                    className={`${inputStyle} w-16`}
+                  />
+                  <button onClick={() => adicionarItem(comanda.id)} className={botaoSecundario}>
+                    Adicionar
+                  </button>
+                </div>
+
+                <div className="flex gap-2 pt-2 border-t border-black/5 dark:border-white/5">
+                  <select
+                    value={formaPagamento[comanda.id] ?? "PIX"}
+                    onChange={(e) =>
+                      setFormaPagamento({ ...formaPagamento, [comanda.id]: e.target.value })
+                    }
+                    className={inputStyle}
+                  >
+                    <option value="PIX">PIX</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                    <option value="Débito">Débito</option>
+                    <option value="Crédito">Crédito</option>
+                  </select>
+                  <button
+                    onClick={() => fecharComanda(comanda.id)}
+                    disabled={comanda.itens.length === 0}
+                    className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Fechar comanda
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </main>
+    </>
   );
 }

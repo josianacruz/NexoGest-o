@@ -1,16 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-const inputStyle = {
-  width: "100%",
-  padding: 8,
-  border: "1px solid #999",
-  borderRadius: 4,
-  background: "#fff",
-  color: "#000",
-};
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -43,38 +34,41 @@ export default function LoginPage() {
   }
 
   return (
-    <main style={{ maxWidth: 360, margin: "80px auto", padding: 20 }}>
-      <h1>NexoGestão — Login</h1>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 12 }}>
-          <label>Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={inputStyle}
-            required
-          />
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <label>Senha</label>
-          <input
-            type="password"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            style={inputStyle}
-            required
-          />
-        </div>
-        {erro && <p style={{ color: "red" }}>{erro}</p>}
-        <button
-          type="submit"
-          disabled={carregando}
-          style={{ padding: "8px 16px", border: "1px solid #999", borderRadius: 4, background: "#eee", color: "#000" }}
-        >
-          {carregando ? "Entrando..." : "Entrar"}
-        </button>
-      </form>
+    <main className="min-h-screen flex items-center justify-center px-4">
+      <div className="w-full max-w-sm bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-8 shadow-sm">
+        <h1 className="text-xl font-semibold tracking-tight mb-1">NexoGestão</h1>
+        <p className="text-sm text-black/50 dark:text-white/50 mb-6">Entre para continuar</p>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="px-3 py-2 rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-black/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">Senha</label>
+            <input
+              type="password"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              required
+              className="px-3 py-2 rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-black/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          {erro && <p className="text-sm text-red-600">{erro}</p>}
+          <button
+            type="submit"
+            disabled={carregando}
+            className="mt-2 px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {carregando ? "Entrando..." : "Entrar"}
+          </button>
+        </form>
+      </div>
     </main>
   );
 }

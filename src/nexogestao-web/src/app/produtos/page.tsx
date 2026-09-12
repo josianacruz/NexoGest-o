@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Nav from "../_components/Nav";
 
 interface Produto {
   id: number;
@@ -12,14 +13,8 @@ interface Produto {
   ativo: boolean;
 }
 
-const inputStyle = {
-  padding: 6,
-  border: "1px solid #999",
-  borderRadius: 4,
-  background: "#fff",
-  color: "#000",
-  marginRight: 8,
-};
+const inputStyle =
+  "px-3 py-2 rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-black/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
 export default function ProdutosPage() {
   const [empresaId, setEmpresaId] = useState<number | null>(null);
@@ -96,7 +91,8 @@ export default function ProdutosPage() {
     });
 
     if (!res.ok) {
-      setErro("Não foi possível cadastrar o produto.");
+      const data = await res.json().catch(() => null);
+      setErro(data?.mensagem ?? "Não foi possível cadastrar o produto.");
       return;
     }
 
@@ -110,43 +106,77 @@ export default function ProdutosPage() {
   }
 
   return (
-    <main style={{ maxWidth: 700, margin: "40px auto", padding: 20 }}>
-      <h1>Produtos {empresaNome && `— ${empresaNome}`}</h1>
+    <>
+      <Nav empresaNome={empresaNome} />
+      <main className="max-w-4xl mx-auto px-5 py-8">
+        <h1 className="text-xl font-semibold tracking-tight mb-6">Produtos</h1>
 
-      <form onSubmit={handleAdicionar} style={{ marginBottom: 24, display: "flex", flexWrap: "wrap", gap: 8 }}>
-        <input placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} required style={inputStyle} />
-        <input placeholder="Categoria" value={categoria} onChange={(e) => setCategoria(e.target.value)} style={inputStyle} />
-        <input placeholder="Preço" type="number" value={preco} onChange={(e) => setPreco(e.target.value)} required style={{ ...inputStyle, width: 90 }} />
-        <input placeholder="Custo" type="number" value={custo} onChange={(e) => setCusto(e.target.value)} required style={{ ...inputStyle, width: 90 }} />
-        <input placeholder="Estoque" type="number" value={estoque} onChange={(e) => setEstoque(e.target.value)} required style={{ ...inputStyle, width: 90 }} />
-        <input placeholder="Estoque mín." type="number" value={estoqueMinimo} onChange={(e) => setEstoqueMinimo(e.target.value)} required style={{ ...inputStyle, width: 100 }} />
-        <button type="submit" style={{ padding: "6px 12px", border: "1px solid #999", borderRadius: 4, background: "#eee", color: "#000" }}>
-          Adicionar
-        </button>
-      </form>
+        <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-5 shadow-sm mb-6">
+          <form onSubmit={handleAdicionar} className="flex flex-wrap gap-3 items-end">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-black/60 dark:text-white/60">Nome</label>
+              <input value={nome} onChange={(e) => setNome(e.target.value)} required className={inputStyle} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-black/60 dark:text-white/60">Categoria</label>
+              <input value={categoria} onChange={(e) => setCategoria(e.target.value)} className={inputStyle} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-black/60 dark:text-white/60">Preço</label>
+              <input type="number" value={preco} onChange={(e) => setPreco(e.target.value)} required className={`${inputStyle} w-24`} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-black/60 dark:text-white/60">Custo</label>
+              <input type="number" value={custo} onChange={(e) => setCusto(e.target.value)} required className={`${inputStyle} w-24`} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-black/60 dark:text-white/60">Estoque</label>
+              <input type="number" value={estoque} onChange={(e) => setEstoque(e.target.value)} required className={`${inputStyle} w-24`} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-black/60 dark:text-white/60">Estoque mín.</label>
+              <input type="number" value={estoqueMinimo} onChange={(e) => setEstoqueMinimo(e.target.value)} required className={`${inputStyle} w-24`} />
+            </div>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+            >
+              Adicionar
+            </button>
+          </form>
+          {erro && <p className="text-sm text-red-600 mt-3">{erro}</p>}
+        </div>
 
-      {erro && <p style={{ color: "red" }}>{erro}</p>}
-
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>Nome</th>
-            <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>Categoria</th>
-            <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>Preço</th>
-            <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>Estoque</th>
-          </tr>
-        </thead>
-        <tbody>
-          {produtos.map((p) => (
-            <tr key={p.id}>
-              <td>{p.nome}</td>
-              <td>{p.categoria}</td>
-              <td>R$ {p.preco}</td>
-              <td>{p.estoque}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </main>
+        <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl overflow-hidden shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-black/50 dark:text-white/50 border-b border-black/10 dark:border-white/10">
+                <th className="py-2 px-4 font-medium">Nome</th>
+                <th className="py-2 px-4 font-medium">Categoria</th>
+                <th className="py-2 px-4 font-medium">Preço</th>
+                <th className="py-2 px-4 font-medium">Estoque</th>
+              </tr>
+            </thead>
+            <tbody>
+              {produtos.map((p) => (
+                <tr key={p.id} className="border-b border-black/5 dark:border-white/5 last:border-0">
+                  <td className="py-2 px-4">{p.nome}</td>
+                  <td className="py-2 px-4">{p.categoria}</td>
+                  <td className="py-2 px-4">R$ {p.preco.toFixed(2)}</td>
+                  <td className="py-2 px-4">{p.estoque}</td>
+                </tr>
+              ))}
+              {produtos.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                    Nenhum produto cadastrado.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </>
   );
 }
