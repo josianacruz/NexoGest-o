@@ -46,6 +46,7 @@ async function mensagemDeErro(res: Response, padrao: string) {
 export default function VendasPage() {
   const [empresaId, setEmpresaId] = useState<number | null>(null);
   const [empresaNome, setEmpresaNome] = useState("");
+  const [comandasHabilitadas, setComandasHabilitadas] = useState(true);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
@@ -58,6 +59,7 @@ export default function VendasPage() {
   const [parcelas, setParcelas] = useState("1");
   const [erro, setErro] = useState<string | null>(null);
   const [valorPagamento, setValorPagamento] = useState<Record<number, string>>({});
+  const [salvando, setSalvando] = useState(false);
   const router = useRouter();
 
   function getToken() {
@@ -84,6 +86,7 @@ export default function VendasPage() {
     const empresa = empresas[0];
     setEmpresaId(empresa.id);
     setEmpresaNome(empresa.nome);
+    setComandasHabilitadas(empresa.comandasHabilitadas ?? true);
 
     const [resProdutos, resVendas, resClientes] = await Promise.all([
       fetch(`${API_URL}/api/empresas/${empresa.id}/produtos`, {
@@ -131,86 +134,104 @@ export default function VendasPage() {
     0
   );
 
+  const valorPago = Number(valorRecebido || "0");
+
+  // Quanto falta pagar, quando a forma de pagamento permite pagamento parcial
+  // (Dinheiro com troco insuficiente, ou Fiado) — o restante vira dívida do cliente.
+  const faltante =
+    formaPagamento === "Dinheiro" || formaPagamento === "Fiado"
+      ? totalCarrinho - valorPago
+      : 0;
+
   const trocoCalculado =
-    formaPagamento === "Dinheiro" && valorRecebido
-      ? Number(valorRecebido) - totalCarrinho
+    formaPagamento === "Dinheiro" && valorRecebido && faltante <= 0
+      ? valorPago - totalCarrinho
       : null;
 
-  const saldoDevedorCalculado =
-    formaPagamento === "Fiado"
-      ? totalCarrinho - Number(valorRecebido || "0")
-      : null;
+  const precisaDeCliente = faltante > 0 && (formaPagamento === "Dinheiro" || formaPagamento === "Fiado");
 
   async function finalizarVenda() {
+    if (salvando) return;
     setErro(null);
     const token = getToken();
     if (!token || !empresaId || carrinho.length === 0) return;
 
-    if (formaPagamento === "Fiado" && !clienteSelecionado) {
-      setErro("Venda fiado precisa de um cliente selecionado.");
+    if (precisaDeCliente && !clienteSelecionado) {
+      setErro("Selecione um cliente para registrar o valor que ficou faltando como fiado.");
       return;
     }
 
-    const res = await fetch(`${API_URL}/api/empresas/${empresaId}/vendas`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        formaPagamento,
-        clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
-        valorRecebido:
-          formaPagamento === "Dinheiro" || formaPagamento === "Fiado"
-            ? Number(valorRecebido || "0")
-            : null,
-        parcelas: formaPagamento === "Crédito" ? Number(parcelas || "1") : null,
-        itens: carrinho.map((i) => ({
-          produtoId: i.produtoId,
-          quantidade: i.quantidade,
-        })),
-      }),
-    });
+    setSalvando(true);
+    try {
+      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/vendas`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          formaPagamento,
+          clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
+          valorRecebido:
+            formaPagamento === "Dinheiro" || formaPagamento === "Fiado"
+              ? valorPago
+              : null,
+          parcelas: formaPagamento === "Crédito" ? Number(parcelas || "1") : null,
+          itens: carrinho.map((i) => ({
+            produtoId: i.produtoId,
+            quantidade: i.quantidade,
+          })),
+        }),
+      });
 
-    if (!res.ok) {
-      setErro(await mensagemDeErro(res, "Não foi possível registrar a venda."));
-      return;
+      if (!res.ok) {
+        setErro(await mensagemDeErro(res, "Não foi possível registrar a venda."));
+        return;
+      }
+
+      setCarrinho([]);
+      setValorRecebido("");
+      setParcelas("1");
+      setClienteSelecionado("");
+      await carregarTudo();
+    } finally {
+      setSalvando(false);
     }
-
-    setCarrinho([]);
-    setValorRecebido("");
-    setParcelas("1");
-    setClienteSelecionado("");
-    await carregarTudo();
   }
 
   async function registrarPagamentoFiado(vendaId: number) {
+    if (salvando) return;
     setErro(null);
     const token = getToken();
     const valor = Number(valorPagamento[vendaId] || "0");
     if (!token || !empresaId || valor <= 0) return;
 
-    const res = await fetch(`${API_URL}/api/empresas/${empresaId}/vendas/${vendaId}/pagamentos`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ valor }),
-    });
+    setSalvando(true);
+    try {
+      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/vendas/${vendaId}/pagamentos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ valor }),
+      });
 
-    if (!res.ok) {
-      setErro(await mensagemDeErro(res, "Não foi possível registrar o pagamento."));
-      return;
+      if (!res.ok) {
+        setErro(await mensagemDeErro(res, "Não foi possível registrar o pagamento."));
+        return;
+      }
+
+      setValorPagamento({ ...valorPagamento, [vendaId]: "" });
+      await carregarTudo();
+    } finally {
+      setSalvando(false);
     }
-
-    setValorPagamento({ ...valorPagamento, [vendaId]: "" });
-    await carregarTudo();
   }
 
   return (
     <>
-      <Nav empresaNome={empresaNome} />
+      <Nav empresaNome={empresaNome} comandasHabilitadas={comandasHabilitadas} />
       <main className="max-w-4xl mx-auto px-5 py-8">
         <h1 className="text-xl font-semibold tracking-tight mb-6">Vendas</h1>
 
@@ -303,7 +324,7 @@ export default function VendasPage() {
               </div>
             )}
 
-            {formaPagamento === "Fiado" && (
+            {(formaPagamento === "Fiado" || (formaPagamento === "Dinheiro" && faltante > 0)) && (
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-medium text-black/60 dark:text-white/60">Cliente</label>
                 <select
@@ -323,23 +344,21 @@ export default function VendasPage() {
 
             <button
               onClick={finalizarVenda}
-              disabled={carrinho.length === 0}
+              disabled={carrinho.length === 0 || salvando || (precisaDeCliente && !clienteSelecionado)}
               className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Finalizar venda
+              {salvando ? "Salvando..." : "Finalizar venda"}
             </button>
           </div>
 
           {trocoCalculado !== null && (
-            <p className={`text-sm font-medium ${trocoCalculado < 0 ? "text-red-600" : "text-green-600"}`}>
-              {trocoCalculado < 0
-                ? `Falta R$ ${Math.abs(trocoCalculado).toFixed(2)}`
-                : `Troco: R$ ${trocoCalculado.toFixed(2)}`}
-            </p>
+            <p className="text-sm font-medium text-green-600">Troco: R$ {trocoCalculado.toFixed(2)}</p>
           )}
-          {saldoDevedorCalculado !== null && saldoDevedorCalculado > 0 && (
+          {faltante > 0 && (formaPagamento === "Dinheiro" || formaPagamento === "Fiado") && (
             <p className="text-sm font-medium text-amber-600">
-              Fica devendo: R$ {saldoDevedorCalculado.toFixed(2)}
+              {clienteSelecionado
+                ? `Fica devendo: R$ ${faltante.toFixed(2)}`
+                : `Falta R$ ${faltante.toFixed(2)} — selecione um cliente pra registrar como fiado`}
             </p>
           )}
 
@@ -384,7 +403,8 @@ export default function VendasPage() {
                         />
                         <button
                           onClick={() => registrarPagamentoFiado(v.id)}
-                          className="text-indigo-600 hover:underline text-xs font-medium"
+                          disabled={salvando}
+                          className="text-indigo-600 hover:underline text-xs font-medium disabled:opacity-40"
                         >
                           registrar
                         </button>

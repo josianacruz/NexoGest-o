@@ -90,10 +90,19 @@ public class VendasController : TenantControllerBase
         if (request.FormaPagamento == "Dinheiro" && request.ValorRecebido is not null)
         {
             if (request.ValorRecebido < total)
-                return BadRequest(new { mensagem = "O valor recebido é menor que o total da venda." });
+            {
+                // Pagou menos que o total em dinheiro: o restante vira fiado, vinculado a um cliente.
+                if (request.ClienteId is null)
+                    return BadRequest(new { mensagem = "Para receber menos que o total, selecione um cliente — o restante fica registrado como fiado." });
 
-            venda.ValorRecebido = request.ValorRecebido;
-            venda.Troco = request.ValorRecebido - total;
+                venda.ValorRecebido = request.ValorRecebido;
+                venda.SaldoDevedor = total - request.ValorRecebido;
+            }
+            else
+            {
+                venda.ValorRecebido = request.ValorRecebido;
+                venda.Troco = request.ValorRecebido - total;
+            }
         }
         else if (request.FormaPagamento == "Crédito")
         {

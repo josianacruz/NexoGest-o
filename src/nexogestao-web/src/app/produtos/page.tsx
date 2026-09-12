@@ -20,6 +20,7 @@ const inputStyle =
 export default function ProdutosPage() {
   const [empresaId, setEmpresaId] = useState<number | null>(null);
   const [empresaNome, setEmpresaNome] = useState("");
+  const [comandasHabilitadas, setComandasHabilitadas] = useState(true);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [nome, setNome] = useState("");
   const [categoria, setCategoria] = useState("");
@@ -28,6 +29,7 @@ export default function ProdutosPage() {
   const [estoque, setEstoque] = useState("");
   const [estoqueMinimo, setEstoqueMinimo] = useState("");
   const [erro, setErro] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
   const router = useRouter();
 
   function getToken() {
@@ -56,6 +58,7 @@ export default function ProdutosPage() {
     const primeiraEmpresa = empresas[0];
     setEmpresaId(primeiraEmpresa.id);
     setEmpresaNome(primeiraEmpresa.nome);
+    setComandasHabilitadas(primeiraEmpresa.comandasHabilitadas ?? true);
 
     const resProdutos = await fetch(
       `${API_URL}/api/empresas/${primeiraEmpresa.id}/produtos`,
@@ -71,44 +74,50 @@ export default function ProdutosPage() {
 
   async function handleAdicionar(e: React.FormEvent) {
     e.preventDefault();
+    if (salvando) return;
     setErro(null);
     const token = getToken();
     if (!token || !empresaId) return;
 
-    const res = await fetch(`${API_URL}/api/empresas/${empresaId}/produtos`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        nome,
-        categoria,
-        preco: Number(preco),
-        custo: Number(custo),
-        estoque: Number(estoque),
-        estoqueMinimo: Number(estoqueMinimo),
-      }),
-    });
+    setSalvando(true);
+    try {
+      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/produtos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          nome,
+          categoria,
+          preco: Number(preco),
+          custo: Number(custo),
+          estoque: Number(estoque),
+          estoqueMinimo: Number(estoqueMinimo),
+        }),
+      });
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setErro(data?.mensagem ?? "Não foi possível cadastrar o produto.");
-      return;
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setErro(data?.mensagem ?? "Não foi possível cadastrar o produto.");
+        return;
+      }
+
+      setNome("");
+      setCategoria("");
+      setPreco("");
+      setCusto("");
+      setEstoque("");
+      setEstoqueMinimo("");
+      await carregarEmpresaEProdutos();
+    } finally {
+      setSalvando(false);
     }
-
-    setNome("");
-    setCategoria("");
-    setPreco("");
-    setCusto("");
-    setEstoque("");
-    setEstoqueMinimo("");
-    await carregarEmpresaEProdutos();
   }
 
   return (
     <>
-      <Nav empresaNome={empresaNome} />
+      <Nav empresaNome={empresaNome} comandasHabilitadas={comandasHabilitadas} />
       <main className="max-w-4xl mx-auto px-5 py-8">
         <h1 className="text-xl font-semibold tracking-tight mb-6">Produtos</h1>
 
@@ -140,9 +149,10 @@ export default function ProdutosPage() {
             </div>
             <button
               type="submit"
-              className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+              disabled={salvando}
+              className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Adicionar
+              {salvando ? "Adicionando..." : "Adicionar"}
             </button>
           </form>
           {erro && <p className="text-sm text-red-600 mt-3">{erro}</p>}

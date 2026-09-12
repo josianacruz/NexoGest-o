@@ -38,13 +38,14 @@ async function mensagemDeErro(res: Response, padrao: string) {
 export default function ComandasPage() {
   const [empresaId, setEmpresaId] = useState<number | null>(null);
   const [empresaNome, setEmpresaNome] = useState("");
+  const [comandasHabilitadas, setComandasHabilitadas] = useState(true);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [comandas, setComandas] = useState<Comanda[]>([]);
-  const [numeroNovaComanda, setNumeroNovaComanda] = useState("");
   const [produtoSelecionado, setProdutoSelecionado] = useState<Record<number, string>>({});
   const [quantidadeSelecionada, setQuantidadeSelecionada] = useState<Record<number, string>>({});
   const [formaPagamento, setFormaPagamento] = useState<Record<number, string>>({});
   const [erro, setErro] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
   const router = useRouter();
 
   function getToken() {
@@ -71,6 +72,7 @@ export default function ComandasPage() {
     const empresa = empresas[0];
     setEmpresaId(empresa.id);
     setEmpresaNome(empresa.nome);
+    setComandasHabilitadas(empresa.comandasHabilitadas ?? true);
 
     const [resProdutos, resComandas] = await Promise.all([
       fetch(`${API_URL}/api/empresas/${empresa.id}/produtos`, {
@@ -90,107 +92,112 @@ export default function ComandasPage() {
   }, []);
 
   async function abrirComanda() {
+    if (salvando) return;
     setErro(null);
     const token = getToken();
-    if (!token || !empresaId || !numeroNovaComanda) return;
+    if (!token || !empresaId) return;
 
-    const res = await fetch(`${API_URL}/api/empresas/${empresaId}/comandas`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ numero: Number(numeroNovaComanda) }),
-    });
+    setSalvando(true);
+    try {
+      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/comandas`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    if (!res.ok) {
-      setErro(await mensagemDeErro(res, "Não foi possível abrir a comanda."));
-      return;
+      if (!res.ok) {
+        setErro(await mensagemDeErro(res, "Não foi possível abrir a comanda."));
+        return;
+      }
+
+      await carregarTudo();
+    } finally {
+      setSalvando(false);
     }
-
-    setNumeroNovaComanda("");
-    await carregarTudo();
   }
 
   async function adicionarItem(comandaId: number) {
+    if (salvando) return;
     setErro(null);
     const token = getToken();
     const produtoId = produtoSelecionado[comandaId];
     if (!token || !empresaId || !produtoId) return;
 
-    const res = await fetch(
-      `${API_URL}/api/empresas/${empresaId}/comandas/${comandaId}/itens`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          produtoId: Number(produtoId),
-          quantidade: Number(quantidadeSelecionada[comandaId] ?? "1"),
-        }),
+    setSalvando(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/empresas/${empresaId}/comandas/${comandaId}/itens`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            produtoId: Number(produtoId),
+            quantidade: Number(quantidadeSelecionada[comandaId] ?? "1"),
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        setErro(await mensagemDeErro(res, "Não foi possível adicionar o item."));
+        return;
       }
-    );
 
-    if (!res.ok) {
-      setErro(await mensagemDeErro(res, "Não foi possível adicionar o item."));
-      return;
+      setProdutoSelecionado({ ...produtoSelecionado, [comandaId]: "" });
+      setQuantidadeSelecionada({ ...quantidadeSelecionada, [comandaId]: "1" });
+      await carregarTudo();
+    } finally {
+      setSalvando(false);
     }
-
-    setProdutoSelecionado({ ...produtoSelecionado, [comandaId]: "" });
-    setQuantidadeSelecionada({ ...quantidadeSelecionada, [comandaId]: "1" });
-    await carregarTudo();
   }
 
   async function fecharComanda(comandaId: number) {
+    if (salvando) return;
     setErro(null);
     const token = getToken();
     if (!token || !empresaId) return;
 
-    const res = await fetch(
-      `${API_URL}/api/empresas/${empresaId}/comandas/${comandaId}/fechar`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          formaPagamento: formaPagamento[comandaId] ?? "PIX",
-        }),
+    setSalvando(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/empresas/${empresaId}/comandas/${comandaId}/fechar`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            formaPagamento: formaPagamento[comandaId] ?? "PIX",
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        setErro(await mensagemDeErro(res, "Não foi possível fechar a comanda."));
+        return;
       }
-    );
 
-    if (!res.ok) {
-      setErro(await mensagemDeErro(res, "Não foi possível fechar a comanda."));
-      return;
+      await carregarTudo();
+    } finally {
+      setSalvando(false);
     }
-
-    await carregarTudo();
   }
 
   return (
     <>
-      <Nav empresaNome={empresaNome} />
+      <Nav empresaNome={empresaNome} comandasHabilitadas={comandasHabilitadas} />
       <main className="max-w-4xl mx-auto px-5 py-8">
         <h1 className="text-xl font-semibold tracking-tight mb-6">Comandas</h1>
 
         <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-5 shadow-sm mb-6">
-          <h2 className="text-sm font-medium text-black/60 dark:text-white/60 mb-3">Abrir nova comanda</h2>
-          <div className="flex gap-3">
-            <input
-              placeholder="Número"
-              type="number"
-              min="1"
-              value={numeroNovaComanda}
-              onChange={(e) => setNumeroNovaComanda(e.target.value)}
-              className={`${inputStyle} w-28`}
-            />
-            <button onClick={abrirComanda} className={botaoSecundario}>
-              Abrir comanda
-            </button>
-          </div>
+          <button onClick={abrirComanda} disabled={salvando} className={`${botaoSecundario} disabled:opacity-40 disabled:cursor-not-allowed`}>
+            {salvando ? "Abrindo..." : "+ Abrir nova comanda"}
+          </button>
         </div>
 
         {erro && <p className="text-sm text-red-600 mb-4">{erro}</p>}
@@ -249,7 +256,11 @@ export default function ComandasPage() {
                     }
                     className={`${inputStyle} w-16`}
                   />
-                  <button onClick={() => adicionarItem(comanda.id)} className={botaoSecundario}>
+                  <button
+                    onClick={() => adicionarItem(comanda.id)}
+                    disabled={salvando}
+                    className={`${botaoSecundario} disabled:opacity-40 disabled:cursor-not-allowed`}
+                  >
                     Adicionar
                   </button>
                 </div>
@@ -269,10 +280,10 @@ export default function ComandasPage() {
                   </select>
                   <button
                     onClick={() => fecharComanda(comanda.id)}
-                    disabled={comanda.itens.length === 0}
+                    disabled={comanda.itens.length === 0 || salvando}
                     className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    Fechar comanda
+                    {salvando ? "Salvando..." : "Fechar comanda"}
                   </button>
                 </div>
               </div>

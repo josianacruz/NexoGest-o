@@ -8,7 +8,8 @@ using System.Security.Claims;
 
 namespace NexoGestao.Api.Empresas;
 
-public record CriarEmpresaRequest(string Nome, string? Segmento);
+public record CriarEmpresaRequest(string Nome, string? Segmento, bool ComandasHabilitadas = true);
+public record AtualizarEmpresaRequest(bool ComandasHabilitadas);
 
 [ApiController]
 [Route("api/empresas")]
@@ -36,7 +37,8 @@ public class EmpresasController : ControllerBase
         var empresa = new Empresa
         {
             Nome = request.Nome,
-            Segmento = request.Segmento
+            Segmento = request.Segmento,
+            ComandasHabilitadas = request.ComandasHabilitadas
         };
         _context.Empresas.Add(empresa);
 
@@ -58,9 +60,28 @@ public class EmpresasController : ControllerBase
     {
         var empresas = await _context.MembrosEmpresa
             .Where(m => m.UsuarioId == UsuarioId)
-            .Select(m => new { m.Empresa.Id, m.Empresa.Nome, Papel = m.Papel.ToString() })
+            .Select(m => new { m.Empresa.Id, m.Empresa.Nome, m.Empresa.ComandasHabilitadas, Papel = m.Papel.ToString() })
             .ToListAsync();
 
         return Ok(empresas);
+    }
+
+    [HttpPut("{empresaId:int}")]
+    public async Task<IActionResult> Atualizar(int empresaId, AtualizarEmpresaRequest request)
+    {
+        var membro = await _context.MembrosEmpresa
+            .FirstOrDefaultAsync(m => m.UsuarioId == UsuarioId && m.EmpresaId == empresaId);
+
+        if (membro is null || membro.Papel != PapelUsuario.Dono)
+            return Forbid();
+
+        var empresa = await _context.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId);
+        if (empresa is null)
+            return NotFound();
+
+        empresa.ComandasHabilitadas = request.ComandasHabilitadas;
+        await _context.SaveChangesAsync();
+
+        return Ok(new { empresa.Id, empresa.ComandasHabilitadas });
     }
 }

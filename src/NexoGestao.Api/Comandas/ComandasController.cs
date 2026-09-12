@@ -7,7 +7,6 @@ using NexoGestao.Api.Shared;
 
 namespace NexoGestao.Api.Comandas;
 
-public record AbrirComandaRequest(int Numero);
 public record AdicionarItemRequest(int ProdutoId, int Quantidade);
 public record FecharComandaRequest(string FormaPagamento);
 
@@ -19,24 +18,18 @@ public class ComandasController : TenantControllerBase
     public ComandasController(AppDbContext context) : base(context) { }
 
     [HttpPost]
-    public async Task<IActionResult> Abrir(int empresaId, AbrirComandaRequest request)
+    public async Task<IActionResult> Abrir(int empresaId)
     {
         var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
         if (empresaAutorizada is null)
             return Forbid();
 
-        if (request.Numero <= 0)
-            return BadRequest(new { mensagem = "O número da comanda deve ser maior que zero." });
-
-        var jaAberta = await Context.Comandas
-            .AnyAsync(c => c.Numero == request.Numero && c.Status == StatusComanda.Aberta);
-        if (jaAberta)
-            return BadRequest(new { mensagem = "Já existe uma comanda aberta com esse número." });
+        var ultimoNumero = await Context.Comandas.MaxAsync(c => (int?)c.Numero) ?? 0;
 
         var comanda = new Comanda
         {
             EmpresaId = empresaAutorizada.Value,
-            Numero = request.Numero,
+            Numero = ultimoNumero + 1,
         };
         Context.Comandas.Add(comanda);
         await Context.SaveChangesAsync();

@@ -3,16 +3,25 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-const links = [
+const linksBase = [
   { href: "/clientes", label: "Clientes" },
   { href: "/produtos", label: "Produtos" },
   { href: "/vendas", label: "Vendas" },
-  { href: "/comandas", label: "Comandas" },
 ];
 
-export default function Nav({ empresaNome }: { empresaNome?: string }) {
+export default function Nav({
+  empresaNome,
+  comandasHabilitadas = true,
+}: {
+  empresaNome?: string;
+  comandasHabilitadas?: boolean;
+}) {
   const pathname = usePathname();
   const router = useRouter();
+
+  const links = comandasHabilitadas
+    ? [...linksBase, { href: "/comandas", label: "Comandas" }]
+    : linksBase;
 
   function sair() {
     localStorage.removeItem("nexo_token");
