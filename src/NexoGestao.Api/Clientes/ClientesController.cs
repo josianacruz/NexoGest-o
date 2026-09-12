@@ -48,7 +48,16 @@ public class ClientesController : TenantControllerBase
 
         var clientes = await Context.Clientes
             .OrderBy(c => c.Nome)
-            .Select(c => new { c.Id, c.Nome, c.Telefone, c.Email })
+            .Select(c => new
+            {
+                c.Id,
+                c.Nome,
+                c.Telefone,
+                c.Email,
+                SaldoDevedor = Context.Vendas
+                    .Where(v => v.ClienteId == c.Id && v.SaldoDevedor != null)
+                    .Sum(v => v.SaldoDevedor)
+            })
             .ToListAsync();
 
         return Ok(clientes);

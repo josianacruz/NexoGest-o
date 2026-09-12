@@ -11,6 +11,11 @@ interface Produto {
   preco: number;
 }
 
+interface Cliente {
+  id: number;
+  nome: string;
+}
+
 interface ItemCarrinho {
   produtoId: number;
   nome: string;
@@ -22,22 +27,37 @@ interface Venda {
   id: number;
   total: number;
   formaPagamento: string;
+  valorRecebido?: number | null;
+  troco?: number | null;
+  parcelas?: number | null;
+  saldoDevedor?: number | null;
+  clienteNome?: string | null;
   data: string;
 }
 
 const inputStyle =
   "px-3 py-2 rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-black/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
+async function mensagemDeErro(res: Response, padrao: string) {
+  const data = await res.json().catch(() => null);
+  return data?.mensagem ?? padrao;
+}
+
 export default function VendasPage() {
   const [empresaId, setEmpresaId] = useState<number | null>(null);
   const [empresaNome, setEmpresaNome] = useState("");
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
   const [produtoSelecionado, setProdutoSelecionado] = useState("");
   const [quantidade, setQuantidade] = useState("1");
   const [formaPagamento, setFormaPagamento] = useState("PIX");
+  const [clienteSelecionado, setClienteSelecionado] = useState("");
+  const [valorRecebido, setValorRecebido] = useState("");
+  const [parcelas, setParcelas] = useState("1");
   const [erro, setErro] = useState<string | null>(null);
+  const [valorPagamento, setValorPagamento] = useState<Record<number, string>>({});
   const router = useRouter();
 
   function getToken() {
@@ -65,17 +85,21 @@ export default function VendasPage() {
     setEmpresaId(empresa.id);
     setEmpresaNome(empresa.nome);
 
-    const [resProdutos, resVendas] = await Promise.all([
+    const [resProdutos, resVendas, resClientes] = await Promise.all([
       fetch(`${API_URL}/api/empresas/${empresa.id}/produtos`, {
         headers: { Authorization: `Bearer ${token}` },
       }),
       fetch(`${API_URL}/api/empresas/${empresa.id}/vendas`, {
         headers: { Authorization: `Bearer ${token}` },
       }),
+      fetch(`${API_URL}/api/empresas/${empresa.id}/clientes`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
     ]);
 
     setProdutos(await resProdutos.json());
     setVendas(await resVendas.json());
+    setClientes(await resClientes.json());
   }
 
   useEffect(() => {
@@ -107,10 +131,25 @@ export default function VendasPage() {
     0
   );
 
+  const trocoCalculado =
+    formaPagamento === "Dinheiro" && valorRecebido
+      ? Number(valorRecebido) - totalCarrinho
+      : null;
+
+  const saldoDevedorCalculado =
+    formaPagamento === "Fiado"
+      ? totalCarrinho - Number(valorRecebido || "0")
+      : null;
+
   async function finalizarVenda() {
     setErro(null);
     const token = getToken();
     if (!token || !empresaId || carrinho.length === 0) return;
+
+    if (formaPagamento === "Fiado" && !clienteSelecionado) {
+      setErro("Venda fiado precisa de um cliente selecionado.");
+      return;
+    }
 
     const res = await fetch(`${API_URL}/api/empresas/${empresaId}/vendas`, {
       method: "POST",
@@ -120,6 +159,12 @@ export default function VendasPage() {
       },
       body: JSON.stringify({
         formaPagamento,
+        clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
+        valorRecebido:
+          formaPagamento === "Dinheiro" || formaPagamento === "Fiado"
+            ? Number(valorRecebido || "0")
+            : null,
+        parcelas: formaPagamento === "Crédito" ? Number(parcelas || "1") : null,
         itens: carrinho.map((i) => ({
           produtoId: i.produtoId,
           quantidade: i.quantidade,
@@ -128,12 +173,38 @@ export default function VendasPage() {
     });
 
     if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setErro(data?.mensagem ?? "Não foi possível registrar a venda.");
+      setErro(await mensagemDeErro(res, "Não foi possível registrar a venda."));
       return;
     }
 
     setCarrinho([]);
+    setValorRecebido("");
+    setParcelas("1");
+    setClienteSelecionado("");
+    await carregarTudo();
+  }
+
+  async function registrarPagamentoFiado(vendaId: number) {
+    setErro(null);
+    const token = getToken();
+    const valor = Number(valorPagamento[vendaId] || "0");
+    if (!token || !empresaId || valor <= 0) return;
+
+    const res = await fetch(`${API_URL}/api/empresas/${empresaId}/vendas/${vendaId}/pagamentos`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ valor }),
+    });
+
+    if (!res.ok) {
+      setErro(await mensagemDeErro(res, "Não foi possível registrar o pagamento."));
+      return;
+    }
+
+    setValorPagamento({ ...valorPagamento, [vendaId]: "" });
     await carregarTudo();
   }
 
@@ -190,7 +261,7 @@ export default function VendasPage() {
           )}
           <p className="font-semibold mb-4">Total: R$ {totalCarrinho.toFixed(2)}</p>
 
-          <div className="flex flex-wrap gap-3 items-center">
+          <div className="flex flex-wrap gap-3 items-center mb-3">
             <select
               value={formaPagamento}
               onChange={(e) => setFormaPagamento(e.target.value)}
@@ -200,7 +271,56 @@ export default function VendasPage() {
               <option value="Dinheiro">Dinheiro</option>
               <option value="Débito">Débito</option>
               <option value="Crédito">Crédito</option>
+              <option value="Fiado">Fiado</option>
             </select>
+
+            {formaPagamento === "Crédito" && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-black/60 dark:text-white/60">Parcelas</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={parcelas}
+                  onChange={(e) => setParcelas(e.target.value)}
+                  className={`${inputStyle} w-20`}
+                />
+              </div>
+            )}
+
+            {(formaPagamento === "Dinheiro" || formaPagamento === "Fiado") && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-black/60 dark:text-white/60">
+                  {formaPagamento === "Fiado" ? "Valor pago agora" : "Valor recebido"}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={valorRecebido}
+                  onChange={(e) => setValorRecebido(e.target.value)}
+                  className={`${inputStyle} w-32`}
+                />
+              </div>
+            )}
+
+            {formaPagamento === "Fiado" && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-black/60 dark:text-white/60">Cliente</label>
+                <select
+                  value={clienteSelecionado}
+                  onChange={(e) => setClienteSelecionado(e.target.value)}
+                  className={inputStyle}
+                >
+                  <option value="">Selecione</option>
+                  {clientes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <button
               onClick={finalizarVenda}
               disabled={carrinho.length === 0}
@@ -209,6 +329,20 @@ export default function VendasPage() {
               Finalizar venda
             </button>
           </div>
+
+          {trocoCalculado !== null && (
+            <p className={`text-sm font-medium ${trocoCalculado < 0 ? "text-red-600" : "text-green-600"}`}>
+              {trocoCalculado < 0
+                ? `Falta R$ ${Math.abs(trocoCalculado).toFixed(2)}`
+                : `Troco: R$ ${trocoCalculado.toFixed(2)}`}
+            </p>
+          )}
+          {saldoDevedorCalculado !== null && saldoDevedorCalculado > 0 && (
+            <p className="text-sm font-medium text-amber-600">
+              Fica devendo: R$ {saldoDevedorCalculado.toFixed(2)}
+            </p>
+          )}
+
           {erro && <p className="text-sm text-red-600 mt-3">{erro}</p>}
         </div>
 
@@ -220,6 +354,7 @@ export default function VendasPage() {
                 <th className="py-2 px-4 font-medium">Data</th>
                 <th className="py-2 px-4 font-medium">Total</th>
                 <th className="py-2 px-4 font-medium">Pagamento</th>
+                <th className="py-2 px-4 font-medium">Detalhe</th>
               </tr>
             </thead>
             <tbody>
@@ -227,12 +362,40 @@ export default function VendasPage() {
                 <tr key={v.id} className="border-b border-black/5 dark:border-white/5 last:border-0">
                   <td className="py-2 px-4">{new Date(v.data).toLocaleString("pt-BR")}</td>
                   <td className="py-2 px-4">R$ {v.total.toFixed(2)}</td>
-                  <td className="py-2 px-4">{v.formaPagamento}</td>
+                  <td className="py-2 px-4">
+                    {v.formaPagamento}
+                    {v.parcelas && v.parcelas > 1 ? ` ${v.parcelas}x` : ""}
+                  </td>
+                  <td className="py-2 px-4">
+                    {v.troco != null && v.troco > 0 && <span>Troco: R$ {v.troco.toFixed(2)}</span>}
+                    {v.saldoDevedor != null && v.saldoDevedor > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-amber-600">
+                          {v.clienteNome ?? "cliente"} deve R$ {v.saldoDevedor.toFixed(2)}
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="pagar"
+                          value={valorPagamento[v.id] ?? ""}
+                          onChange={(e) => setValorPagamento({ ...valorPagamento, [v.id]: e.target.value })}
+                          className={`${inputStyle} w-20 !py-1`}
+                        />
+                        <button
+                          onClick={() => registrarPagamentoFiado(v.id)}
+                          className="text-indigo-600 hover:underline text-xs font-medium"
+                        >
+                          registrar
+                        </button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
               ))}
               {vendas.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                  <td colSpan={4} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
                     Nenhuma venda registrada.
                   </td>
                 </tr>

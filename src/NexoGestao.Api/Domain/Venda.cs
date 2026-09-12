@@ -9,6 +9,10 @@ public class Venda
     public Cliente? Cliente { get; set; }
     public decimal Total { get; set; }
     public string FormaPagamento { get; set; } = string.Empty;
+    public decimal? ValorRecebido { get; set; }
+    public decimal? Troco { get; set; }
+    public int? Parcelas { get; set; }
+    public decimal? SaldoDevedor { get; set; }
     public DateTime Data { get; set; } = DateTime.UtcNow;
 
     public ICollection<ItemVenda> Itens { get; set; } = new List<ItemVenda>();

@@ -10,6 +10,7 @@ interface Cliente {
   nome: string;
   telefone?: string;
   email?: string;
+  saldoDevedor?: number | null;
 }
 
 const inputStyle =
@@ -128,6 +129,7 @@ export default function ClientesPage() {
                 <th className="py-2 px-4 font-medium">Nome</th>
                 <th className="py-2 px-4 font-medium">Telefone</th>
                 <th className="py-2 px-4 font-medium">Email</th>
+                <th className="py-2 px-4 font-medium">Deve (fiado)</th>
               </tr>
             </thead>
             <tbody>
@@ -136,11 +138,18 @@ export default function ClientesPage() {
                   <td className="py-2 px-4">{c.nome}</td>
                   <td className="py-2 px-4">{c.telefone}</td>
                   <td className="py-2 px-4">{c.email}</td>
+                  <td className="py-2 px-4">
+                    {c.saldoDevedor ? (
+                      <span className="text-amber-600 font-medium">R$ {c.saldoDevedor.toFixed(2)}</span>
+                    ) : (
+                      <span className="text-black/30 dark:text-white/30">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
               {clientes.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                  <td colSpan={4} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
                     Nenhum cliente cadastrado.
                   </td>
                 </tr>

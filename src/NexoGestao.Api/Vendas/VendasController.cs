@@ -8,7 +8,13 @@ using NexoGestao.Api.Shared;
 namespace NexoGestao.Api.Vendas;
 
 public record ItemVendaRequest(int ProdutoId, int Quantidade);
-public record CriarVendaRequest(int? ClienteId, string FormaPagamento, List<ItemVendaRequest> Itens);
+public record RegistrarPagamentoRequest(decimal Valor);
+public record CriarVendaRequest(
+    int? ClienteId,
+    string FormaPagamento,
+    List<ItemVendaRequest> Itens,
+    decimal? ValorRecebido = null,
+    int? Parcelas = null);
 
 [ApiController]
 [Route("api/empresas/{empresaId:int}/vendas")]
@@ -32,6 +38,12 @@ public class VendasController : TenantControllerBase
 
         if (request.Itens.Any(i => i.Quantidade <= 0))
             return BadRequest(new { mensagem = "A quantidade de cada item deve ser maior que zero." });
+
+        if (request.FormaPagamento == "Fiado" && request.ClienteId is null)
+            return BadRequest(new { mensagem = "Venda fiado precisa estar vinculada a um cliente." });
+
+        if (request.FormaPagamento == "Crédito" && request.Parcelas is not null && request.Parcelas < 1)
+            return BadRequest(new { mensagem = "O número de parcelas deve ser maior que zero." });
 
         var produtoIds = request.Itens.Select(i => i.ProdutoId).ToList();
         var produtos = await Context.Produtos
@@ -75,10 +87,33 @@ public class VendasController : TenantControllerBase
         }
         venda.Total = total;
 
+        if (request.FormaPagamento == "Dinheiro" && request.ValorRecebido is not null)
+        {
+            if (request.ValorRecebido < total)
+                return BadRequest(new { mensagem = "O valor recebido é menor que o total da venda." });
+
+            venda.ValorRecebido = request.ValorRecebido;
+            venda.Troco = request.ValorRecebido - total;
+        }
+        else if (request.FormaPagamento == "Crédito")
+        {
+            venda.Parcelas = request.Parcelas ?? 1;
+        }
+        else if (request.FormaPagamento == "Fiado")
+        {
+            var valorPago = request.ValorRecebido ?? 0;
+            if (valorPago < 0 || valorPago > total)
+                return BadRequest(new { mensagem = "Valor pago inválido para uma venda fiado." });
+
+            venda.ValorRecebido = valorPago;
+            var saldo = total - valorPago;
+            venda.SaldoDevedor = saldo > 0 ? saldo : null;
+        }
+
         Context.Vendas.Add(venda);
         await Context.SaveChangesAsync();
 
-        return Ok(new { venda.Id, venda.Total, venda.Data });
+        return Ok(new { venda.Id, venda.Total, venda.Troco, venda.SaldoDevedor, venda.Data });
     }
 
     [HttpGet]
@@ -95,6 +130,10 @@ public class VendasController : TenantControllerBase
                 v.Id,
                 v.Total,
                 v.FormaPagamento,
+                v.ValorRecebido,
+                v.Troco,
+                v.Parcelas,
+                v.SaldoDevedor,
                 v.Data,
                 ClienteNome = v.Cliente != null ? v.Cliente.Nome : null,
                 Itens = v.Itens.Select(i => new { i.ProdutoId, i.Quantidade, i.PrecoUnitario })
@@ -102,5 +141,28 @@ public class VendasController : TenantControllerBase
             .ToListAsync();
 
         return Ok(vendas);
+    }
+
+    [HttpPost("{vendaId:int}/pagamentos")]
+    public async Task<IActionResult> RegistrarPagamento(int empresaId, int vendaId, RegistrarPagamentoRequest request)
+    {
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        if (empresaAutorizada is null)
+            return Forbid();
+
+        var venda = await Context.Vendas.FirstOrDefaultAsync(v => v.Id == vendaId);
+        if (venda is null || venda.SaldoDevedor is null or <= 0)
+            return NotFound(new { mensagem = "Essa venda não tem saldo devedor em aberto." });
+
+        if (request.Valor <= 0 || request.Valor > venda.SaldoDevedor)
+            return BadRequest(new { mensagem = "Valor de pagamento inválido." });
+
+        venda.ValorRecebido = (venda.ValorRecebido ?? 0) + request.Valor;
+        var novoSaldo = venda.SaldoDevedor.Value - request.Valor;
+        venda.SaldoDevedor = novoSaldo > 0 ? novoSaldo : null;
+
+        await Context.SaveChangesAsync();
+
+        return Ok(new { venda.Id, venda.SaldoDevedor });
     }
 }
