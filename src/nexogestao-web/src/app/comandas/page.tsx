@@ -11,6 +11,11 @@ interface Produto {
   preco: number;
 }
 
+interface Cliente {
+  id: number;
+  nome: string;
+}
+
 interface ItemComanda {
   produtoId: number;
   nome: string;
@@ -40,10 +45,14 @@ export default function ComandasPage() {
   const [empresaNome, setEmpresaNome] = useState("");
   const [comandasHabilitadas, setComandasHabilitadas] = useState(true);
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [comandas, setComandas] = useState<Comanda[]>([]);
   const [produtoSelecionado, setProdutoSelecionado] = useState<Record<number, string>>({});
   const [quantidadeSelecionada, setQuantidadeSelecionada] = useState<Record<number, string>>({});
   const [formaPagamento, setFormaPagamento] = useState<Record<number, string>>({});
+  const [valorRecebido, setValorRecebido] = useState<Record<number, string>>({});
+  const [parcelas, setParcelas] = useState<Record<number, string>>({});
+  const [clienteSelecionado, setClienteSelecionado] = useState<Record<number, string>>({});
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const router = useRouter();
@@ -74,17 +83,21 @@ export default function ComandasPage() {
     setEmpresaNome(empresa.nome);
     setComandasHabilitadas(empresa.comandasHabilitadas ?? true);
 
-    const [resProdutos, resComandas] = await Promise.all([
+    const [resProdutos, resComandas, resClientes] = await Promise.all([
       fetch(`${API_URL}/api/empresas/${empresa.id}/produtos`, {
         headers: { Authorization: `Bearer ${token}` },
       }),
       fetch(`${API_URL}/api/empresas/${empresa.id}/comandas`, {
         headers: { Authorization: `Bearer ${token}` },
       }),
+      fetch(`${API_URL}/api/empresas/${empresa.id}/clientes`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
     ]);
 
     setProdutos(await resProdutos.json());
     setComandas(await resComandas.json());
+    setClientes(await resClientes.json());
   }
 
   useEffect(() => {
@@ -155,11 +168,31 @@ export default function ComandasPage() {
     }
   }
 
-  async function fecharComanda(comandaId: number) {
+  function faltantePara(comandaId: number, total: number) {
+    const forma = formaPagamento[comandaId] ?? "PIX";
+    if (forma !== "Dinheiro" && forma !== "Fiado") return 0;
+    const pago = Number(valorRecebido[comandaId] || "0");
+    return total - pago;
+  }
+
+  function precisaDeClientePara(comandaId: number, total: number) {
+    const forma = formaPagamento[comandaId] ?? "PIX";
+    return faltantePara(comandaId, total) > 0 && (forma === "Dinheiro" || forma === "Fiado");
+  }
+
+  async function fecharComanda(comandaId: number, total: number) {
     if (salvando) return;
     setErro(null);
     const token = getToken();
     if (!token || !empresaId) return;
+
+    const forma = formaPagamento[comandaId] ?? "PIX";
+    const cliente = clienteSelecionado[comandaId];
+
+    if (precisaDeClientePara(comandaId, total) && !cliente) {
+      setErro("Selecione um cliente para registrar o valor que ficou faltando como fiado.");
+      return;
+    }
 
     setSalvando(true);
     try {
@@ -172,7 +205,13 @@ export default function ComandasPage() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            formaPagamento: formaPagamento[comandaId] ?? "PIX",
+            formaPagamento: forma,
+            clienteId: cliente ? Number(cliente) : null,
+            valorRecebido:
+              forma === "Dinheiro" || forma === "Fiado"
+                ? Number(valorRecebido[comandaId] || "0")
+                : null,
+            parcelas: forma === "Crédito" ? Number(parcelas[comandaId] || "1") : null,
           }),
         }
       );
@@ -209,6 +248,12 @@ export default function ComandasPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           {comandas.map((comanda) => {
             const total = comanda.itens.reduce((soma, item) => soma + item.preco * item.quantidade, 0);
+            const forma = formaPagamento[comanda.id] ?? "PIX";
+            const faltante = faltantePara(comanda.id, total);
+            const trocoCalculado = forma === "Dinheiro" && valorRecebido[comanda.id] && faltante <= 0
+              ? Number(valorRecebido[comanda.id]) - total
+              : null;
+            const precisaDeCliente = precisaDeClientePara(comanda.id, total);
 
             return (
               <div
@@ -265,22 +310,90 @@ export default function ComandasPage() {
                   </button>
                 </div>
 
-                <div className="flex gap-2 pt-2 border-t border-black/5 dark:border-white/5">
-                  <select
-                    value={formaPagamento[comanda.id] ?? "PIX"}
-                    onChange={(e) =>
-                      setFormaPagamento({ ...formaPagamento, [comanda.id]: e.target.value })
-                    }
-                    className={inputStyle}
-                  >
-                    <option value="PIX">PIX</option>
-                    <option value="Dinheiro">Dinheiro</option>
-                    <option value="Débito">Débito</option>
-                    <option value="Crédito">Crédito</option>
-                  </select>
+                <div className="flex flex-col gap-2 pt-2 border-t border-black/5 dark:border-white/5">
+                  <div className="flex flex-wrap gap-2 items-end">
+                    <select
+                      value={forma}
+                      onChange={(e) =>
+                        setFormaPagamento({ ...formaPagamento, [comanda.id]: e.target.value })
+                      }
+                      className={inputStyle}
+                    >
+                      <option value="PIX">PIX</option>
+                      <option value="Dinheiro">Dinheiro</option>
+                      <option value="Débito">Débito</option>
+                      <option value="Crédito">Crédito</option>
+                      <option value="Fiado">Fiado</option>
+                    </select>
+
+                    {forma === "Crédito" && (
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-black/60 dark:text-white/60">Parcelas</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={parcelas[comanda.id] ?? "1"}
+                          onChange={(e) => setParcelas({ ...parcelas, [comanda.id]: e.target.value })}
+                          className={`${inputStyle} w-16`}
+                        />
+                      </div>
+                    )}
+
+                    {(forma === "Dinheiro" || forma === "Fiado") && (
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-black/60 dark:text-white/60">
+                          {forma === "Fiado" ? "Pago agora" : "Recebido"}
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={valorRecebido[comanda.id] ?? ""}
+                          onChange={(e) => setValorRecebido({ ...valorRecebido, [comanda.id]: e.target.value })}
+                          className={`${inputStyle} w-20`}
+                        />
+                      </div>
+                    )}
+
+                    {(forma === "Fiado" || (forma === "Dinheiro" && faltante > 0)) && (
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-black/60 dark:text-white/60">Cliente</label>
+                        <select
+                          value={clienteSelecionado[comanda.id] ?? ""}
+                          onChange={(e) =>
+                            setClienteSelecionado({ ...clienteSelecionado, [comanda.id]: e.target.value })
+                          }
+                          className={`${inputStyle} min-w-0`}
+                        >
+                          <option value="">Selecione</option>
+                          {clientes.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.nome}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  {trocoCalculado !== null && (
+                    <p className="text-sm font-medium text-green-600">Troco: R$ {trocoCalculado.toFixed(2)}</p>
+                  )}
+                  {faltante > 0 && (forma === "Dinheiro" || forma === "Fiado") && (
+                    <p className="text-sm font-medium text-amber-600">
+                      {clienteSelecionado[comanda.id]
+                        ? `Fica devendo: R$ ${faltante.toFixed(2)}`
+                        : `Falta R$ ${faltante.toFixed(2)} — selecione um cliente pra registrar como fiado`}
+                    </p>
+                  )}
+
                   <button
-                    onClick={() => fecharComanda(comanda.id)}
-                    disabled={comanda.itens.length === 0 || salvando}
+                    onClick={() => fecharComanda(comanda.id, total)}
+                    disabled={
+                      comanda.itens.length === 0 ||
+                      salvando ||
+                      (precisaDeCliente && !clienteSelecionado[comanda.id])
+                    }
                     className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {salvando ? "Salvando..." : "Fechar comanda"}

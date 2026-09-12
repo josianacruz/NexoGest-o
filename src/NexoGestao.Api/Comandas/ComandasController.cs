@@ -8,7 +8,11 @@ using NexoGestao.Api.Shared;
 namespace NexoGestao.Api.Comandas;
 
 public record AdicionarItemRequest(int ProdutoId, int Quantidade);
-public record FecharComandaRequest(string FormaPagamento);
+public record FecharComandaRequest(
+    string FormaPagamento,
+    int? ClienteId = null,
+    decimal? ValorRecebido = null,
+    int? Parcelas = null);
 
 [ApiController]
 [Route("api/empresas/{empresaId:int}/comandas")]
@@ -109,6 +113,12 @@ public class ComandasController : TenantControllerBase
         if (string.IsNullOrWhiteSpace(request.FormaPagamento))
             return BadRequest(new { mensagem = "Informe a forma de pagamento." });
 
+        if (request.FormaPagamento == "Fiado" && request.ClienteId is null)
+            return BadRequest(new { mensagem = "Venda fiado precisa estar vinculada a um cliente." });
+
+        if (request.FormaPagamento == "Crédito" && request.Parcelas is not null && request.Parcelas < 1)
+            return BadRequest(new { mensagem = "O número de parcelas deve ser maior que zero." });
+
         var itemSemEstoque = comanda.Itens.FirstOrDefault(i => i.Produto.Estoque < i.Quantidade);
         if (itemSemEstoque is not null)
             return BadRequest(new { mensagem = $"Estoque insuficiente de {itemSemEstoque.Produto.Nome}." });
@@ -116,6 +126,7 @@ public class ComandasController : TenantControllerBase
         var venda = new Venda
         {
             EmpresaId = empresaAutorizada.Value,
+            ClienteId = request.ClienteId,
             FormaPagamento = request.FormaPagamento,
         };
 
@@ -133,12 +144,43 @@ public class ComandasController : TenantControllerBase
         }
         venda.Total = total;
 
+        if (request.FormaPagamento == "Dinheiro" && request.ValorRecebido is not null)
+        {
+            if (request.ValorRecebido < total)
+            {
+                if (request.ClienteId is null)
+                    return BadRequest(new { mensagem = "Para receber menos que o total, selecione um cliente — o restante fica registrado como fiado." });
+
+                venda.ValorRecebido = request.ValorRecebido;
+                venda.SaldoDevedor = total - request.ValorRecebido;
+            }
+            else
+            {
+                venda.ValorRecebido = request.ValorRecebido;
+                venda.Troco = request.ValorRecebido - total;
+            }
+        }
+        else if (request.FormaPagamento == "Crédito")
+        {
+            venda.Parcelas = request.Parcelas ?? 1;
+        }
+        else if (request.FormaPagamento == "Fiado")
+        {
+            var valorPago = request.ValorRecebido ?? 0;
+            if (valorPago < 0 || valorPago > total)
+                return BadRequest(new { mensagem = "Valor pago inválido para uma venda fiado." });
+
+            venda.ValorRecebido = valorPago;
+            var saldo = total - valorPago;
+            venda.SaldoDevedor = saldo > 0 ? saldo : null;
+        }
+
         Context.Vendas.Add(venda);
         comanda.Venda = venda;
         comanda.Status = StatusComanda.Fechada;
 
         await Context.SaveChangesAsync();
 
-        return Ok(new { venda.Id, venda.Total, comanda.Status });
+        return Ok(new { venda.Id, venda.Total, venda.Troco, venda.SaldoDevedor, comanda.Status });
     }
 }
