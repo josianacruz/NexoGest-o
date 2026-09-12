@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "../_components/Nav";
+import { API_URL } from "../../lib/api";
 
 interface Produto {
   id: number;
@@ -50,7 +51,7 @@ export default function VendasPage() {
       return;
     }
 
-    const resEmpresas = await fetch("http://localhost:5104/api/empresas/minhas", {
+    const resEmpresas = await fetch(`${API_URL}/api/empresas/minhas`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (resEmpresas.status === 401) {
@@ -65,10 +66,10 @@ export default function VendasPage() {
     setEmpresaNome(empresa.nome);
 
     const [resProdutos, resVendas] = await Promise.all([
-      fetch(`http://localhost:5104/api/empresas/${empresa.id}/produtos`, {
+      fetch(`${API_URL}/api/empresas/${empresa.id}/produtos`, {
         headers: { Authorization: `Bearer ${token}` },
       }),
-      fetch(`http://localhost:5104/api/empresas/${empresa.id}/vendas`, {
+      fetch(`${API_URL}/api/empresas/${empresa.id}/vendas`, {
         headers: { Authorization: `Bearer ${token}` },
       }),
     ]);
@@ -111,7 +112,7 @@ export default function VendasPage() {
     const token = getToken();
     if (!token || !empresaId || carrinho.length === 0) return;
 
-    const res = await fetch(`http://localhost:5104/api/empresas/${empresaId}/vendas`, {
+    const res = await fetch(`${API_URL}/api/empresas/${empresaId}/vendas`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

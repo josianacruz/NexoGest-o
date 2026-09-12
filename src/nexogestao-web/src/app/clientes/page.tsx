@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "../_components/Nav";
+import { API_URL } from "../../lib/api";
 
 interface Cliente {
   id: number;
@@ -35,7 +36,7 @@ export default function ClientesPage() {
       return;
     }
 
-    const resEmpresas = await fetch("http://localhost:5104/api/empresas/minhas", {
+    const resEmpresas = await fetch(`${API_URL}/api/empresas/minhas`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (resEmpresas.status === 401) {
@@ -52,7 +53,7 @@ export default function ClientesPage() {
     setEmpresaNome(primeiraEmpresa.nome);
 
     const resClientes = await fetch(
-      `http://localhost:5104/api/empresas/${primeiraEmpresa.id}/clientes`,
+      `${API_URL}/api/empresas/${primeiraEmpresa.id}/clientes`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const listaClientes = await resClientes.json();
@@ -69,7 +70,7 @@ export default function ClientesPage() {
     const token = getToken();
     if (!token || !empresaId) return;
 
-    const res = await fetch(`http://localhost:5104/api/empresas/${empresaId}/clientes`, {
+    const res = await fetch(`${API_URL}/api/empresas/${empresaId}/clientes`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "../_components/Nav";
+import { API_URL } from "../../lib/api";
 
 interface Produto {
   id: number;
@@ -57,7 +58,7 @@ export default function ComandasPage() {
       return;
     }
 
-    const resEmpresas = await fetch("http://localhost:5104/api/empresas/minhas", {
+    const resEmpresas = await fetch(`${API_URL}/api/empresas/minhas`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (resEmpresas.status === 401) {
@@ -72,10 +73,10 @@ export default function ComandasPage() {
     setEmpresaNome(empresa.nome);
 
     const [resProdutos, resComandas] = await Promise.all([
-      fetch(`http://localhost:5104/api/empresas/${empresa.id}/produtos`, {
+      fetch(`${API_URL}/api/empresas/${empresa.id}/produtos`, {
         headers: { Authorization: `Bearer ${token}` },
       }),
-      fetch(`http://localhost:5104/api/empresas/${empresa.id}/comandas`, {
+      fetch(`${API_URL}/api/empresas/${empresa.id}/comandas`, {
         headers: { Authorization: `Bearer ${token}` },
       }),
     ]);
@@ -93,7 +94,7 @@ export default function ComandasPage() {
     const token = getToken();
     if (!token || !empresaId || !numeroNovaComanda) return;
 
-    const res = await fetch(`http://localhost:5104/api/empresas/${empresaId}/comandas`, {
+    const res = await fetch(`${API_URL}/api/empresas/${empresaId}/comandas`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -118,7 +119,7 @@ export default function ComandasPage() {
     if (!token || !empresaId || !produtoId) return;
 
     const res = await fetch(
-      `http://localhost:5104/api/empresas/${empresaId}/comandas/${comandaId}/itens`,
+      `${API_URL}/api/empresas/${empresaId}/comandas/${comandaId}/itens`,
       {
         method: "POST",
         headers: {
@@ -148,7 +149,7 @@ export default function ComandasPage() {
     if (!token || !empresaId) return;
 
     const res = await fetch(
-      `http://localhost:5104/api/empresas/${empresaId}/comandas/${comandaId}/fechar`,
+      `${API_URL}/api/empresas/${empresaId}/comandas/${comandaId}/fechar`,
       {
         method: "POST",
         headers: {
