@@ -81,9 +81,13 @@ que confirma que o usuário logado é membro da empresa antes de liberar
 qualquer operação, e o `AppDbContext` aplica um filtro global por empresa
 nas consultas.
 
+## Deploy
+
+Veja [DEPLOY.md](DEPLOY.md) para colocar o projeto no ar gratuitamente
+(Neon + Render + Vercel).
+
 ## Estado atual / limitações conhecidas
 
 - Sem testes automatizados ainda.
 - Sem pipeline de CI/CD.
-- Pensado para rodar localmente; deploy em produção (HTTPS, backups do
-  banco, variáveis de ambiente do servidor) ainda não foi configurado.
+- Sem tela de cadastro de usuário no frontend (só existe via API).
