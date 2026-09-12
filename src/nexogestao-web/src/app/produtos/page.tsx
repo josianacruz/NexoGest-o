@@ -30,6 +30,7 @@ export default function ProdutosPage() {
   const [estoqueMinimo, setEstoqueMinimo] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [carregando, setCarregando] = useState(true);
   const router = useRouter();
 
   function getToken() {
@@ -43,29 +44,33 @@ export default function ProdutosPage() {
       return;
     }
 
-    const resEmpresas = await fetch(`${API_URL}/api/empresas/minhas`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (resEmpresas.status === 401) {
-      router.push("/login");
-      return;
-    }
-    const empresas = await resEmpresas.json();
-    if (empresas.length === 0) {
-      setErro("Você ainda não tem nenhuma empresa cadastrada.");
-      return;
-    }
-    const primeiraEmpresa = empresas[0];
-    setEmpresaId(primeiraEmpresa.id);
-    setEmpresaNome(primeiraEmpresa.nome);
-    setComandasHabilitadas(primeiraEmpresa.comandasHabilitadas ?? true);
+    try {
+      const resEmpresas = await fetch(`${API_URL}/api/empresas/minhas`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (resEmpresas.status === 401) {
+        router.push("/login");
+        return;
+      }
+      const empresas = await resEmpresas.json();
+      if (empresas.length === 0) {
+        setErro("Você ainda não tem nenhuma empresa cadastrada.");
+        return;
+      }
+      const primeiraEmpresa = empresas[0];
+      setEmpresaId(primeiraEmpresa.id);
+      setEmpresaNome(primeiraEmpresa.nome);
+      setComandasHabilitadas(primeiraEmpresa.comandasHabilitadas ?? true);
 
-    const resProdutos = await fetch(
-      `${API_URL}/api/empresas/${primeiraEmpresa.id}/produtos`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const listaProdutos = await resProdutos.json();
-    setProdutos(listaProdutos);
+      const resProdutos = await fetch(
+        `${API_URL}/api/empresas/${primeiraEmpresa.id}/produtos`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const listaProdutos = await resProdutos.json();
+      setProdutos(listaProdutos);
+    } finally {
+      setCarregando(false);
+    }
   }
 
   useEffect(() => {
@@ -180,7 +185,7 @@ export default function ProdutosPage() {
               {produtos.length === 0 && (
                 <tr>
                   <td colSpan={4} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
-                    Nenhum produto cadastrado.
+                    {carregando ? "Carregando..." : "Nenhum produto cadastrado."}
                   </td>
                 </tr>
               )}

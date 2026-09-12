@@ -55,6 +55,7 @@ export default function ComandasPage() {
   const [clienteSelecionado, setClienteSelecionado] = useState<Record<number, string>>({});
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [carregando, setCarregando] = useState(true);
   const router = useRouter();
 
   function getToken() {
@@ -68,36 +69,40 @@ export default function ComandasPage() {
       return;
     }
 
-    const resEmpresas = await fetch(`${API_URL}/api/empresas/minhas`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (resEmpresas.status === 401) {
-      router.push("/login");
-      return;
+    try {
+      const resEmpresas = await fetch(`${API_URL}/api/empresas/minhas`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (resEmpresas.status === 401) {
+        router.push("/login");
+        return;
+      }
+      const empresas = await resEmpresas.json();
+      if (empresas.length === 0) return;
+
+      const empresa = empresas[0];
+      setEmpresaId(empresa.id);
+      setEmpresaNome(empresa.nome);
+      setComandasHabilitadas(empresa.comandasHabilitadas ?? true);
+
+      const [resProdutos, resComandas, resClientes] = await Promise.all([
+        fetch(`${API_URL}/api/empresas/${empresa.id}/produtos`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API_URL}/api/empresas/${empresa.id}/comandas`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API_URL}/api/empresas/${empresa.id}/clientes`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      setProdutos(await resProdutos.json());
+      setComandas(await resComandas.json());
+      setClientes(await resClientes.json());
+    } finally {
+      setCarregando(false);
     }
-    const empresas = await resEmpresas.json();
-    if (empresas.length === 0) return;
-
-    const empresa = empresas[0];
-    setEmpresaId(empresa.id);
-    setEmpresaNome(empresa.nome);
-    setComandasHabilitadas(empresa.comandasHabilitadas ?? true);
-
-    const [resProdutos, resComandas, resClientes] = await Promise.all([
-      fetch(`${API_URL}/api/empresas/${empresa.id}/produtos`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }),
-      fetch(`${API_URL}/api/empresas/${empresa.id}/comandas`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }),
-      fetch(`${API_URL}/api/empresas/${empresa.id}/clientes`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }),
-    ]);
-
-    setProdutos(await resProdutos.json());
-    setComandas(await resComandas.json());
-    setClientes(await resClientes.json());
   }
 
   useEffect(() => {
@@ -242,7 +247,9 @@ export default function ComandasPage() {
         {erro && <p className="text-sm text-red-600 mb-4">{erro}</p>}
 
         {comandas.length === 0 && (
-          <p className="text-black/40 dark:text-white/40 text-sm">Nenhuma comanda aberta.</p>
+          <p className="text-black/40 dark:text-white/40 text-sm">
+            {carregando ? "Carregando..." : "Nenhuma comanda aberta."}
+          </p>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">

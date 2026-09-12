@@ -27,6 +27,7 @@ export default function ClientesPage() {
   const [email, setEmail] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [carregando, setCarregando] = useState(true);
   const router = useRouter();
 
   function getToken() {
@@ -40,29 +41,33 @@ export default function ClientesPage() {
       return;
     }
 
-    const resEmpresas = await fetch(`${API_URL}/api/empresas/minhas`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (resEmpresas.status === 401) {
-      router.push("/login");
-      return;
-    }
-    const empresas = await resEmpresas.json();
-    if (empresas.length === 0) {
-      setErro("Você ainda não tem nenhuma empresa cadastrada.");
-      return;
-    }
-    const primeiraEmpresa = empresas[0];
-    setEmpresaId(primeiraEmpresa.id);
-    setEmpresaNome(primeiraEmpresa.nome);
-    setComandasHabilitadas(primeiraEmpresa.comandasHabilitadas ?? true);
+    try {
+      const resEmpresas = await fetch(`${API_URL}/api/empresas/minhas`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (resEmpresas.status === 401) {
+        router.push("/login");
+        return;
+      }
+      const empresas = await resEmpresas.json();
+      if (empresas.length === 0) {
+        setErro("Você ainda não tem nenhuma empresa cadastrada.");
+        return;
+      }
+      const primeiraEmpresa = empresas[0];
+      setEmpresaId(primeiraEmpresa.id);
+      setEmpresaNome(primeiraEmpresa.nome);
+      setComandasHabilitadas(primeiraEmpresa.comandasHabilitadas ?? true);
 
-    const resClientes = await fetch(
-      `${API_URL}/api/empresas/${primeiraEmpresa.id}/clientes`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const listaClientes = await resClientes.json();
-    setClientes(listaClientes);
+      const resClientes = await fetch(
+        `${API_URL}/api/empresas/${primeiraEmpresa.id}/clientes`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const listaClientes = await resClientes.json();
+      setClientes(listaClientes);
+    } finally {
+      setCarregando(false);
+    }
   }
 
   useEffect(() => {
@@ -170,7 +175,7 @@ export default function ClientesPage() {
               {clientes.length === 0 && (
                 <tr>
                   <td colSpan={5} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
-                    Nenhum cliente cadastrado.
+                    {carregando ? "Carregando..." : "Nenhum cliente cadastrado."}
                   </td>
                 </tr>
               )}
