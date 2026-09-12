@@ -27,6 +27,12 @@ public class VendasController : TenantControllerBase
         if (request.Itens is null || request.Itens.Count == 0)
             return BadRequest(new { mensagem = "A venda precisa ter pelo menos um item." });
 
+        if (string.IsNullOrWhiteSpace(request.FormaPagamento))
+            return BadRequest(new { mensagem = "Informe a forma de pagamento." });
+
+        if (request.Itens.Any(i => i.Quantidade <= 0))
+            return BadRequest(new { mensagem = "A quantidade de cada item deve ser maior que zero." });
+
         var produtoIds = request.Itens.Select(i => i.ProdutoId).ToList();
         var produtos = await Context.Produtos
             .Where(p => produtoIds.Contains(p.Id))
@@ -34,6 +40,13 @@ public class VendasController : TenantControllerBase
 
         if (produtos.Count != produtoIds.Distinct().Count())
             return BadRequest(new { mensagem = "Um ou mais produtos não foram encontrados nessa empresa." });
+
+        foreach (var itemReq in request.Itens)
+        {
+            var produto = produtos.First(p => p.Id == itemReq.ProdutoId);
+            if (produto.Estoque < itemReq.Quantidade)
+                return BadRequest(new { mensagem = $"Estoque insuficiente de {produto.Nome}." });
+        }
 
         var venda = new Venda
         {

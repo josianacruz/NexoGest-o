@@ -25,6 +25,14 @@ public class ComandasController : TenantControllerBase
         if (empresaAutorizada is null)
             return Forbid();
 
+        if (request.Numero <= 0)
+            return BadRequest(new { mensagem = "O número da comanda deve ser maior que zero." });
+
+        var jaAberta = await Context.Comandas
+            .AnyAsync(c => c.Numero == request.Numero && c.Status == StatusComanda.Aberta);
+        if (jaAberta)
+            return BadRequest(new { mensagem = "Já existe uma comanda aberta com esse número." });
+
         var comanda = new Comanda
         {
             EmpresaId = empresaAutorizada.Value,
@@ -64,6 +72,9 @@ public class ComandasController : TenantControllerBase
         if (empresaAutorizada is null)
             return Forbid();
 
+        if (request.Quantidade <= 0)
+            return BadRequest(new { mensagem = "A quantidade deve ser maior que zero." });
+
         var comanda = await Context.Comandas.FirstOrDefaultAsync(c => c.Id == comandaId);
         if (comanda is null || comanda.Status != StatusComanda.Aberta)
             return NotFound(new { mensagem = "Comanda não encontrada ou já fechada." });
@@ -101,6 +112,13 @@ public class ComandasController : TenantControllerBase
 
         if (comanda.Itens.Count == 0)
             return BadRequest(new { mensagem = "A comanda precisa ter pelo menos um item para ser fechada." });
+
+        if (string.IsNullOrWhiteSpace(request.FormaPagamento))
+            return BadRequest(new { mensagem = "Informe a forma de pagamento." });
+
+        var itemSemEstoque = comanda.Itens.FirstOrDefault(i => i.Produto.Estoque < i.Quantidade);
+        if (itemSemEstoque is not null)
+            return BadRequest(new { mensagem = $"Estoque insuficiente de {itemSemEstoque.Produto.Nome}." });
 
         var venda = new Venda
         {

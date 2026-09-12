@@ -30,6 +30,9 @@ public class EmpresasController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Criar(CriarEmpresaRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.Nome))
+            return BadRequest(new { mensagem = "O nome da empresa é obrigatório." });
+
         var empresa = new Empresa
         {
             Nome = request.Nome,

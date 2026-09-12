@@ -23,6 +23,9 @@ public class ClientesController : TenantControllerBase
         if (empresaAutorizada is null)
             return Forbid();
 
+        if (string.IsNullOrWhiteSpace(request.Nome))
+            return BadRequest(new { mensagem = "O nome do cliente é obrigatório." });
+
         var cliente = new Cliente
         {
             EmpresaId = empresaAutorizada.Value,

@@ -23,6 +23,15 @@ public class ProdutosController : TenantControllerBase
         if (empresaAutorizada is null)
             return Forbid();
 
+        if (string.IsNullOrWhiteSpace(request.Nome))
+            return BadRequest(new { mensagem = "O nome do produto é obrigatório." });
+
+        if (request.Preco < 0 || request.Custo < 0)
+            return BadRequest(new { mensagem = "Preço e custo não podem ser negativos." });
+
+        if (request.Estoque < 0 || request.EstoqueMinimo < 0)
+            return BadRequest(new { mensagem = "Estoque e estoque mínimo não podem ser negativos." });
+
         var produto = new Produto
         {
             EmpresaId = empresaAutorizada.Value,
