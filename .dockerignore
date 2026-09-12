@@ -1,0 +1,4 @@
+**/bin/
+**/obj/
+src/nexogestao-web/node_modules/
+src/nexogestao-web/.next/
