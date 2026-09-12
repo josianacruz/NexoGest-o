@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "../_components/Nav";
+import WhatsAppMenu from "../_components/WhatsAppMenu";
 import { API_URL } from "../../lib/api";
 
 interface Cliente {
@@ -132,14 +133,15 @@ export default function ClientesPage() {
           {erro && <p className="text-sm text-red-600 mt-3">{erro}</p>}
         </div>
 
-        <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl overflow-hidden shadow-sm">
-          <table className="w-full text-sm">
+        <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl shadow-sm overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
             <thead>
               <tr className="text-left text-black/50 dark:text-white/50 border-b border-black/10 dark:border-white/10">
                 <th className="py-2 px-4 font-medium">Nome</th>
                 <th className="py-2 px-4 font-medium">Telefone</th>
                 <th className="py-2 px-4 font-medium">Email</th>
                 <th className="py-2 px-4 font-medium">Deve (fiado)</th>
+                <th className="py-2 px-4 font-medium text-center">WhatsApp</th>
               </tr>
             </thead>
             <tbody>
@@ -155,11 +157,19 @@ export default function ClientesPage() {
                       <span className="text-black/30 dark:text-white/30">—</span>
                     )}
                   </td>
+                  <td className="py-2 px-4 text-center">
+                    <WhatsAppMenu
+                      nome={c.nome}
+                      telefone={c.telefone}
+                      saldoDevedor={c.saldoDevedor}
+                      onErro={setErro}
+                    />
+                  </td>
                 </tr>
               ))}
               {clientes.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                  <td colSpan={5} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
                     Nenhum cliente cadastrado.
                   </td>
                 </tr>
