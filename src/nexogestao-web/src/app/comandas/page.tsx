@@ -26,6 +26,7 @@ interface ItemComanda {
 interface Comanda {
   id: number;
   numero: number;
+  nomeCliente?: string | null;
   itens: ItemComanda[];
 }
 
@@ -56,6 +57,8 @@ export default function ComandasPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [carregando, setCarregando] = useState(true);
+  const [nomeNovoCliente, setNomeNovoCliente] = useState("");
+  const [busca, setBusca] = useState("");
   const router = useRouter();
 
   function getToken() {
@@ -123,6 +126,7 @@ export default function ComandasPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({ nomeCliente: nomeNovoCliente.trim() || null }),
       });
 
       if (!res.ok) {
@@ -130,6 +134,7 @@ export default function ComandasPage() {
         return;
       }
 
+      setNomeNovoCliente("");
       await carregarTudo();
     } finally {
       setSalvando(false);
@@ -239,12 +244,47 @@ export default function ComandasPage() {
         <h1 className="text-xl font-semibold tracking-tight mb-6">Comandas</h1>
 
         <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-5 shadow-sm mb-6">
-          <button onClick={abrirComanda} disabled={salvando} className={`${botaoSecundario} disabled:opacity-40 disabled:cursor-not-allowed`}>
-            {salvando ? "Abrindo..." : "+ Abrir nova comanda"}
-          </button>
+          <div className="flex flex-wrap gap-2 items-end">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-black/60 dark:text-white/60">Nome do cliente (opcional)</label>
+              <input
+                value={nomeNovoCliente}
+                onChange={(e) => setNomeNovoCliente(e.target.value)}
+                placeholder="Ex: João"
+                className={`${inputStyle} w-48`}
+              />
+            </div>
+            <button onClick={abrirComanda} disabled={salvando} className={`${botaoSecundario} disabled:opacity-40 disabled:cursor-not-allowed`}>
+              {salvando ? "Abrindo..." : "+ Abrir nova comanda"}
+            </button>
+          </div>
         </div>
 
         {erro && <p className="text-sm text-red-600 mb-4">{erro}</p>}
+
+        {comandas.length > 0 && (
+          <div className="relative mb-4 max-w-xs">
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 dark:text-white/40"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar por nome ou número da comanda..."
+              className={`${inputStyle} w-full pl-9`}
+            />
+          </div>
+        )}
 
         {comandas.length === 0 && (
           <p className="text-black/40 dark:text-white/40 text-sm">
@@ -252,8 +292,29 @@ export default function ComandasPage() {
           </p>
         )}
 
+        {comandas.length > 0 &&
+          comandas.filter((c) => {
+            const termo = busca.trim().toLowerCase();
+            if (!termo) return true;
+            return (
+              String(c.numero).includes(termo) ||
+              (c.nomeCliente ?? "").toLowerCase().includes(termo)
+            );
+          }).length === 0 && (
+            <p className="text-black/40 dark:text-white/40 text-sm">Nenhuma comanda encontrada pra essa busca.</p>
+          )}
+
         <div className="grid gap-4 sm:grid-cols-2">
-          {comandas.map((comanda) => {
+          {comandas
+            .filter((c) => {
+              const termo = busca.trim().toLowerCase();
+              if (!termo) return true;
+              return (
+                String(c.numero).includes(termo) ||
+                (c.nomeCliente ?? "").toLowerCase().includes(termo)
+              );
+            })
+            .map((comanda) => {
             const total = comanda.itens.reduce((soma, item) => soma + item.preco * item.quantidade, 0);
             const forma = formaPagamento[comanda.id] ?? "PIX";
             const faltante = faltantePara(comanda.id, total);
@@ -267,7 +328,12 @@ export default function ComandasPage() {
                 key={comanda.id}
                 className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-5 shadow-sm flex flex-col gap-3"
               >
-                <h3 className="font-semibold">Comanda {comanda.numero}</h3>
+                <h3 className="font-semibold">
+                  Comanda {comanda.numero}
+                  {comanda.nomeCliente && (
+                    <span className="text-black/50 dark:text-white/50 font-normal"> — {comanda.nomeCliente}</span>
+                  )}
+                </h3>
 
                 {comanda.itens.length > 0 && (
                   <table className="w-full text-sm">

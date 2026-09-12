@@ -7,6 +7,7 @@ using NexoGestao.Api.Shared;
 
 namespace NexoGestao.Api.Comandas;
 
+public record AbrirComandaRequest(string? NomeCliente = null);
 public record AdicionarItemRequest(int ProdutoId, int Quantidade);
 public record FecharComandaRequest(
     string FormaPagamento,
@@ -22,7 +23,7 @@ public class ComandasController : TenantControllerBase
     public ComandasController(AppDbContext context) : base(context) { }
 
     [HttpPost]
-    public async Task<IActionResult> Abrir(int empresaId)
+    public async Task<IActionResult> Abrir(int empresaId, AbrirComandaRequest request)
     {
         var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
         if (empresaAutorizada is null)
@@ -34,11 +35,12 @@ public class ComandasController : TenantControllerBase
         {
             EmpresaId = empresaAutorizada.Value,
             Numero = ultimoNumero + 1,
+            NomeCliente = string.IsNullOrWhiteSpace(request.NomeCliente) ? null : request.NomeCliente.Trim(),
         };
         Context.Comandas.Add(comanda);
         await Context.SaveChangesAsync();
 
-        return Ok(new { comanda.Id, comanda.Numero, comanda.Status });
+        return Ok(new { comanda.Id, comanda.Numero, comanda.NomeCliente, comanda.Status });
     }
 
     [HttpGet]
@@ -55,6 +57,7 @@ public class ComandasController : TenantControllerBase
             {
                 c.Id,
                 c.Numero,
+                c.NomeCliente,
                 Itens = c.Itens.Select(i => new { i.ProdutoId, i.Produto.Nome, i.Quantidade, i.Produto.Preco })
             })
             .ToListAsync();

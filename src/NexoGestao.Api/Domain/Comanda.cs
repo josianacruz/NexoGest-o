@@ -12,6 +12,7 @@ public class Comanda
     public int EmpresaId { get; set; }
     public Empresa Empresa { get; set; } = null!;
     public int Numero { get; set; }
+    public string? NomeCliente { get; set; }
     public StatusComanda Status { get; set; } = StatusComanda.Aberta;
     public int? VendaId { get; set; }
     public Venda? Venda { get; set; }
