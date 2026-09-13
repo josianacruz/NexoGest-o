@@ -195,9 +195,9 @@ export default function DivulgarHorarioPage() {
 }
 
 function DivulgarHorarioConteudo() {
+  const [empresaId, setEmpresaId] = useState<number | null>(null);
   const [empresaNome, setEmpresaNome] = useState("");
   const [comandasHabilitadas, setComandasHabilitadas] = useState(true);
-  const [linkAgendamento, setLinkAgendamento] = useState("");
   const searchParams = useSearchParams();
   const [data, setData] = useState(searchParams.get("data") ?? "");
   const [hora, setHora] = useState(searchParams.get("hora") ?? "");
@@ -207,6 +207,8 @@ function DivulgarHorarioConteudo() {
   const [formato, setFormato] = useState<"post" | "story">("post");
   const [baixando, setBaixando] = useState(false);
   const [linkCopiado, setLinkCopiado] = useState(false);
+  const [linkVaga, setLinkVaga] = useState<string | null>(null);
+  const [gerandoLink, setGerandoLink] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -226,11 +228,35 @@ function DivulgarHorarioConteudo() {
       }
       const empresas = await resEmpresas.json();
       if (empresas.length === 0) return;
+      setEmpresaId(empresas[0].id);
       setEmpresaNome(empresas[0].nome);
       setComandasHabilitadas(empresas[0].comandasHabilitadas ?? true);
-      setLinkAgendamento(`${window.location.origin}/agendar/${empresas[0].id}`);
     })();
   }, [router]);
+
+  // Data/hora mudou depois de gerado — o link exclusivo antigo não representa
+  // mais esse horário, então precisa gerar de novo.
+  useEffect(() => {
+    setLinkVaga(null);
+  }, [data, hora]);
+
+  async function gerarLinkExclusivo() {
+    if (!empresaId || !data || !hora || gerandoLink) return;
+    const token = localStorage.getItem("nexo_token");
+    setGerandoLink(true);
+    try {
+      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/agenda/vagas`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ data, hora }),
+      });
+      if (!res.ok) return;
+      const vaga = await res.json();
+      setLinkVaga(`${window.location.origin}/vaga/${vaga.token}`);
+    } finally {
+      setGerandoLink(false);
+    }
+  }
 
   async function baixarImagem() {
     if (!previewRef.current) return;
@@ -248,13 +274,15 @@ function DivulgarHorarioConteudo() {
   }
 
   function copiarLink() {
-    navigator.clipboard.writeText(linkAgendamento);
+    if (!linkVaga) return;
+    navigator.clipboard.writeText(linkVaga);
     setLinkCopiado(true);
     setTimeout(() => setLinkCopiado(false), 2000);
   }
 
   function compartilharWhatsApp() {
-    const texto = `Vagou um horário${data ? ` em ${formatarDataBr(data)}` : ""}${hora ? ` às ${hora}` : ""}! ${frase ? frase + " " : ""}Agende pelo link: ${linkAgendamento}`;
+    if (!linkVaga) return;
+    const texto = `Vagou um horário${data ? ` em ${formatarDataBr(data)}` : ""}${hora ? ` às ${hora}` : ""}! ${frase ? frase + " " : ""}Agende pelo link: ${linkVaga}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener,noreferrer");
   }
 
@@ -357,16 +385,31 @@ function DivulgarHorarioConteudo() {
               {baixando ? "Gerando..." : "Baixar imagem"}
             </button>
 
-            <div className="flex items-center gap-2 w-full max-w-sm">
-              <input readOnly value={linkAgendamento} onFocus={(e) => e.currentTarget.select()} className={`${inputStyle} flex-1 text-xs`} />
-              <button type="button" onClick={copiarLink} className={botaoSecundario}>
-                {linkCopiado ? "Copiado!" : "Copiar link"}
+            {linkVaga ? (
+              <>
+                <div className="flex items-center gap-2 w-full max-w-sm">
+                  <input readOnly value={linkVaga} onFocus={(e) => e.currentTarget.select()} className={`${inputStyle} flex-1 text-xs`} />
+                  <button type="button" onClick={copiarLink} className={botaoSecundario}>
+                    {linkCopiado ? "Copiado!" : "Copiar link"}
+                  </button>
+                </div>
+                <button type="button" onClick={compartilharWhatsApp} className={`${botaoTexto} w-full max-w-sm text-center`}>
+                  Compartilhar no WhatsApp
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={gerarLinkExclusivo}
+                disabled={!data || !hora || gerandoLink}
+                className={`${botaoSecundario} w-full max-w-sm`}
+              >
+                {gerandoLink ? "Gerando link..." : "Gerar link exclusivo desta vaga"}
               </button>
-            </div>
-
-            <button type="button" onClick={compartilharWhatsApp} className={`${botaoTexto} w-full max-w-sm text-center`}>
-              Compartilhar no WhatsApp
-            </button>
+            )}
+            <p className="text-xs text-black/40 dark:text-white/40 text-center max-w-sm">
+              O link é exclusivo dessa data/hora: some assim que alguém agendar.
+            </p>
           </div>
         </div>
       </main>

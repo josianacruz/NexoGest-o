@@ -28,6 +28,8 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<Agendamento> Agendamentos => Set<Agendamento>();
     public DbSet<ConfiguracaoAgenda> ConfiguracoesAgenda => Set<ConfiguracaoAgenda>();
     public DbSet<CobrancaAgendamento> CobrancasAgendamento => Set<CobrancaAgendamento>();
+    public DbSet<VagaDivulgada> VagasDivulgadas => Set<VagaDivulgada>();
+    public DbSet<Notificacao> Notificacoes => Set<Notificacao>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -43,5 +45,8 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         builder.Entity<Agendamento>().HasQueryFilter(a => EmpresaAtualId != null && a.EmpresaId == EmpresaAtualId);
         builder.Entity<ConfiguracaoAgenda>().HasQueryFilter(c => EmpresaAtualId != null && c.EmpresaId == EmpresaAtualId);
         builder.Entity<CobrancaAgendamento>().HasQueryFilter(c => EmpresaAtualId != null && c.EmpresaId == EmpresaAtualId);
+        builder.Entity<VagaDivulgada>().HasQueryFilter(v => EmpresaAtualId != null && v.EmpresaId == EmpresaAtualId);
+        builder.Entity<VagaDivulgada>().HasIndex(v => v.Token).IsUnique();
+        builder.Entity<Notificacao>().HasQueryFilter(n => EmpresaAtualId != null && n.EmpresaId == EmpresaAtualId);
     }
 }

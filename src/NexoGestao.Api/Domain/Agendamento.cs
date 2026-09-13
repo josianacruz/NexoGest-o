@@ -9,6 +9,8 @@ public enum StatusAgendamento
     Faltou
 }
 
+public enum OrigemAgendamento { Manual, Autoagendamento, HorarioVago }
+
 public class Agendamento
 {
     public int Id { get; set; }
@@ -38,4 +40,6 @@ public class Agendamento
 
     // Marcado com "Chegou" — some com o destaque de atraso na tela.
     public DateTime? HoraChegada { get; set; }
+
+    public OrigemAgendamento Origem { get; set; } = OrigemAgendamento.Manual;
 }

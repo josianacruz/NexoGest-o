@@ -200,7 +200,13 @@ export default function AgendaPage() {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [resumo, setResumo] = useState<Resumo | null>(null);
   const [visualizacao, setVisualizacao] = useState<Visualizacao>("dia");
-  const [dataSelecionada, setDataSelecionada] = useState(hojeChave());
+  const [dataSelecionada, setDataSelecionada] = useState(() => {
+    if (typeof window !== "undefined") {
+      const dataDaUrl = new URLSearchParams(window.location.search).get("data");
+      if (dataDaUrl) return dataDaUrl;
+    }
+    return hojeChave();
+  });
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [carregando, setCarregando] = useState(true);

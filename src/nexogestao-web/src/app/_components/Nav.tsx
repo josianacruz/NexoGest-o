@@ -16,6 +16,7 @@ export default function Nav({
   const pathname = usePathname();
   const router = useRouter();
   const [quantidadeVencidas, setQuantidadeVencidas] = useState(0);
+  const [naoLidas, setNaoLidas] = useState(0);
   // Enquanto os módulos ainda não carregaram, não mostra nenhum — mostrar
   // tudo de início deixava módulos desabilitados visíveis por um instante
   // (e presos até o próximo fetch, se a requisição demorasse).
@@ -40,6 +41,17 @@ export default function Nav({
         if (empresas.length === 0) return;
 
         setModulos(empresas[0].modulos ?? []);
+
+        if (temModulo(empresas[0].modulos ?? [], "Agenda")) {
+          const resNotificacoes = await fetch(
+            `${API_URL}/api/empresas/${empresas[0].id}/notificacoes/nao-lidas`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (resNotificacoes.ok) {
+            const dadosNotificacoes = await resNotificacoes.json();
+            setNaoLidas(dadosNotificacoes.quantidade ?? 0);
+          }
+        }
 
         if (!temModulo(empresas[0].modulos ?? [], "Cobrancas")) return;
 
@@ -91,6 +103,16 @@ export default function Nav({
           </div>
         </div>
         <div className="flex items-center gap-3 text-sm shrink-0">
+          {modulos !== null && temModulo(modulos, "Agenda") && (
+            <Link href="/notificacoes" className="relative h-9 w-9 inline-flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-lg" title="Notificações">
+              🔔
+              {naoLidas > 0 && (
+                <span className="absolute top-0.5 right-0.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-red-600 text-white text-[10px] font-bold">
+                  {naoLidas}
+                </span>
+              )}
+            </Link>
+          )}
           {empresaNome && (
             <span className="hidden sm:inline text-black/50 dark:text-white/50 truncate max-w-[140px]">
               {empresaNome}

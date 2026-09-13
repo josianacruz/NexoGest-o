@@ -180,6 +180,7 @@ public class AgendamentoPublicoController : ControllerBase
             DuracaoMinutos = servico.DuracaoMinutos,
             Valor = servico.Preco,
             Status = StatusAgendamento.Agendado,
+            Origem = OrigemAgendamento.Autoagendamento,
         };
         Context.Agendamentos.Add(agendamento);
         await Context.SaveChangesAsync();
