@@ -6,7 +6,7 @@ import Nav from "../_components/Nav";
 import Drawer from "../_components/Drawer";
 import PageHeader from "../_components/PageHeader";
 import SearchInput from "../_components/SearchInput";
-import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, cardStyle } from "../_components/ui";
+import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, botaoPerigo, cardStyle } from "../_components/ui";
 import { API_URL } from "../../lib/api";
 
 interface Produto {
@@ -53,6 +53,7 @@ export default function ComandasPage() {
   const [carregando, setCarregando] = useState(true);
   const [busca, setBusca] = useState("");
   const [nomeNovaComanda, setNomeNovaComanda] = useState("");
+  const [selecionadas, setSelecionadas] = useState<number[]>([]);
 
   const [comandaAbertaId, setComandaAbertaId] = useState<number | null>(null);
   const [produtoSelecionado, setProdutoSelecionado] = useState("");
@@ -137,8 +138,16 @@ export default function ComandasPage() {
         return;
       }
 
+      const novaComanda = await res.json();
       setNomeNovaComanda("");
       await carregarTudo();
+      setComandaAbertaId(novaComanda.id);
+      setProdutoSelecionado("");
+      setQuantidade("1");
+      setFormaPagamento("PIX");
+      setValorRecebido("");
+      setParcelas("1");
+      setClienteSelecionado("");
     } finally {
       setSalvando(false);
     }
@@ -330,6 +339,41 @@ export default function ComandasPage() {
     }
   }
 
+  function alternarSelecao(id: number) {
+    setSelecionadas((atual) =>
+      atual.includes(id) ? atual.filter((x) => x !== id) : [...atual, id]
+    );
+  }
+
+  async function excluirSelecionadas() {
+    if (salvando || !empresaId || selecionadas.length === 0) return;
+    if (
+      !window.confirm(
+        `Cancelar ${selecionadas.length} ${selecionadas.length === 1 ? "comanda" : "comandas"}? Essa ação não pode ser desfeita.`
+      )
+    )
+      return;
+    setErro(null);
+    const token = getToken();
+    if (!token) return;
+
+    setSalvando(true);
+    try {
+      await Promise.all(
+        selecionadas.map((id) =>
+          fetch(`${API_URL}/api/empresas/${empresaId}/comandas/${id}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          })
+        )
+      );
+      setSelecionadas([]);
+      await carregarTudo();
+    } finally {
+      setSalvando(false);
+    }
+  }
+
   const comandasFiltradas = comandas.filter((c) => {
     const termo = busca.trim().toLowerCase();
     if (!termo) return true;
@@ -368,35 +412,65 @@ export default function ComandasPage() {
 
         {erro && !comandaAbertaId && <p className="text-sm text-red-600 mb-4">{erro}</p>}
 
-        <div className={`${cardStyle} divide-y divide-black/5 dark:divide-white/5`}>
-          {comandasFiltradas.map((c) => {
-            const total = c.itens.reduce((soma, i) => soma + i.preco * i.quantidade, 0);
-            const qtdItens = c.itens.reduce((soma, i) => soma + i.quantidade, 0);
-            return (
-              <button
-                key={c.id}
-                onClick={() => abrirDrawer(c)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors"
-              >
-                <span className="text-indigo-600 dark:text-indigo-400 font-semibold w-10 shrink-0">#{c.numero}</span>
-                <span className="flex-1 min-w-0 truncate">{c.nomeCliente ?? "Sem nome"}</span>
-                <span className="text-black/50 dark:text-white/50 text-sm shrink-0">
-                  {qtdItens} {qtdItens === 1 ? "item" : "itens"}
-                </span>
-                <span className="font-semibold w-24 text-right shrink-0">R$ {total.toFixed(2)}</span>
+        {selecionadas.length > 0 && (
+          <div className={`${cardStyle} p-3 mb-4 flex items-center justify-between gap-3`}>
+            <span className="text-sm">
+              {selecionadas.length} {selecionadas.length === 1 ? "comanda selecionada" : "comandas selecionadas"}
+            </span>
+            <div className="flex gap-2">
+              <button onClick={() => setSelecionadas([])} className={botaoTexto}>
+                Limpar seleção
               </button>
-            );
-          })}
-          {comandasFiltradas.length === 0 && (
-            <p className="py-6 px-4 text-center text-black/40 dark:text-white/40 text-sm">
-              {carregando
-                ? "Carregando..."
-                : comandas.length === 0
-                ? "Nenhuma comanda aberta."
-                : "Nenhuma comanda encontrada pra essa busca."}
-            </p>
-          )}
-        </div>
+              <button onClick={excluirSelecionadas} disabled={salvando} className={botaoPerigo}>
+                Excluir selecionadas
+              </button>
+            </div>
+          </div>
+        )}
+
+        {comandasFiltradas.length === 0 ? (
+          <div className={`${cardStyle} py-6 px-4 text-center text-black/40 dark:text-white/40 text-sm`}>
+            {carregando
+              ? "Carregando..."
+              : comandas.length === 0
+              ? "Nenhuma comanda aberta."
+              : "Nenhuma comanda encontrada pra essa busca."}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {comandasFiltradas.map((c) => {
+              const total = c.itens.reduce((soma, i) => soma + i.preco * i.quantidade, 0);
+              const qtdItens = c.itens.reduce((soma, i) => soma + i.quantidade, 0);
+              const selecionada = selecionadas.includes(c.id);
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => abrirDrawer(c)}
+                  className={`${cardStyle} relative flex flex-col gap-1 p-4 pl-9 text-left cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md transition-all ${
+                    selecionada ? "border-indigo-500 ring-1 ring-indigo-500" : ""
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selecionada}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => alternarSelecao(c.id)}
+                    className="absolute top-4 left-3 w-4 h-4 accent-indigo-600 cursor-pointer"
+                    aria-label={`Selecionar comanda #${c.numero}`}
+                  />
+                  <span className="text-indigo-600 dark:text-indigo-400 font-bold text-lg">
+                    #{c.numero}
+                  </span>
+                  <span className="text-sm truncate">{c.nomeCliente ?? "Sem nome"}</span>
+                  <span className="text-xs text-black/50 dark:text-white/50">
+                    {qtdItens} {qtdItens === 1 ? "item" : "itens"}
+                  </span>
+                  <span className="font-semibold mt-1">R$ {total.toFixed(2)}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </main>
 
       {comandaAberta && (
