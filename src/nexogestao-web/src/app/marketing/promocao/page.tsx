@@ -305,11 +305,17 @@ export default function CriarPromocaoPage() {
           <div className="flex flex-col items-center">
             <div
               ref={previewRef}
-              className={`w-full max-w-sm ${dimensoes} overflow-hidden relative`}
-              style={{ background: paleta.background }}
+              className={`w-full max-w-sm ${dimensoes} overflow-hidden relative flex flex-col`}
+              style={
+                foto
+                  ? { background: paleta.background }
+                  : { backgroundImage: `linear-gradient(160deg, ${paleta.surface}, ${paleta.background})` }
+              }
             >
-              {foto ? (
-                <>
+              {/* Foto ocupa ~60% da arte — o resto é sempre reservado pras informações,
+                  então o texto nunca fica espremido no rodapé. */}
+              {foto && (
+                <div className="relative shrink-0 overflow-hidden" style={{ height: "60%" }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     ref={fotoRef}
@@ -322,14 +328,9 @@ export default function CriarPromocaoPage() {
                   {/* Transição suave entre a foto e o fundo da arte, pra foto parecer parte da composição */}
                   <div
                     className="absolute inset-0"
-                    style={{ background: `linear-gradient(to bottom, transparent 30%, ${paleta.background} 88%)` }}
+                    style={{ background: `linear-gradient(to bottom, transparent 45%, ${paleta.background} 100%)` }}
                   />
-                </>
-              ) : (
-                <div
-                  className="absolute inset-0"
-                  style={{ background: `linear-gradient(160deg, ${paleta.surface}, ${paleta.background})` }}
-                />
+                </div>
               )}
 
               <span
@@ -339,7 +340,10 @@ export default function CriarPromocaoPage() {
                 {empresaNome}
               </span>
 
-              <div className="absolute bottom-0 left-0 right-0 p-6 flex flex-col gap-1">
+              {/* Bloco de informações: ocupa o espaço restante e centraliza o
+                  conteúdo verticalmente, então funciona com ou sem descrição/preço
+                  antigo e com nomes de produto de uma ou duas linhas. */}
+              <div className="flex-1 min-h-0 flex flex-col justify-center gap-1.5 px-6 py-5">
                 {frase && (
                   <span
                     className="inline-block w-fit text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 mb-1"
@@ -356,7 +360,7 @@ export default function CriarPromocaoPage() {
                     {descricao}
                   </p>
                 )}
-                <div className="flex items-baseline gap-2 mt-2">
+                <div className="flex items-baseline gap-2 mt-1">
                   {precoNormal &&
                     precoPromo &&
                     Number(precoNormal) > Number(precoPromo) &&
