@@ -92,3 +92,7 @@ export function mensagemAgendamentoConfirmacao(nome: string, data: string, hora:
 export function mensagemAgendamentoLembrete(nome: string, hora: string): string {
   return `Oi, ${nome}! Passando para lembrar do seu horário hoje às ${hora} 😊`;
 }
+
+export function mensagemLinkAgendamento(nome: string, link: string): string {
+  return `Oi, ${nome}! Você pode marcar seu horário direto por aqui, quando for melhor pra você: ${link}`;
+}

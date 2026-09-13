@@ -309,6 +309,7 @@ export default function ClientesPage() {
                       nome={c.nome}
                       telefone={c.telefone}
                       saldoDevedor={c.saldoDevedor}
+                      empresaId={empresaId}
                       onErro={setErro}
                     />
                   </td>

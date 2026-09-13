@@ -6,12 +6,15 @@ import {
   mensagemAgradecerCompra,
   mensagemCobrarFiado,
   mensagemPromocaoPadrao,
+  mensagemLinkAgendamento,
 } from "../../lib/whatsapp";
 
 interface WhatsAppMenuProps {
   nome: string;
   telefone?: string | null;
   saldoDevedor?: number | null;
+  /** Se informado, mostra a opção "Enviar link de agendamento". */
+  empresaId?: number | null;
   /** Chamado quando a ação não pode ser concluída (ex: sem telefone cadastrado). */
   onErro?: (mensagem: string) => void;
 }
@@ -19,7 +22,7 @@ interface WhatsAppMenuProps {
 const itemStyle =
   "w-full text-left px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent";
 
-export default function WhatsAppMenu({ nome, telefone, saldoDevedor, onErro }: WhatsAppMenuProps) {
+export default function WhatsAppMenu({ nome, telefone, saldoDevedor, empresaId, onErro }: WhatsAppMenuProps) {
   const [aberto, setAberto] = useState(false);
   const [posicaoMenu, setPosicaoMenu] = useState({ top: 0, left: 0 });
   const [modalPromocaoAberto, setModalPromocaoAberto] = useState(false);
@@ -117,6 +120,19 @@ export default function WhatsAppMenu({ nome, telefone, saldoDevedor, onErro }: W
           >
             Enviar promoção
           </button>
+          {empresaId && (
+            <button
+              type="button"
+              onClick={() =>
+                tentarAbrirWhatsApp(
+                  mensagemLinkAgendamento(nome, `${window.location.origin}/agendar/${empresaId}`)
+                )
+              }
+              className={itemStyle}
+            >
+              Enviar link de agendamento
+            </button>
+          )}
         </div>
       )}
 
