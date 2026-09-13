@@ -1068,6 +1068,29 @@ export default function AgendaPage() {
         <Modal titulo="Configurações da Agenda" onFechar={() => setModalConfigAberto(false)}>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
+              <label className={labelStyle}>Link público de agendamento</label>
+              <div className="flex gap-2">
+                <input
+                  readOnly
+                  value={empresaId ? `${window.location.origin}/agendar/${empresaId}` : ""}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className={`${inputStyle} flex-1`}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (empresaId) navigator.clipboard.writeText(`${window.location.origin}/agendar/${empresaId}`);
+                  }}
+                  className={botaoTexto}
+                >
+                  Copiar
+                </button>
+              </div>
+              <span className="text-[11px] text-black/40 dark:text-white/40">
+                Envie esse link para os clientes marcarem horário sozinhos, sem login. Só serviços com "Permitir autoagendamento" habilitado aparecem nele.
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
               <label className={labelStyle}>Horas antes para lembrar confirmação</label>
               <input
                 type="number"
