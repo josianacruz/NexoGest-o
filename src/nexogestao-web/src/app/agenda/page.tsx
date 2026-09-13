@@ -674,6 +674,17 @@ export default function AgendaPage() {
           </div>
         )}
 
+        {(a.status === "Cancelado" || a.status === "Faltou") && (
+          <div className="flex flex-wrap gap-3 pt-1 border-t border-black/5 dark:border-white/5 mt-1">
+            <a
+              href={`/marketing/horario-disponivel?data=${a.dataHora.slice(0, 10)}&hora=${formatarHora(a.dataHora)}`}
+              className={botaoTexto}
+            >
+              Divulgar horário
+            </a>
+          </div>
+        )}
+
         {reagendandoId === a.id && (
           <div className="flex flex-col gap-2 pt-2 border-t border-black/5 dark:border-white/5 mt-1">
             {conflitosReagendar && conflitosReagendar.length > 0 && (

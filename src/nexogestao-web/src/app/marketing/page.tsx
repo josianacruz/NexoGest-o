@@ -7,10 +7,12 @@ import Nav from "../_components/Nav";
 import PageHeader from "../_components/PageHeader";
 import { cardStyle } from "../_components/ui";
 import { API_URL } from "../../lib/api";
+import { temModulo } from "../../lib/modulos";
 
 export default function MarketingPage() {
   const [empresaNome, setEmpresaNome] = useState("");
   const [comandasHabilitadas, setComandasHabilitadas] = useState(true);
+  const [temProdutos, setTemProdutos] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -31,6 +33,7 @@ export default function MarketingPage() {
       if (empresas.length > 0) {
         setEmpresaNome(empresas[0].nome);
         setComandasHabilitadas(empresas[0].comandasHabilitadas ?? true);
+        setTemProdutos(temModulo(empresas[0].modulos ?? [], "Produtos"));
       }
     })();
   }, [router]);
@@ -53,16 +56,41 @@ export default function MarketingPage() {
             </p>
           </Link>
 
-          <Link
-            href="/marketing/cardapio"
-            className={`${cardStyle} p-6 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md transition-all`}
-          >
-            <div className="text-3xl mb-2">📋</div>
-            <h2 className="font-semibold mb-1">Criar Cardápio</h2>
-            <p className="text-sm text-black/50 dark:text-white/50">
-              Gere uma imagem de cardápio a partir dos seus produtos cadastrados.
-            </p>
-          </Link>
+          {temProdutos ? (
+            <Link
+              href="/marketing/cardapio"
+              className={`${cardStyle} p-6 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md transition-all`}
+            >
+              <div className="text-3xl mb-2">📋</div>
+              <h2 className="font-semibold mb-1">Criar Cardápio</h2>
+              <p className="text-sm text-black/50 dark:text-white/50">
+                Gere uma imagem de cardápio a partir dos seus produtos cadastrados.
+              </p>
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/marketing/tabela-servicos"
+                className={`${cardStyle} p-6 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md transition-all`}
+              >
+                <div className="text-3xl mb-2">📋</div>
+                <h2 className="font-semibold mb-1">Tabela de serviços e valores</h2>
+                <p className="text-sm text-black/50 dark:text-white/50">
+                  Gere uma imagem com os seus serviços e preços cadastrados.
+                </p>
+              </Link>
+              <Link
+                href="/marketing/horario-disponivel"
+                className={`${cardStyle} p-6 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md transition-all`}
+              >
+                <div className="text-3xl mb-2">📅</div>
+                <h2 className="font-semibold mb-1">Divulgar horário disponível</h2>
+                <p className="text-sm text-black/50 dark:text-white/50">
+                  Avise que vagou um horário, com link/QR pro cliente agendar direto.
+                </p>
+              </Link>
+            </>
+          )}
         </div>
       </main>
     </>

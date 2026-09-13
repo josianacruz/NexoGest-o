@@ -6,6 +6,7 @@ import Nav from "../../_components/Nav";
 import PageHeader from "../../_components/PageHeader";
 import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, cardStyle } from "../../_components/ui";
 import { API_URL } from "../../../lib/api";
+import { temModulo } from "../../../lib/modulos";
 
 interface Produto {
   id: number;
@@ -72,6 +73,7 @@ export default function CriarPromocaoPage() {
   const [empresaNome, setEmpresaNome] = useState("");
   const [comandasHabilitadas, setComandasHabilitadas] = useState(true);
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [temProdutos, setTemProdutos] = useState(true);
   const [produtoSelecionado, setProdutoSelecionado] = useState("");
   const [nomeProduto, setNomeProduto] = useState("");
   const [descricao, setDescricao] = useState("");
@@ -105,10 +107,14 @@ export default function CriarPromocaoPage() {
       setEmpresaNome(empresas[0].nome);
       setComandasHabilitadas(empresas[0].comandasHabilitadas ?? true);
 
-      const resProdutos = await fetch(`${API_URL}/api/empresas/${empresas[0].id}/produtos`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setProdutos(await resProdutos.json());
+      const usaProdutos = temModulo(empresas[0].modulos ?? [], "Produtos");
+      setTemProdutos(usaProdutos);
+
+      const resItens = await fetch(
+        `${API_URL}/api/empresas/${empresas[0].id}/${usaProdutos ? "produtos" : "servicos"}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setProdutos(await resItens.json());
     })();
   }, [router]);
 
@@ -194,7 +200,7 @@ export default function CriarPromocaoPage() {
           {/* Formulário */}
           <div className={`${cardStyle} p-5 flex flex-col gap-3`}>
             <div className="flex flex-col gap-1">
-              <label className={labelStyle}>Produto cadastrado (opcional)</label>
+              <label className={labelStyle}>{temProdutos ? "Produto cadastrado (opcional)" : "Serviço cadastrado (opcional)"}</label>
               <select
                 value={produtoSelecionado}
                 onChange={(e) => selecionarProduto(e.target.value)}
@@ -210,11 +216,11 @@ export default function CriarPromocaoPage() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className={labelStyle}>Nome do produto</label>
+              <label className={labelStyle}>{temProdutos ? "Nome do produto" : "Nome do serviço"}</label>
               <input
                 value={nomeProduto}
                 onChange={(e) => setNomeProduto(e.target.value)}
-                placeholder="Ex: X-Bacon"
+                placeholder={temProdutos ? "Ex: X-Bacon" : "Ex: Corte de cabelo"}
                 className={inputStyle}
               />
             </div>
