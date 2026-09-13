@@ -78,3 +78,17 @@ export function mensagemCobrancaVencida(nome: string, valor: number, vencimento:
     2
   )}, com vencimento em ${formatarDataBr(vencimento)}, está pendente. Se você já realizou o pagamento, pode desconsiderar esta mensagem. 😊`;
 }
+
+export function mensagemAgendamentoAtrasado(nome: string, hora: string): string {
+  return `Oi, ${nome}! Seu horário estava marcado para ${hora}. Está a caminho?`;
+}
+
+// Sem link de confirmação online (o sistema ainda não tem essa página) —
+// pede a confirmação diretamente pela conversa.
+export function mensagemAgendamentoConfirmacao(nome: string, data: string, hora: string, servico: string): string {
+  return `Oi, ${nome}! Seu horário está marcado para ${data} às ${hora} para ${servico}. Você pode confirmar, reagendar ou cancelar respondendo aqui, por favor?`;
+}
+
+export function mensagemAgendamentoLembrete(nome: string, hora: string): string {
+  return `Oi, ${nome}! Passando para lembrar do seu horário hoje às ${hora} 😊`;
+}

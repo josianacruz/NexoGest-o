@@ -26,6 +26,8 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<ModuloEmpresa> ModulosEmpresa => Set<ModuloEmpresa>();
     public DbSet<Servico> Servicos => Set<Servico>();
     public DbSet<Agendamento> Agendamentos => Set<Agendamento>();
+    public DbSet<ConfiguracaoAgenda> ConfiguracoesAgenda => Set<ConfiguracaoAgenda>();
+    public DbSet<CobrancaAgendamento> CobrancasAgendamento => Set<CobrancaAgendamento>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -39,5 +41,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         builder.Entity<RegistroVendaSemEstoque>().HasQueryFilter(r => EmpresaAtualId != null && r.EmpresaId == EmpresaAtualId);
         builder.Entity<Servico>().HasQueryFilter(s => EmpresaAtualId != null && s.EmpresaId == EmpresaAtualId);
         builder.Entity<Agendamento>().HasQueryFilter(a => EmpresaAtualId != null && a.EmpresaId == EmpresaAtualId);
+        builder.Entity<ConfiguracaoAgenda>().HasQueryFilter(c => EmpresaAtualId != null && c.EmpresaId == EmpresaAtualId);
+        builder.Entity<CobrancaAgendamento>().HasQueryFilter(c => EmpresaAtualId != null && c.EmpresaId == EmpresaAtualId);
     }
 }

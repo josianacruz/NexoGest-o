@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "../_components/Nav";
+import Modal from "../_components/Modal";
 import PageHeader from "../_components/PageHeader";
 import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../_components/ui";
 import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
+import { abrirWhatsApp, mensagemAgendamentoConfirmacao } from "../../lib/whatsapp";
 
 interface Cliente {
   id: number;
@@ -44,10 +46,39 @@ interface Conflito {
   clienteNome: string;
 }
 
+interface CobrancaPendente {
+  id: number;
+  clienteId: number;
+  clienteNome: string;
+  valor: number;
+  motivo: string;
+}
+
+interface AgendamentoHoje {
+  id: number;
+  clienteId: number;
+  clienteNome: string;
+  clienteTelefone?: string | null;
+  servicoNome: string;
+  dataHora: string;
+  duracaoMinutos: number;
+  valor: number;
+  status: StatusAgendamento;
+  chegou: boolean;
+}
+
 interface Resumo {
   totalHoje: number;
   naoConfirmados: number;
   proximoAtendimento: { id: number; dataHora: string; servicoNome: string; clienteNome: string } | null;
+  cobrancasPendentes: CobrancaPendente[];
+  agendamentosHoje: AgendamentoHoje[];
+}
+
+interface Configuracao {
+  horasAntesLembrete: number;
+  horasMinimasCancelamento: number;
+  cobrarCancelamentoForaPrazo: boolean;
 }
 
 type Visualizacao = "dia" | "semana";
@@ -116,6 +147,20 @@ function horarioFim(dataHora: string, duracaoMinutos: number): string {
   return formatarHora(fim);
 }
 
+function BotaoWhatsApp({ nome, onClick }: { nome: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      title={`Chamar ${nome} no WhatsApp`}
+      className="w-8 h-8 shrink-0 flex items-center justify-center rounded-md bg-green-600 hover:bg-green-700 text-white transition-colors"
+    >
+      <svg viewBox="0 0 32 32" width="16" height="16" fill="currentColor" aria-hidden="true">
+        <path d="M16.001 3C9.096 3 3.5 8.596 3.5 15.5c0 2.316.63 4.484 1.727 6.35L3 29l7.32-2.19a12.44 12.44 0 0 0 5.68 1.44h.001c6.905 0 12.5-5.596 12.5-12.5S22.906 3 16.001 3zm0 22.7h-.001a10.2 10.2 0 0 1-5.2-1.43l-.373-.222-3.87 1.159 1.176-3.77-.243-.387a10.17 10.17 0 0 1-1.59-5.55c0-5.632 4.578-10.2 10.203-10.2 5.624 0 10.199 4.568 10.199 10.2 0 5.633-4.575 10.2-10.201 10.2zm5.593-7.638c-.306-.153-1.81-.893-2.09-.994-.28-.102-.484-.153-.688.152-.204.306-.79.994-.968 1.198-.178.204-.356.23-.663.077-.306-.153-1.293-.477-2.463-1.52-.91-.812-1.525-1.815-1.703-2.121-.178-.306-.019-.471.134-.623.137-.137.306-.357.459-.535.153-.178.204-.306.306-.51.102-.204.05-.383-.026-.535-.077-.153-.688-1.658-.943-2.271-.248-.596-.5-.515-.688-.524l-.586-.01c-.204 0-.535.077-.815.383-.28.306-1.068 1.043-1.068 2.545s1.093 2.953 1.246 3.157c.153.204 2.152 3.286 5.213 4.607.728.314 1.296.502 1.739.642.731.232 1.396.199 1.922.121.586-.088 1.81-.74 2.065-1.454.255-.714.255-1.326.178-1.454-.076-.128-.28-.204-.586-.357z" />
+      </svg>
+    </button>
+  );
+}
+
 export default function AgendaPage() {
   const [empresaId, setEmpresaId] = useState<number | null>(null);
   const [empresaNome, setEmpresaNome] = useState("");
@@ -138,6 +183,24 @@ export default function AgendaPage() {
   const [valorForm, setValorForm] = useState("");
   const [observacaoForm, setObservacaoForm] = useState("");
   const [conflitos, setConflitos] = useState<Conflito[] | null>(null);
+  const [avisoCobranca, setAvisoCobranca] = useState<string | null>(null);
+
+  const [modalConfigAberto, setModalConfigAberto] = useState(false);
+  const [config, setConfig] = useState<Configuracao>({
+    horasAntesLembrete: 24,
+    horasMinimasCancelamento: 24,
+    cobrarCancelamentoForaPrazo: false,
+  });
+  const [salvandoConfig, setSalvandoConfig] = useState(false);
+
+  const [concluindoId, setConcluindoId] = useState<number | null>(null);
+  const [valorRecebidoConclusao, setValorRecebidoConclusao] = useState("");
+  const [formaPagamentoConclusao, setFormaPagamentoConclusao] = useState("PIX");
+
+  const [reagendandoId, setReagendandoId] = useState<number | null>(null);
+  const [novaDataReagendar, setNovaDataReagendar] = useState("");
+  const [novaHoraReagendar, setNovaHoraReagendar] = useState("");
+  const [conflitosReagendar, setConflitosReagendar] = useState<Conflito[] | null>(null);
 
   const router = useRouter();
 
@@ -188,8 +251,40 @@ export default function AgendaPage() {
 
       setClientes(await resClientes.json());
       setServicos(await resServicos.json());
+      await carregarConfig(empresa.id);
     } finally {
       setCarregando(false);
+    }
+  }
+
+  async function carregarConfig(idEmpresa: number) {
+    const token = getToken();
+    if (!token) return;
+    const res = await fetch(`${API_URL}/api/empresas/${idEmpresa}/agenda/configuracao`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) setConfig(await res.json());
+  }
+
+  async function salvarConfig() {
+    if (!empresaId || salvandoConfig) return;
+    const token = getToken();
+    if (!token) return;
+
+    setSalvandoConfig(true);
+    try {
+      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/agenda/configuracao`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(config),
+      });
+      if (!res.ok) {
+        setErro(await mensagemDeErro(res, "Não foi possível salvar a configuração."));
+        return;
+      }
+      setModalConfigAberto(false);
+    } finally {
+      setSalvandoConfig(false);
     }
   }
 
@@ -300,9 +395,14 @@ export default function AgendaPage() {
     }
   }
 
-  async function mudarStatus(agendamentoId: number, status: StatusAgendamento) {
+  async function mudarStatus(
+    agendamentoId: number,
+    status: StatusAgendamento,
+    extra?: { valorRecebido?: number; formaPagamento?: string }
+  ) {
     if (salvando || !empresaId) return;
     setErro(null);
+    setAvisoCobranca(null);
     const token = getToken();
     if (!token) return;
 
@@ -311,16 +411,98 @@ export default function AgendaPage() {
       const res = await fetch(`${API_URL}/api/empresas/${empresaId}/agendamentos/${agendamentoId}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, ...extra }),
       });
       if (!res.ok) {
         setErro(await mensagemDeErro(res, "Não foi possível atualizar o status."));
         return;
       }
+      const data = await res.json();
+      if (data.avisoCobranca) setAvisoCobranca(data.avisoCobranca.mensagem);
+      setConcluindoId(null);
       await carregarAgendamentos(empresaId, inicioRange, fimRange);
     } finally {
       setSalvando(false);
     }
+  }
+
+  function iniciarConclusao(a: Agendamento) {
+    setConcluindoId(a.id);
+    setValorRecebidoConclusao(String(a.valor));
+    setFormaPagamentoConclusao("PIX");
+  }
+
+  function iniciarReagendamento(a: { id: number; dataHora: string }) {
+    setReagendandoId(a.id);
+    setNovaDataReagendar(a.dataHora.slice(0, 10));
+    setNovaHoraReagendar(new Date(a.dataHora).toISOString().slice(11, 16));
+    setConflitosReagendar(null);
+  }
+
+  async function confirmarReagendamento(forcarComConflito: boolean) {
+    if (salvando || !empresaId || !reagendandoId) return;
+    setErro(null);
+    const token = getToken();
+    if (!token) return;
+
+    setSalvando(true);
+    try {
+      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/agendamentos/${reagendandoId}/reagendar`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ data: novaDataReagendar, hora: novaHoraReagendar, forcarComConflito }),
+      });
+
+      if (res.status === 409) {
+        const data = await res.json();
+        setConflitosReagendar(data.conflitos ?? []);
+        return;
+      }
+
+      if (!res.ok) {
+        setErro(await mensagemDeErro(res, "Não foi possível reagendar."));
+        return;
+      }
+
+      setReagendandoId(null);
+      setConflitosReagendar(null);
+      await carregarAgendamentos(empresaId, inicioRange, fimRange);
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  function enviarConfirmacao(a: AgendamentoHoje) {
+    const mensagem = mensagemAgendamentoConfirmacao(
+      a.clienteNome,
+      formatarDataLonga(a.dataHora.slice(0, 10)),
+      formatarHora(a.dataHora),
+      a.servicoNome
+    );
+    const abriu = abrirWhatsApp(a.clienteTelefone, mensagem);
+    if (!abriu) setErro(`${a.clienteNome} não tem telefone cadastrado.`);
+    return abriu;
+  }
+
+  // "Começar confirmações": abre o WhatsApp de cada pendente, um de cada vez,
+  // avançando a cada clique — sem precisar caçar cada card na tela.
+  const [indiceConfirmacao, setIndiceConfirmacao] = useState<number | null>(null);
+
+  function iniciarFilaConfirmacoes(lista: AgendamentoHoje[]) {
+    if (lista.length === 0) return;
+    setIndiceConfirmacao(0);
+    enviarConfirmacao(lista[0]);
+  }
+
+  function proximaConfirmacao(lista: AgendamentoHoje[]) {
+    if (indiceConfirmacao === null) return;
+    const proximo = indiceConfirmacao + 1;
+    if (proximo >= lista.length) {
+      setIndiceConfirmacao(null);
+      return;
+    }
+    setIndiceConfirmacao(proximo);
+    enviarConfirmacao(lista[proximo]);
   }
 
   // Dois agendamentos (não cancelados) do mesmo dia cujos horários se cruzam.
@@ -363,6 +545,38 @@ export default function AgendaPage() {
     return ids;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agendamentos]);
+
+  // Sem "Chegou" — o profissional não precisa mexer na agenda durante o
+  // atendimento. Prioridade fixa: próximo atendimento, confirmações a
+  // enviar agora (dentro da antecedência configurada), não confirmados
+  // (fora dessa janela ainda) e cobranças pendentes.
+  const ativosHoje = useMemo(
+    () => (resumo?.agendamentosHoje ?? []).filter((a) => a.status === "Agendado" || a.status === "Confirmado"),
+    [resumo]
+  );
+
+  const proximoAtendimento = useMemo(
+    () =>
+      ativosHoje
+        .filter((a) => new Date(a.dataHora).getTime() >= agora)
+        .sort((a, b) => a.dataHora.localeCompare(b.dataHora))[0] ?? null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ativosHoje]
+  );
+
+  const confirmacoesAEnviar = useMemo(
+    () =>
+      ativosHoje
+        .filter((a) => a.status === "Agendado" && new Date(a.dataHora).getTime() - agora <= config.horasAntesLembrete * 3600000)
+        .sort((a, b) => a.dataHora.localeCompare(b.dataHora)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ativosHoje, config.horasAntesLembrete]
+  );
+
+  const naoConfirmadosFora = useMemo(
+    () => ativosHoje.filter((a) => a.status === "Agendado" && !confirmacoesAEnviar.includes(a)),
+    [ativosHoje, confirmacoesAEnviar]
+  );
 
   const diasDaSemana =
     visualizacao === "semana"
@@ -412,18 +626,72 @@ export default function AgendaPage() {
           <span className="text-black/50 dark:text-white/50">R$ {a.valor.toFixed(2)}</span>
           {a.observacao && <span className="text-black/40 dark:text-white/40 truncate max-w-[60%]">{a.observacao}</span>}
         </div>
-        {PROXIMOS_STATUS[a.status].length > 0 && (
+        {PROXIMOS_STATUS[a.status].length > 0 && concluindoId !== a.id && (
           <div className="flex flex-wrap gap-3 pt-1 border-t border-black/5 dark:border-white/5 mt-1">
             {PROXIMOS_STATUS[a.status].map((proximo) => (
               <button
                 key={proximo}
-                onClick={() => mudarStatus(a.id, proximo)}
+                onClick={() => (proximo === "Concluido" ? iniciarConclusao(a) : mudarStatus(a.id, proximo))}
                 disabled={salvando}
                 className={botaoTexto}
               >
                 {proximo === "Concluido" ? "Concluir" : proximo === "Cancelado" ? "Cancelar" : proximo}
               </button>
             ))}
+          </div>
+        )}
+
+        {concluindoId === a.id && (
+          <div className="flex flex-col gap-2 pt-2 border-t border-black/5 dark:border-white/5 mt-1">
+            <div className="flex flex-wrap gap-2 items-end">
+              <div className="flex flex-col gap-1">
+                <label className={labelStyle}>Valor recebido</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={a.valor}
+                  value={valorRecebidoConclusao}
+                  onChange={(e) => setValorRecebidoConclusao(e.target.value)}
+                  className={`${inputStyle} h-9 w-28`}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className={labelStyle}>Forma de pagamento</label>
+                <select
+                  value={formaPagamentoConclusao}
+                  onChange={(e) => setFormaPagamentoConclusao(e.target.value)}
+                  className={`${inputStyle} h-9`}
+                >
+                  <option value="PIX">PIX</option>
+                  <option value="Dinheiro">Dinheiro</option>
+                  <option value="Débito">Débito</option>
+                  <option value="Crédito">Crédito</option>
+                </select>
+              </div>
+            </div>
+            {Number(valorRecebidoConclusao || "0") < a.valor && (
+              <p className="text-xs text-amber-600 dark:text-amber-500">
+                Restante de R$ {(a.valor - Number(valorRecebidoConclusao || "0")).toFixed(2)} vira cobrança pendente.
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() =>
+                  mudarStatus(a.id, "Concluido", {
+                    valorRecebido: Number(valorRecebidoConclusao || "0"),
+                    formaPagamento: formaPagamentoConclusao,
+                  })
+                }
+                disabled={salvando}
+                className={botaoPrimario}
+              >
+                Confirmar conclusão
+              </button>
+              <button onClick={() => setConcluindoId(null)} className={botaoSecundario}>
+                Cancelar
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -434,27 +702,106 @@ export default function AgendaPage() {
     <>
       <Nav empresaNome={empresaNome} comandasHabilitadas={comandasHabilitadas} />
       <main className="max-w-5xl mx-auto px-4 sm:px-5 py-8 w-full min-w-0">
-        <PageHeader titulo="Agenda" />
+        <PageHeader
+          titulo="Agenda"
+          acao={
+            <button onClick={() => setModalConfigAberto(true)} className={botaoSecundario}>
+              Configurações
+            </button>
+          }
+        />
 
-        {resumo && (resumo.totalHoje > 0 || resumo.proximoAtendimento) && (
-          <div className="flex flex-col gap-2 mb-6">
-            {resumo.proximoAtendimento && (
-              <div className="rounded-lg bg-indigo-600/10 px-4 py-2.5 text-sm text-indigo-700 dark:text-indigo-400">
-                <span className="font-semibold">Próximo atendimento:</span> {resumo.proximoAtendimento.clienteNome} —{" "}
-                {resumo.proximoAtendimento.servicoNome} — {formatarHora(resumo.proximoAtendimento.dataHora)}
-              </div>
-            )}
-            <div className="flex flex-wrap gap-2">
-              <div className="rounded-lg bg-black/5 dark:bg-white/10 px-4 py-2.5 text-sm">
-                Você tem <span className="font-semibold">{resumo.totalHoje}</span>{" "}
-                {resumo.totalHoje === 1 ? "agendamento" : "agendamentos"} hoje
-              </div>
-              {resumo.naoConfirmados > 0 && (
-                <div className="rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 px-4 py-2.5 text-sm">
-                  {resumo.naoConfirmados} ainda {resumo.naoConfirmados === 1 ? "não confirmado" : "não confirmados"}
+        {avisoCobranca && (
+          <div className="rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 px-4 py-2.5 text-sm mb-4">
+            {avisoCobranca}
+          </div>
+        )}
+
+        {resumo && resumo.totalHoje > 0 && (
+          <div className="rounded-lg bg-black/5 dark:bg-white/10 px-4 py-2.5 text-sm mb-4 w-fit">
+            Você tem <span className="font-semibold">{resumo.totalHoje}</span>{" "}
+            {resumo.totalHoje === 1 ? "agendamento" : "agendamentos"} hoje
+            {resumo.naoConfirmados > 0 &&
+              ` · ${resumo.naoConfirmados} ainda ${resumo.naoConfirmados === 1 ? "não confirmado" : "não confirmados"}`}
+          </div>
+        )}
+
+        {proximoAtendimento && (
+          <div className={`${cardStyle} p-4 mb-4 bg-indigo-600/5`}>
+            <div className={labelStyle}>Próximo atendimento</div>
+            <div className="text-sm mt-1">
+              <span className="font-semibold">{formatarHora(proximoAtendimento.dataHora)}</span> —{" "}
+              <span className="font-medium">{proximoAtendimento.clienteNome}</span> —{" "}
+              {proximoAtendimento.servicoNome}
+            </div>
+          </div>
+        )}
+
+        {confirmacoesAEnviar.length > 0 && (
+          <div className={`${cardStyle} p-5 mb-4`}>
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
+              <h2 className="text-sm font-semibold">Confirmações a enviar ({confirmacoesAEnviar.length})</h2>
+              {indiceConfirmacao === null ? (
+                <button onClick={() => iniciarFilaConfirmacoes(confirmacoesAEnviar)} className={botaoPrimario}>
+                  Começar confirmações
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 text-xs text-black/50 dark:text-white/50">
+                  <span>
+                    Enviando {indiceConfirmacao + 1} de {confirmacoesAEnviar.length}
+                  </span>
+                  <button onClick={() => proximaConfirmacao(confirmacoesAEnviar)} className={botaoTexto}>
+                    Próxima
+                  </button>
                 </div>
               )}
             </div>
+            <div className="flex flex-col gap-2">
+              {confirmacoesAEnviar.map((a) => (
+                <div key={a.id} className="flex items-center justify-between gap-2 text-sm">
+                  <div className="min-w-0 truncate">
+                    <span className="font-medium">{a.clienteNome}</span>
+                    <span className="text-black/50 dark:text-white/50"> — {a.servicoNome} — {formatarHora(a.dataHora)}</span>
+                  </div>
+                  <BotaoWhatsApp nome={a.clienteNome} onClick={() => enviarConfirmacao(a)} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {naoConfirmadosFora.length > 0 && (
+          <div className={`${cardStyle} p-5 mb-4`}>
+            <h2 className="text-sm font-semibold mb-3">Não confirmados ({naoConfirmadosFora.length})</h2>
+            <div className="flex flex-col gap-2">
+              {naoConfirmadosFora.map((a) => (
+                <div key={a.id} className="flex items-center justify-between gap-2 text-sm">
+                  <div className="min-w-0 truncate">
+                    <span className="font-medium">{a.clienteNome}</span>
+                    <span className="text-black/50 dark:text-white/50"> — {a.servicoNome} — {formatarHora(a.dataHora)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <BotaoWhatsApp nome={a.clienteNome} onClick={() => enviarConfirmacao(a)} />
+                    <button onClick={() => mudarStatus(a.id, "Confirmado")} disabled={salvando} className={botaoTexto}>
+                      Confirmar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {resumo && resumo.cobrancasPendentes.length > 0 && (
+          <div className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 px-4 py-3 mb-6 text-sm">
+            <p className="font-semibold text-red-700 dark:text-red-400 mb-1">Cobranças pendentes:</p>
+            <ul className="flex flex-col gap-0.5 text-black/70 dark:text-white/70">
+              {resumo.cobrancasPendentes.map((c) => (
+                <li key={c.id}>
+                  {c.clienteNome} — R$ {c.valor.toFixed(2)} ({c.motivo})
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -654,6 +1001,55 @@ export default function AgendaPage() {
           })}
         </div>
       </main>
+
+      {modalConfigAberto && (
+        <Modal titulo="Configurações da Agenda" onFechar={() => setModalConfigAberto(false)}>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <label className={labelStyle}>Horas antes para lembrar confirmação</label>
+              <input
+                type="number"
+                min="0"
+                value={config.horasAntesLembrete}
+                onChange={(e) => setConfig({ ...config, horasAntesLembrete: Number(e.target.value) })}
+                className={inputStyle}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelStyle}>Horas mínimas para cancelamento sem cobrança</label>
+              <input
+                type="number"
+                min="0"
+                value={config.horasMinimasCancelamento}
+                onChange={(e) => setConfig({ ...config, horasMinimasCancelamento: Number(e.target.value) })}
+                className={inputStyle}
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={config.cobrarCancelamentoForaPrazo}
+                onChange={(e) => setConfig({ ...config, cobrarCancelamentoForaPrazo: e.target.checked })}
+                className="accent-indigo-600"
+              />
+              Cobrar cancelamento fora do prazo (valor integral do serviço)
+            </label>
+            {erro && <p className="text-sm text-red-600">{erro}</p>}
+            <div className="flex justify-end gap-2 mt-1">
+              <button
+                type="button"
+                onClick={() => setModalConfigAberto(false)}
+                className="h-10 px-3 text-sm rounded-lg hover:bg-black/5 dark:hover:bg-white/10"
+              >
+                Cancelar
+              </button>
+              <button onClick={salvarConfig} disabled={salvandoConfig} className={botaoPrimario}>
+                {salvandoConfig ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

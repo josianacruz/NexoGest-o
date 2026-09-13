@@ -30,4 +30,12 @@ public class Agendamento
     public string? Observacao { get; set; }
     public StatusAgendamento Status { get; set; } = StatusAgendamento.Agendado;
     public DateTime DataCriacao { get; set; } = DateTime.UtcNow;
+
+    // Preenchidos só quando o atendimento é concluído — se ValorRecebido ficar
+    // abaixo de Valor, o restante vira uma CobrancaAgendamento.
+    public decimal? ValorRecebido { get; set; }
+    public string? FormaPagamento { get; set; }
+
+    // Marcado com "Chegou" — some com o destaque de atraso na tela.
+    public DateTime? HoraChegada { get; set; }
 }
