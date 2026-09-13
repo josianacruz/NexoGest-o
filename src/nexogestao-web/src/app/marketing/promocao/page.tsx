@@ -230,7 +230,7 @@ export default function CriarPromocaoPage() {
               <input
                 value={descricao}
                 onChange={(e) => setDescricao(e.target.value)}
-                placeholder="Ex: Pão, carne, bacon e queijo"
+                placeholder={temProdutos ? "Ex: Pão, carne, bacon e queijo" : "Ex: Corte + escova"}
                 className={inputStyle}
               />
             </div>
@@ -359,7 +359,7 @@ export default function CriarPromocaoPage() {
                   </span>
                 )}
                 <h2 className="text-2xl font-bold leading-tight" style={{ color: paleta.text }}>
-                  {nomeProduto || "Nome do produto"}
+                  {nomeProduto || (temProdutos ? "Nome do produto" : "Nome do serviço")}
                 </h2>
                 {descricao && (
                   <p className="text-sm" style={{ color: paleta.mutedText }}>
