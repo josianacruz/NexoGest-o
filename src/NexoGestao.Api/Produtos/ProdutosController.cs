@@ -8,8 +8,8 @@ using NexoGestao.Api.Shared;
 
 namespace NexoGestao.Api.Produtos;
 
-public record CriarProdutoRequest(string Nome, string? Categoria, decimal Preco, decimal Custo, int Estoque, int EstoqueMinimo);
-public record AtualizarProdutoRequest(string Nome, string? Categoria, decimal Preco, decimal Custo, int Estoque, int EstoqueMinimo);
+public record CriarProdutoRequest(string Nome, string? Categoria, decimal Preco, decimal Custo, int Estoque, int EstoqueMinimo, string? FotoUrl = null);
+public record AtualizarProdutoRequest(string Nome, string? Categoria, decimal Preco, decimal Custo, int Estoque, int EstoqueMinimo, string? FotoUrl = null);
 public record AtivarLinkStoryRequest(bool Ativo);
 
 [ApiController]
@@ -43,7 +43,8 @@ public class ProdutosController : TenantControllerBase
             Preco = request.Preco,
             Custo = request.Custo,
             Estoque = request.Estoque,
-            EstoqueMinimo = request.EstoqueMinimo
+            EstoqueMinimo = request.EstoqueMinimo,
+            FotoUrl = request.FotoUrl,
         };
         Context.Produtos.Add(produto);
         await Context.SaveChangesAsync();
@@ -60,7 +61,11 @@ public class ProdutosController : TenantControllerBase
 
         var produtos = await Context.Produtos
             .OrderBy(p => p.Nome)
-            .Select(p => new { p.Id, p.Nome, p.Categoria, p.Preco, p.Custo, p.Estoque, p.EstoqueMinimo, p.Ativo })
+            .Select(p => new
+            {
+                p.Id, p.Nome, p.Categoria, p.Preco, p.Custo, p.Estoque, p.EstoqueMinimo, p.Ativo,
+                p.FotoUrl, p.LinkStoryToken, p.LinkStoryAtivo,
+            })
             .ToListAsync();
 
         return Ok(produtos);
@@ -92,6 +97,7 @@ public class ProdutosController : TenantControllerBase
         produto.Custo = request.Custo;
         produto.Estoque = request.Estoque;
         produto.EstoqueMinimo = request.EstoqueMinimo;
+        produto.FotoUrl = request.FotoUrl;
 
         await Context.SaveChangesAsync();
 

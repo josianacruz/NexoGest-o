@@ -48,6 +48,7 @@ public class InteressesController : TenantControllerBase
                 i.ProdutoId,
                 i.ProdutoNome,
                 i.ProdutoPreco,
+                ProdutoFotoUrl = i.Produto.FotoUrl,
                 Status = i.Status.ToString(),
                 i.VendaId,
                 i.DataCriacao,

@@ -21,6 +21,7 @@ export const MODULOS_MENU: ModuloMenu[] = [
   { chave: "Servicos", label: "Serviços", href: "/servicos" },
   { chave: "Cobrancas", label: "Cobranças", href: "/cobrancas" },
   { chave: "Marketing", label: "Marketing", href: "/marketing" },
+  { chave: "Interesses", label: "Interesses", href: "/interesses" },
 ];
 
 export function temModulo(modulosHabilitados: string[], chave: string): boolean {

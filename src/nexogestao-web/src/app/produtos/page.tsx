@@ -18,6 +18,9 @@ interface Produto {
   estoque: number;
   estoqueMinimo: number;
   ativo: boolean;
+  fotoUrl?: string | null;
+  linkStoryToken?: string | null;
+  linkStoryAtivo: boolean;
 }
 
 async function mensagemDeErro(res: Response, padrao: string) {
@@ -25,7 +28,7 @@ async function mensagemDeErro(res: Response, padrao: string) {
   return data?.mensagem ?? padrao;
 }
 
-const formVazio = { nome: "", categoria: "", preco: "", custo: "", estoque: "", estoqueMinimo: "" };
+const formVazio = { nome: "", categoria: "", preco: "", custo: "", estoque: "", estoqueMinimo: "", fotoUrl: "" };
 
 export default function ProdutosPage() {
   const [empresaId, setEmpresaId] = useState<number | null>(null);
@@ -41,6 +44,8 @@ export default function ProdutosPage() {
   const [modalAberto, setModalAberto] = useState<"novo" | "editar" | null>(null);
   const [produtoEditando, setProdutoEditando] = useState<Produto | null>(null);
   const [form, setForm] = useState(formVazio);
+  const [linkCopiadoId, setLinkCopiadoId] = useState<number | null>(null);
+  const [gerandoLinkId, setGerandoLinkId] = useState<number | null>(null);
   const router = useRouter();
 
   function getToken() {
@@ -107,6 +112,7 @@ export default function ProdutosPage() {
       custo: String(p.custo),
       estoque: String(p.estoque),
       estoqueMinimo: String(p.estoqueMinimo),
+      fotoUrl: p.fotoUrl ?? "",
     });
     setModalAberto("editar");
   }
@@ -142,6 +148,7 @@ export default function ProdutosPage() {
           custo: Number(form.custo),
           estoque: Number(form.estoque),
           estoqueMinimo: Number(form.estoqueMinimo),
+          fotoUrl: form.fotoUrl || null,
         }),
       });
 
@@ -155,6 +162,53 @@ export default function ProdutosPage() {
     } finally {
       setSalvando(false);
     }
+  }
+
+  function onFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const arquivo = e.target.files?.[0];
+    if (!arquivo) return;
+    const leitor = new FileReader();
+    leitor.onload = () => setForm((f) => ({ ...f, fotoUrl: leitor.result as string }));
+    leitor.readAsDataURL(arquivo);
+  }
+
+  async function gerarLinkStory(produto: Produto) {
+    if (!empresaId || gerandoLinkId) return;
+    const token = getToken();
+    if (!token) return;
+    setGerandoLinkId(produto.id);
+    try {
+      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/produtos/${produto.id}/link-story`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        setErro(await mensagemDeErro(res, "Não foi possível gerar o link."));
+        return;
+      }
+      await carregarEmpresaEProdutos();
+    } finally {
+      setGerandoLinkId(null);
+    }
+  }
+
+  async function alternarLinkStory(produto: Produto, ativo: boolean) {
+    if (!empresaId) return;
+    const token = getToken();
+    if (!token) return;
+    await fetch(`${API_URL}/api/empresas/${empresaId}/produtos/${produto.id}/link-story`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ ativo }),
+    });
+    await carregarEmpresaEProdutos();
+  }
+
+  function copiarLinkStory(produto: Produto) {
+    if (!produto.linkStoryToken) return;
+    navigator.clipboard.writeText(`${window.location.origin}/interesse/${produto.linkStoryToken}`);
+    setLinkCopiadoId(produto.id);
+    setTimeout(() => setLinkCopiadoId(null), 2000);
   }
 
   const categorias = Array.from(
@@ -222,6 +276,7 @@ export default function ProdutosPage() {
                 <th className="py-2.5 px-4 font-medium">Categoria</th>
                 <th className="py-2.5 px-4 font-medium">Preço</th>
                 <th className="py-2.5 px-4 font-medium">Estoque</th>
+                <th className="py-2.5 px-4 font-medium">Story</th>
                 <th className="py-2.5 px-4 font-medium text-center">Ações</th>
               </tr>
             </thead>
@@ -241,6 +296,33 @@ export default function ProdutosPage() {
                         </span>
                       </div>
                     </td>
+                    <td className="py-2.5 px-4">
+                      {!p.linkStoryToken ? (
+                        <button
+                          onClick={() => gerarLinkStory(p)}
+                          disabled={gerandoLinkId === p.id}
+                          className={botaoTexto}
+                        >
+                          {gerandoLinkId === p.id ? "Gerando..." : "Gerar link para Story"}
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button onClick={() => copiarLinkStory(p)} className={botaoTexto}>
+                            {linkCopiadoId === p.id ? "Copiado!" : "Copiar link"}
+                          </button>
+                          <button
+                            onClick={() => alternarLinkStory(p, !p.linkStoryAtivo)}
+                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                              p.linkStoryAtivo
+                                ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                                : "bg-black/10 dark:bg-white/10 text-black/50 dark:text-white/50"
+                            }`}
+                          >
+                            {p.linkStoryAtivo ? "Ativo" : "Desativado"}
+                          </button>
+                        </div>
+                      )}
+                    </td>
                     <td className="py-2.5 px-4 text-center">
                       <button onClick={() => abrirEdicao(p)} className={botaoTexto}>
                         Editar
@@ -251,7 +333,7 @@ export default function ProdutosPage() {
               })}
               {produtosFiltrados.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                  <td colSpan={6} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
                     {carregando
                       ? "Carregando..."
                       : produtos.length === 0
@@ -280,6 +362,16 @@ export default function ProdutosPage() {
                 autoFocus
                 className={inputStyle}
               />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelStyle}>Foto (opcional, usada na Story)</label>
+              <div className="flex items-center gap-3">
+                {form.fotoUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={form.fotoUrl} alt="" className="w-14 h-14 object-cover rounded-lg border border-black/10 dark:border-white/10" />
+                )}
+                <input type="file" accept="image/*" onChange={onFotoChange} className="text-sm" />
+              </div>
             </div>
             <div className="flex flex-col gap-1">
               <label className={labelStyle}>Categoria</label>

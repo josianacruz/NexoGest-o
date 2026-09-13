@@ -96,3 +96,9 @@ export function mensagemAgendamentoLembrete(nome: string, hora: string): string 
 export function mensagemLinkAgendamento(nome: string, link: string): string {
   return `Oi, ${nome}! Você pode marcar seu horário direto por aqui, quando for melhor pra você: ${link}`;
 }
+
+export function mensagemInteresseProduto(nome: string, produtoNome: string, preco: number): string {
+  return `Oi, ${nome}! Vi que você tem interesse em ${produtoNome} (R$ ${preco.toFixed(
+    2
+  )}). Posso te ajudar a fechar? 😊`;
+}

@@ -17,6 +17,7 @@ export default function Nav({
   const router = useRouter();
   const [quantidadeVencidas, setQuantidadeVencidas] = useState(0);
   const [naoLidas, setNaoLidas] = useState(0);
+  const [interessesNovos, setInteressesNovos] = useState(0);
   // Enquanto os módulos ainda não carregaram, não mostra nenhum — mostrar
   // tudo de início deixava módulos desabilitados visíveis por um instante
   // (e presos até o próximo fetch, se a requisição demorasse).
@@ -51,6 +52,14 @@ export default function Nav({
             const dadosNotificacoes = await resNotificacoes.json();
             setNaoLidas(dadosNotificacoes.quantidade ?? 0);
           }
+        }
+
+        if (temModulo(empresas[0].modulos ?? [], "Interesses")) {
+          const resInteresses = await fetch(
+            `${API_URL}/api/empresas/${empresas[0].id}/interesses?status=Novo`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (resInteresses.ok) setInteressesNovos((await resInteresses.json()).length ?? 0);
         }
 
         if (!temModulo(empresas[0].modulos ?? [], "Cobrancas")) return;
@@ -95,6 +104,11 @@ export default function Nav({
                   {link.href === "/cobrancas" && quantidadeVencidas > 0 && (
                     <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold">
                       {quantidadeVencidas}
+                    </span>
+                  )}
+                  {link.href === "/interesses" && interessesNovos > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-indigo-600 text-white text-[10px] font-bold">
+                      {interessesNovos}
                     </span>
                   )}
                 </Link>
