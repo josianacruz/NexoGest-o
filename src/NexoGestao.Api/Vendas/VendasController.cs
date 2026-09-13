@@ -27,7 +27,7 @@ public class VendasController : TenantControllerBase
     [HttpPost]
     public async Task<IActionResult> Criar(int empresaId, CriarVendaRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Vendas);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -172,7 +172,7 @@ public class VendasController : TenantControllerBase
     [HttpGet]
     public async Task<IActionResult> Listar(int empresaId)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Vendas);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -199,7 +199,7 @@ public class VendasController : TenantControllerBase
     [HttpGet("sem-estoque")]
     public async Task<IActionResult> ListarSemEstoque(int empresaId, [FromQuery] string periodo = "dia")
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Vendas);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -229,7 +229,7 @@ public class VendasController : TenantControllerBase
     [HttpPost("{vendaId:int}/pagamentos")]
     public async Task<IActionResult> RegistrarPagamento(int empresaId, int vendaId, RegistrarPagamentoRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Vendas);
         if (empresaAutorizada is null)
             return Forbid();
 

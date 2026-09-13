@@ -27,7 +27,7 @@ public class ComandasController : TenantControllerBase
     [HttpPost]
     public async Task<IActionResult> Abrir(int empresaId, AbrirComandaRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Comandas);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -48,7 +48,7 @@ public class ComandasController : TenantControllerBase
     [HttpGet]
     public async Task<IActionResult> Listar(int empresaId)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Comandas);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -71,7 +71,7 @@ public class ComandasController : TenantControllerBase
     [HttpPost("{comandaId:int}/itens")]
     public async Task<IActionResult> AdicionarItem(int empresaId, int comandaId, AdicionarItemRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Comandas);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -112,7 +112,7 @@ public class ComandasController : TenantControllerBase
     [HttpPut("{comandaId:int}/itens/{itemId:int}")]
     public async Task<IActionResult> AlterarQuantidade(int empresaId, int comandaId, int itemId, AlterarQuantidadeRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Comandas);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -140,7 +140,7 @@ public class ComandasController : TenantControllerBase
     [HttpDelete("{comandaId:int}/itens/{itemId:int}")]
     public async Task<IActionResult> RemoverItem(int empresaId, int comandaId, int itemId)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Comandas);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -161,7 +161,7 @@ public class ComandasController : TenantControllerBase
     [HttpDelete("{comandaId:int}")]
     public async Task<IActionResult> Cancelar(int empresaId, int comandaId)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Comandas);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -182,7 +182,7 @@ public class ComandasController : TenantControllerBase
     [HttpPost("{comandaId:int}/fechar")]
     public async Task<IActionResult> Fechar(int empresaId, int comandaId, FecharComandaRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Comandas);
         if (empresaAutorizada is null)
             return Forbid();
 

@@ -20,7 +20,7 @@ public class ProdutosController : TenantControllerBase
     [HttpPost]
     public async Task<IActionResult> Criar(int empresaId, CriarProdutoRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Produtos);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -52,7 +52,7 @@ public class ProdutosController : TenantControllerBase
     [HttpGet]
     public async Task<IActionResult> Listar(int empresaId)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Produtos);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -67,7 +67,7 @@ public class ProdutosController : TenantControllerBase
     [HttpPut("{produtoId:int}")]
     public async Task<IActionResult> Atualizar(int empresaId, int produtoId, AtualizarProdutoRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Produtos);
         if (empresaAutorizada is null)
             return Forbid();
 

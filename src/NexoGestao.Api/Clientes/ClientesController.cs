@@ -20,7 +20,7 @@ public class ClientesController : TenantControllerBase
     [HttpPost]
     public async Task<IActionResult> Criar(int empresaId, CriarClienteRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Clientes);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -43,7 +43,7 @@ public class ClientesController : TenantControllerBase
     [HttpGet]
     public async Task<IActionResult> Listar(int empresaId)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Clientes);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -80,7 +80,7 @@ public class ClientesController : TenantControllerBase
     [HttpGet("{clienteId:int}/contas-receber")]
     public async Task<IActionResult> ContasReceberDoCliente(int empresaId, int clienteId)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Clientes);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -120,7 +120,7 @@ public class ClientesController : TenantControllerBase
     [HttpPut("{clienteId:int}")]
     public async Task<IActionResult> Atualizar(int empresaId, int clienteId, AtualizarClienteRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Clientes);
         if (empresaAutorizada is null)
             return Forbid();
 

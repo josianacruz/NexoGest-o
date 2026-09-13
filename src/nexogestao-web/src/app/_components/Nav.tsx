@@ -4,14 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { API_URL } from "../../lib/api";
-
-const linksBase = [
-  { href: "/clientes", label: "Clientes" },
-  { href: "/produtos", label: "Produtos" },
-  { href: "/vendas", label: "Vendas" },
-  { href: "/cobrancas", label: "Cobranças" },
-  { href: "/marketing", label: "Marketing" },
-];
+import { MODULOS_MENU, temModulo } from "../../lib/modulos";
 
 export default function Nav({
   empresaNome,
@@ -23,10 +16,14 @@ export default function Nav({
   const pathname = usePathname();
   const router = useRouter();
   const [quantidadeVencidas, setQuantidadeVencidas] = useState(0);
+  // Enquanto os módulos ainda não carregaram, mostra tudo — evita o menu
+  // "piscar" vazio a cada troca de página.
+  const [modulos, setModulos] = useState<string[] | null>(null);
 
-  const links = comandasHabilitadas
-    ? [...linksBase, { href: "/comandas", label: "Comandas" }]
-    : linksBase;
+  const links = (modulos ?? MODULOS_MENU.map((m) => m.chave))
+    .map((chave) => MODULOS_MENU.find((m) => m.chave === chave))
+    .filter((m): m is (typeof MODULOS_MENU)[number] => !!m)
+    .filter((m) => m.chave !== "Comandas" || comandasHabilitadas);
 
   useEffect(() => {
     const token = typeof window !== "undefined" ? localStorage.getItem("nexo_token") : null;
@@ -40,6 +37,10 @@ export default function Nav({
         if (!resEmpresas.ok) return;
         const empresas = await resEmpresas.json();
         if (empresas.length === 0) return;
+
+        setModulos(empresas[0].modulos ?? MODULOS_MENU.map((m) => m.chave));
+
+        if (!temModulo(empresas[0].modulos ?? [], "Cobrancas")) return;
 
         const resResumo = await fetch(
           `${API_URL}/api/empresas/${empresas[0].id}/contas-receber/resumo`,

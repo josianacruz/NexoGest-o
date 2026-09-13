@@ -23,6 +23,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<ItemComanda> ItensComanda => Set<ItemComanda>();
     public DbSet<ContaReceber> ContasReceber => Set<ContaReceber>();
     public DbSet<RegistroVendaSemEstoque> RegistrosVendaSemEstoque => Set<RegistroVendaSemEstoque>();
+    public DbSet<ModuloEmpresa> ModulosEmpresa => Set<ModuloEmpresa>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

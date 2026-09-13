@@ -29,7 +29,7 @@ public class ContasReceberController : TenantControllerBase
     [HttpGet]
     public async Task<IActionResult> Listar(int empresaId, [FromQuery] string? filtro)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Cobrancas);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -83,7 +83,7 @@ public class ContasReceberController : TenantControllerBase
     [HttpGet("resumo")]
     public async Task<IActionResult> Resumo(int empresaId)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Cobrancas);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -105,7 +105,7 @@ public class ContasReceberController : TenantControllerBase
     [HttpPost("{contaId:int}/pagamento")]
     public async Task<IActionResult> RegistrarPagamento(int empresaId, int contaId, RegistrarPagamentoContaRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Cobrancas);
         if (empresaAutorizada is null)
             return Forbid();
 
