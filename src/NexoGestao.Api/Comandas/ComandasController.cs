@@ -157,6 +157,27 @@ public class ComandasController : TenantControllerBase
         return Ok(new { removido = true });
     }
 
+    [HttpDelete("{comandaId:int}")]
+    public async Task<IActionResult> Cancelar(int empresaId, int comandaId)
+    {
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        if (empresaAutorizada is null)
+            return Forbid();
+
+        var comanda = await Context.Comandas
+            .Include(c => c.Itens)
+            .FirstOrDefaultAsync(c => c.Id == comandaId);
+
+        if (comanda is null || comanda.Status != StatusComanda.Aberta)
+            return NotFound(new { mensagem = "Comanda não encontrada ou já fechada." });
+
+        Context.ItensComanda.RemoveRange(comanda.Itens);
+        Context.Comandas.Remove(comanda);
+        await Context.SaveChangesAsync();
+
+        return Ok(new { cancelada = true });
+    }
+
     [HttpPost("{comandaId:int}/fechar")]
     public async Task<IActionResult> Fechar(int empresaId, int comandaId, FecharComandaRequest request)
     {

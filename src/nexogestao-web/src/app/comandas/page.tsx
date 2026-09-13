@@ -304,6 +304,32 @@ export default function ComandasPage() {
     }
   }
 
+  async function cancelarComanda() {
+    if (salvando || !comandaAbertaId || !empresaId) return;
+    if (!window.confirm("Cancelar esta comanda? Essa ação não pode ser desfeita.")) return;
+    setErro(null);
+    const token = getToken();
+    if (!token) return;
+
+    setSalvando(true);
+    try {
+      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/comandas/${comandaAbertaId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        setErro(await mensagemDeErro(res, "Não foi possível cancelar a comanda."));
+        return;
+      }
+
+      fecharDrawer();
+      await carregarTudo();
+    } finally {
+      setSalvando(false);
+    }
+  }
+
   const comandasFiltradas = comandas.filter((c) => {
     const termo = busca.trim().toLowerCase();
     if (!termo) return true;
@@ -540,17 +566,22 @@ export default function ComandasPage() {
               )}
               {erro && <p className="text-sm text-red-600">{erro}</p>}
 
-              <button
-                onClick={fecharComanda}
-                disabled={
-                  comandaAberta.itens.length === 0 ||
-                  salvando ||
-                  (precisaDeCliente && !clienteSelecionado)
-                }
-                className={botaoPrimario}
-              >
-                {salvando ? "Salvando..." : "Fechar comanda"}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={fecharComanda}
+                  disabled={
+                    comandaAberta.itens.length === 0 ||
+                    salvando ||
+                    (precisaDeCliente && !clienteSelecionado)
+                  }
+                  className={`${botaoPrimario} flex-1`}
+                >
+                  {salvando ? "Salvando..." : "Fechar comanda"}
+                </button>
+                <button onClick={cancelarComanda} disabled={salvando} className={botaoSecundario}>
+                  Cancelar comanda
+                </button>
+              </div>
             </div>
           </div>
         </Drawer>
