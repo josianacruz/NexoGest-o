@@ -16,11 +16,12 @@ export default function Nav({
   const pathname = usePathname();
   const router = useRouter();
   const [quantidadeVencidas, setQuantidadeVencidas] = useState(0);
-  // Enquanto os módulos ainda não carregaram, mostra tudo — evita o menu
-  // "piscar" vazio a cada troca de página.
+  // Enquanto os módulos ainda não carregaram, não mostra nenhum — mostrar
+  // tudo de início deixava módulos desabilitados visíveis por um instante
+  // (e presos até o próximo fetch, se a requisição demorasse).
   const [modulos, setModulos] = useState<string[] | null>(null);
 
-  const links = (modulos ?? MODULOS_MENU.map((m) => m.chave))
+  const links = (modulos ?? [])
     .map((chave) => MODULOS_MENU.find((m) => m.chave === chave))
     .filter((m): m is (typeof MODULOS_MENU)[number] => !!m)
     .filter((m) => m.chave !== "Comandas" || comandasHabilitadas);
@@ -38,7 +39,7 @@ export default function Nav({
         const empresas = await resEmpresas.json();
         if (empresas.length === 0) return;
 
-        setModulos(empresas[0].modulos ?? MODULOS_MENU.map((m) => m.chave));
+        setModulos(empresas[0].modulos ?? []);
 
         if (!temModulo(empresas[0].modulos ?? [], "Cobrancas")) return;
 
