@@ -161,6 +161,36 @@ function BotaoWhatsApp({ nome, onClick }: { nome: string; onClick: () => void })
   );
 }
 
+// Input nativo de data/hora só abre o seletor se você acertar o iconezinho —
+// aqui qualquer clique no campo abre, e uma legenda deixa isso óbvio.
+function CampoDataHora({
+  label,
+  tipo,
+  value,
+  onChange,
+  className = "",
+}: {
+  label: string;
+  tipo: "date" | "time";
+  value: string;
+  onChange: (valor: string) => void;
+  className?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className={labelStyle}>{label}</label>
+      <input
+        type={tipo}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onClick={(e) => e.currentTarget.showPicker?.()}
+        className={`${inputStyle} ${className} cursor-pointer`}
+      />
+      <span className="text-[11px] text-black/40 dark:text-white/40">Toque para escolher</span>
+    </div>
+  );
+}
+
 export default function AgendaPage() {
   const [empresaId, setEmpresaId] = useState<number | null>(null);
   const [empresaNome, setEmpresaNome] = useState("");
@@ -626,7 +656,7 @@ export default function AgendaPage() {
           <span className="text-black/50 dark:text-white/50">R$ {a.valor.toFixed(2)}</span>
           {a.observacao && <span className="text-black/40 dark:text-white/40 truncate max-w-[60%]">{a.observacao}</span>}
         </div>
-        {PROXIMOS_STATUS[a.status].length > 0 && concluindoId !== a.id && (
+        {PROXIMOS_STATUS[a.status].length > 0 && concluindoId !== a.id && reagendandoId !== a.id && (
           <div className="flex flex-wrap gap-3 pt-1 border-t border-black/5 dark:border-white/5 mt-1">
             {PROXIMOS_STATUS[a.status].map((proximo) => (
               <button
@@ -638,6 +668,54 @@ export default function AgendaPage() {
                 {proximo === "Concluido" ? "Concluir" : proximo === "Cancelado" ? "Cancelar" : proximo}
               </button>
             ))}
+            <button onClick={() => iniciarReagendamento(a)} disabled={salvando} className={botaoTexto}>
+              Reagendar
+            </button>
+          </div>
+        )}
+
+        {reagendandoId === a.id && (
+          <div className="flex flex-col gap-2 pt-2 border-t border-black/5 dark:border-white/5 mt-1">
+            {conflitosReagendar && conflitosReagendar.length > 0 && (
+              <p className="text-xs text-red-600 dark:text-red-400">
+                Conflita com{" "}
+                {conflitosReagendar.map((c) => `${c.clienteNome} (${formatarHora(c.dataHora)})`).join(", ")}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2 items-end">
+              <CampoDataHora
+                label="Data"
+                tipo="date"
+                value={novaDataReagendar}
+                onChange={setNovaDataReagendar}
+                className="w-36"
+              />
+              <CampoDataHora
+                label="Hora"
+                tipo="time"
+                value={novaHoraReagendar}
+                onChange={setNovaHoraReagendar}
+                className="w-24"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => confirmarReagendamento(conflitosReagendar !== null)}
+                disabled={salvando}
+                className={botaoPrimario}
+              >
+                {conflitosReagendar ? "Reagendar mesmo assim" : "Salvar"}
+              </button>
+              <button
+                onClick={() => {
+                  setReagendandoId(null);
+                  setConflitosReagendar(null);
+                }}
+                className={botaoSecundario}
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
         )}
 
@@ -848,24 +926,8 @@ export default function AgendaPage() {
           </div>
 
           <div className="flex flex-wrap gap-3 items-end mb-3">
-            <div className="flex flex-col gap-1">
-              <label className={labelStyle}>Data</label>
-              <input
-                type="date"
-                value={dataForm}
-                onChange={(e) => setDataForm(e.target.value)}
-                className={`${inputStyle} w-40`}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className={labelStyle}>Hora</label>
-              <input
-                type="time"
-                value={horaForm}
-                onChange={(e) => setHoraForm(e.target.value)}
-                className={`${inputStyle} w-28`}
-              />
-            </div>
+            <CampoDataHora label="Data" tipo="date" value={dataForm} onChange={setDataForm} className="w-40" />
+            <CampoDataHora label="Hora" tipo="time" value={horaForm} onChange={setHoraForm} className="w-28" />
             <div className="flex flex-col gap-1">
               <label className={labelStyle}>Duração (min)</label>
               <input
