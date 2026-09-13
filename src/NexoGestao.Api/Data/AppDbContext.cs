@@ -21,6 +21,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<ItemVenda> ItensVenda => Set<ItemVenda>();
     public DbSet<Comanda> Comandas => Set<Comanda>();
     public DbSet<ItemComanda> ItensComanda => Set<ItemComanda>();
+    public DbSet<ContaReceber> ContasReceber => Set<ContaReceber>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -30,5 +31,6 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         builder.Entity<Produto>().HasQueryFilter(p => EmpresaAtualId != null && p.EmpresaId == EmpresaAtualId);
         builder.Entity<Venda>().HasQueryFilter(v => EmpresaAtualId != null && v.EmpresaId == EmpresaAtualId);
         builder.Entity<Comanda>().HasQueryFilter(c => EmpresaAtualId != null && c.EmpresaId == EmpresaAtualId);
+        builder.Entity<ContaReceber>().HasQueryFilter(c => EmpresaAtualId != null && c.EmpresaId == EmpresaAtualId);
     }
 }

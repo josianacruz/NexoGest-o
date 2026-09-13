@@ -1,12 +1,15 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { API_URL } from "../../lib/api";
 
 const linksBase = [
   { href: "/clientes", label: "Clientes" },
   { href: "/produtos", label: "Produtos" },
   { href: "/vendas", label: "Vendas" },
+  { href: "/cobrancas", label: "Cobranças" },
 ];
 
 export default function Nav({
@@ -18,10 +21,37 @@ export default function Nav({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [quantidadeVencidas, setQuantidadeVencidas] = useState(0);
 
   const links = comandasHabilitadas
     ? [...linksBase, { href: "/comandas", label: "Comandas" }]
     : linksBase;
+
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("nexo_token") : null;
+    if (!token) return;
+
+    (async () => {
+      try {
+        const resEmpresas = await fetch(`${API_URL}/api/empresas/minhas`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!resEmpresas.ok) return;
+        const empresas = await resEmpresas.json();
+        if (empresas.length === 0) return;
+
+        const resResumo = await fetch(
+          `${API_URL}/api/empresas/${empresas[0].id}/contas-receber/resumo`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!resResumo.ok) return;
+        const resumo = await resResumo.json();
+        setQuantidadeVencidas(resumo.quantidadeVencidas ?? 0);
+      } catch {
+        // Aviso de cobrança é só um extra — falha silenciosa não deve travar a navegação.
+      }
+    })();
+  }, []);
 
   function sair() {
     localStorage.removeItem("nexo_token");
@@ -40,13 +70,18 @@ export default function Nav({
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`shrink-0 h-9 px-3 inline-flex items-center rounded-lg text-sm font-medium transition-colors ${
+                  className={`relative shrink-0 h-9 px-3 inline-flex items-center rounded-lg text-sm font-medium transition-colors ${
                     ativo
                       ? "bg-indigo-600 text-white"
                       : "text-black/70 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/10"
                   }`}
                 >
                   {link.label}
+                  {link.href === "/cobrancas" && quantidadeVencidas > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold">
+                      {quantidadeVencidas}
+                    </span>
+                  )}
                 </Link>
               );
             })}

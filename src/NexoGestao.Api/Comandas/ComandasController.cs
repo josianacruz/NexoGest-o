@@ -14,7 +14,8 @@ public record FecharComandaRequest(
     string FormaPagamento,
     int? ClienteId = null,
     decimal? ValorRecebido = null,
-    int? Parcelas = null);
+    int? Parcelas = null,
+    DateTime? DataVencimento = null);
 
 [ApiController]
 [Route("api/empresas/{empresaId:int}/comandas")]
@@ -202,6 +203,9 @@ public class ComandasController : TenantControllerBase
         if (request.FormaPagamento == "Fiado" && request.ClienteId is null)
             return BadRequest(new { mensagem = "Venda fiado precisa estar vinculada a um cliente." });
 
+        if (request.FormaPagamento == "Fiado" && request.DataVencimento is null)
+            return BadRequest(new { mensagem = "Informe a data de vencimento da venda fiado." });
+
         if (request.FormaPagamento == "Crédito" && request.Parcelas is not null && request.Parcelas < 1)
             return BadRequest(new { mensagem = "O número de parcelas deve ser maior que zero." });
 
@@ -265,8 +269,33 @@ public class ComandasController : TenantControllerBase
         comanda.Venda = venda;
         comanda.Status = StatusComanda.Fechada;
 
+        // Criada junto com a venda na mesma SaveChangesAsync (via navegação, sem
+        // precisar do Id ainda) pra nunca existir uma venda fiado sem conta a receber.
+        ContaReceber? contaReceber = null;
+        if (request.FormaPagamento == "Fiado" && venda.SaldoDevedor is > 0)
+        {
+            contaReceber = new ContaReceber
+            {
+                EmpresaId = empresaAutorizada.Value,
+                ClienteId = request.ClienteId!.Value,
+                Venda = venda,
+                ValorOriginal = total,
+                ValorPendente = venda.SaldoDevedor.Value,
+                DataVencimento = DateTime.SpecifyKind(request.DataVencimento!.Value, DateTimeKind.Utc),
+            };
+            Context.ContasReceber.Add(contaReceber);
+        }
+
         await Context.SaveChangesAsync();
 
-        return Ok(new { venda.Id, venda.Total, venda.Troco, venda.SaldoDevedor, comanda.Status });
+        return Ok(new
+        {
+            venda.Id,
+            venda.Total,
+            venda.Troco,
+            venda.SaldoDevedor,
+            comanda.Status,
+            ContaReceberId = contaReceber?.Id
+        });
     }
 }

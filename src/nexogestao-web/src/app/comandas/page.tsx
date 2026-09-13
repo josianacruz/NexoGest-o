@@ -18,6 +18,7 @@ interface Produto {
 interface Cliente {
   id: number;
   nome: string;
+  telefone?: string | null;
 }
 
 interface ItemComanda {
@@ -61,6 +62,7 @@ export default function ComandasPage() {
   const [formaPagamento, setFormaPagamento] = useState("PIX");
   const [valorRecebido, setValorRecebido] = useState("");
   const [parcelas, setParcelas] = useState("1");
+  const [dataVencimento, setDataVencimento] = useState("");
   const [clienteSelecionado, setClienteSelecionado] = useState("");
 
   const router = useRouter();
@@ -147,6 +149,7 @@ export default function ComandasPage() {
       setFormaPagamento("PIX");
       setValorRecebido("");
       setParcelas("1");
+      setDataVencimento("");
       setClienteSelecionado("");
     } finally {
       setSalvando(false);
@@ -268,7 +271,11 @@ export default function ComandasPage() {
     formaPagamento === "Dinheiro" || formaPagamento === "Fiado" ? totalAberta - valorPago : 0;
   const trocoCalculado =
     formaPagamento === "Dinheiro" && valorRecebido && faltante <= 0 ? valorPago - totalAberta : null;
-  const precisaDeCliente = faltante > 0 && (formaPagamento === "Dinheiro" || formaPagamento === "Fiado");
+  const precisaDeCliente =
+    formaPagamento === "Fiado" || (faltante > 0 && formaPagamento === "Dinheiro");
+  const clienteFiadoSelecionado = clientes.find((c) => c.id === Number(clienteSelecionado));
+  const fiadoSemTelefone =
+    formaPagamento === "Fiado" && !!clienteFiadoSelecionado && !clienteFiadoSelecionado.telefone;
 
   async function fecharComanda() {
     if (salvando || !comandaAbertaId || !empresaId) return;
@@ -277,7 +284,16 @@ export default function ComandasPage() {
     if (!token) return;
 
     if (precisaDeCliente && !clienteSelecionado) {
-      setErro("Selecione um cliente para registrar o valor que ficou faltando como fiado.");
+      setErro(
+        formaPagamento === "Fiado"
+          ? "Selecione o cliente que está comprando fiado."
+          : "Selecione um cliente para registrar o valor que ficou faltando como fiado."
+      );
+      return;
+    }
+
+    if (formaPagamento === "Fiado" && !dataVencimento) {
+      setErro("Informe a data de vencimento da venda fiado.");
       return;
     }
 
@@ -297,6 +313,7 @@ export default function ComandasPage() {
             valorRecebido:
               formaPagamento === "Dinheiro" || formaPagamento === "Fiado" ? valorPago : null,
             parcelas: formaPagamento === "Crédito" ? Number(parcelas || "1") : null,
+            dataVencimento: formaPagamento === "Fiado" ? dataVencimento : null,
           }),
         }
       );
@@ -626,12 +643,53 @@ export default function ComandasPage() {
                     </select>
                   </div>
                 )}
+
+                {formaPagamento === "Fiado" && (
+                  <div className="flex flex-col gap-1">
+                    <label className={labelStyle}>Vencimento</label>
+                    <input
+                      type="date"
+                      value={dataVencimento}
+                      onChange={(e) => setDataVencimento(e.target.value)}
+                      className={`${inputStyle} w-40`}
+                    />
+                  </div>
+                )}
               </div>
+
+              {formaPagamento === "Fiado" && (
+                <div className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 px-3 py-2 text-sm">
+                  <p className="font-semibold text-red-700 dark:text-red-400 mb-1">🔴 Comanda fiado</p>
+                  <div className="grid grid-cols-3 gap-2 text-black/70 dark:text-white/70">
+                    <div>
+                      <div className={labelStyle}>Cliente</div>
+                      <div>{clienteFiadoSelecionado?.nome ?? "—"}</div>
+                    </div>
+                    <div>
+                      <div className={labelStyle}>Valor</div>
+                      <div>R$ {(totalAberta - valorPago).toFixed(2)}</div>
+                    </div>
+                    <div>
+                      <div className={labelStyle}>Vencimento</div>
+                      <div>
+                        {dataVencimento
+                          ? new Date(dataVencimento + "T00:00:00").toLocaleDateString("pt-BR")
+                          : "—"}
+                      </div>
+                    </div>
+                  </div>
+                  {fiadoSemTelefone && (
+                    <p className="text-amber-600 dark:text-amber-500 mt-2">
+                      Este cliente não tem telefone cadastrado — não será possível cobrar pelo WhatsApp.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {trocoCalculado !== null && (
                 <p className="text-sm font-medium text-green-600">Troco: R$ {trocoCalculado.toFixed(2)}</p>
               )}
-              {faltante > 0 && (formaPagamento === "Dinheiro" || formaPagamento === "Fiado") && (
+              {faltante > 0 && formaPagamento === "Dinheiro" && (
                 <p className="text-sm font-medium text-amber-600">
                   {clienteSelecionado
                     ? `Fica devendo: R$ ${faltante.toFixed(2)}`
@@ -646,7 +704,8 @@ export default function ComandasPage() {
                   disabled={
                     comandaAberta.itens.length === 0 ||
                     salvando ||
-                    (precisaDeCliente && !clienteSelecionado)
+                    (precisaDeCliente && !clienteSelecionado) ||
+                    (formaPagamento === "Fiado" && !dataVencimento)
                   }
                   className={`${botaoPrimario} flex-1`}
                 >

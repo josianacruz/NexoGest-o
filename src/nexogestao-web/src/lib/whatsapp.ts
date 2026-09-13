@@ -61,3 +61,20 @@ export function mensagemAgradecerCompra(nome: string): string {
 export function mensagemPromocaoPadrao(nome: string): string {
   return `Olá, ${nome}! Temos uma promoção especial para você...`;
 }
+
+function formatarDataBr(data: string | Date): string {
+  const d = typeof data === "string" ? new Date(data) : data;
+  return d.toLocaleDateString("pt-BR", { timeZone: "UTC" });
+}
+
+export function mensagemLembreteVencimento(nome: string, valor: number, vencimento: string | Date): string {
+  return `Olá, ${nome}! 😊 Passando para lembrar que seu pagamento de R$ ${valor.toFixed(
+    2
+  )}, com vencimento em ${formatarDataBr(vencimento)}, está próximo. Qualquer dúvida, estamos à disposição.`;
+}
+
+export function mensagemCobrancaVencida(nome: string, valor: number, vencimento: string | Date): string {
+  return `Olá, ${nome}! Passando para lembrar que o pagamento de R$ ${valor.toFixed(
+    2
+  )}, com vencimento em ${formatarDataBr(vencimento)}, está pendente. Se você já realizou o pagamento, pode desconsiderar esta mensagem. 😊`;
+}

@@ -14,7 +14,8 @@ public record CriarVendaRequest(
     string FormaPagamento,
     List<ItemVendaRequest> Itens,
     decimal? ValorRecebido = null,
-    int? Parcelas = null);
+    int? Parcelas = null,
+    DateTime? DataVencimento = null);
 
 [ApiController]
 [Route("api/empresas/{empresaId:int}/vendas")]
@@ -41,6 +42,9 @@ public class VendasController : TenantControllerBase
 
         if (request.FormaPagamento == "Fiado" && request.ClienteId is null)
             return BadRequest(new { mensagem = "Venda fiado precisa estar vinculada a um cliente." });
+
+        if (request.FormaPagamento == "Fiado" && request.DataVencimento is null)
+            return BadRequest(new { mensagem = "Informe a data de vencimento da venda fiado." });
 
         if (request.FormaPagamento == "Crédito" && request.Parcelas is not null && request.Parcelas < 1)
             return BadRequest(new { mensagem = "O número de parcelas deve ser maior que zero." });
@@ -113,11 +117,38 @@ public class VendasController : TenantControllerBase
         }
 
         Context.Vendas.Add(venda);
+
+        // Criada junto com a venda na mesma SaveChangesAsync (via navegação, sem
+        // precisar do Id ainda) pra nunca existir uma venda fiado sem conta a receber.
+        ContaReceber? contaReceber = null;
+        if (request.FormaPagamento == "Fiado" && venda.SaldoDevedor is > 0)
+        {
+            contaReceber = new ContaReceber
+            {
+                EmpresaId = empresaAutorizada.Value,
+                ClienteId = request.ClienteId!.Value,
+                Venda = venda,
+                ValorOriginal = total,
+                ValorPendente = venda.SaldoDevedor.Value,
+                DataVencimento = DateTime.SpecifyKind(request.DataVencimento!.Value, DateTimeKind.Utc),
+            };
+            Context.ContasReceber.Add(contaReceber);
+        }
+
         await Context.SaveChangesAsync();
 
         var estoqueNegativo = produtos.Where(p => p.Estoque < 0).Select(p => p.Nome).ToList();
 
-        return Ok(new { venda.Id, venda.Total, venda.Troco, venda.SaldoDevedor, venda.Data, estoqueNegativo });
+        return Ok(new
+        {
+            venda.Id,
+            venda.Total,
+            venda.Troco,
+            venda.SaldoDevedor,
+            venda.Data,
+            estoqueNegativo,
+            ContaReceberId = contaReceber?.Id
+        });
     }
 
     [HttpGet]
@@ -164,6 +195,18 @@ public class VendasController : TenantControllerBase
         venda.ValorRecebido = (venda.ValorRecebido ?? 0) + request.Valor;
         var novoSaldo = venda.SaldoDevedor.Value - request.Valor;
         venda.SaldoDevedor = novoSaldo > 0 ? novoSaldo : null;
+
+        // Mantém a conta a receber vinculada em dia com o pagamento registrado aqui.
+        var contaReceber = await Context.ContasReceber.FirstOrDefaultAsync(c => c.VendaId == vendaId);
+        if (contaReceber is not null)
+        {
+            contaReceber.ValorPendente = Math.Max(0, contaReceber.ValorPendente - request.Valor);
+            if (contaReceber.ValorPendente == 0)
+            {
+                contaReceber.Status = StatusContaReceber.Pago;
+                contaReceber.DataPagamento = DateTime.UtcNow;
+            }
+        }
 
         await Context.SaveChangesAsync();
 

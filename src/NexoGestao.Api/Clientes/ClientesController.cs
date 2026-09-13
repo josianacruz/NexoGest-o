@@ -47,6 +47,8 @@ public class ClientesController : TenantControllerBase
         if (empresaAutorizada is null)
             return Forbid();
 
+        var hoje = DateTime.UtcNow.Date;
+
         var clientes = await Context.Clientes
             .OrderBy(c => c.Nome)
             .Select(c => new
@@ -57,11 +59,62 @@ public class ClientesController : TenantControllerBase
                 c.Email,
                 SaldoDevedor = Context.Vendas
                     .Where(v => v.ClienteId == c.Id && v.SaldoDevedor != null)
-                    .Sum(v => v.SaldoDevedor)
+                    .Sum(v => v.SaldoDevedor),
+                TotalPendente = Context.ContasReceber
+                    .Where(cr => cr.ClienteId == c.Id && cr.Status == StatusContaReceber.Pendente)
+                    .Sum(cr => (decimal?)cr.ValorPendente) ?? 0,
+                TotalVencido = Context.ContasReceber
+                    .Where(cr => cr.ClienteId == c.Id && cr.Status == StatusContaReceber.Pendente && cr.DataVencimento < hoje)
+                    .Sum(cr => (decimal?)cr.ValorPendente) ?? 0,
+                ProximoVencimento = Context.ContasReceber
+                    .Where(cr => cr.ClienteId == c.Id && cr.Status == StatusContaReceber.Pendente)
+                    .OrderBy(cr => cr.DataVencimento)
+                    .Select(cr => (DateTime?)cr.DataVencimento)
+                    .FirstOrDefault(),
             })
             .ToListAsync();
 
         return Ok(clientes);
+    }
+
+    [HttpGet("{clienteId:int}/contas-receber")]
+    public async Task<IActionResult> ContasReceberDoCliente(int empresaId, int clienteId)
+    {
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        if (empresaAutorizada is null)
+            return Forbid();
+
+        var hoje = DateTime.UtcNow.Date;
+
+        var contas = await Context.ContasReceber
+            .Where(c => c.ClienteId == clienteId)
+            .OrderBy(c => c.DataVencimento)
+            .Select(c => new
+            {
+                c.Id,
+                c.VendaId,
+                c.ValorOriginal,
+                c.ValorPendente,
+                c.DataVencimento,
+                c.DataPagamento,
+                c.Status,
+            })
+            .ToListAsync();
+
+        var comStatus = contas.Select(c => new
+        {
+            c.Id,
+            c.VendaId,
+            c.ValorOriginal,
+            c.ValorPendente,
+            c.DataVencimento,
+            c.DataPagamento,
+            Status = c.Status == StatusContaReceber.Pago
+                ? "PAGO"
+                : c.DataVencimento.Date < hoje ? "VENCIDO" : "PENDENTE",
+        });
+
+        return Ok(comStatus);
     }
 
     [HttpPut("{clienteId:int}")]

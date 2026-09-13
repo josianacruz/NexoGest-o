@@ -18,6 +18,7 @@ interface Produto {
 interface Cliente {
   id: number;
   nome: string;
+  telefone?: string | null;
 }
 
 interface ItemCarrinho {
@@ -65,6 +66,7 @@ export default function VendasPage() {
   const [clienteSelecionado, setClienteSelecionado] = useState("");
   const [valorRecebido, setValorRecebido] = useState("");
   const [parcelas, setParcelas] = useState("1");
+  const [dataVencimento, setDataVencimento] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [avisoEstoque, setAvisoEstoque] = useState<string | null>(null);
   const [valorPagamento, setValorPagamento] = useState<Record<number, string>>({});
@@ -166,7 +168,11 @@ export default function VendasPage() {
       ? valorPago - totalCarrinho
       : null;
 
-  const precisaDeCliente = faltante > 0 && (formaPagamento === "Dinheiro" || formaPagamento === "Fiado");
+  const precisaDeCliente =
+    formaPagamento === "Fiado" || (faltante > 0 && formaPagamento === "Dinheiro");
+
+  const clienteFiadoSelecionado = clientes.find((c) => c.id === Number(clienteSelecionado));
+  const fiadoSemTelefone = formaPagamento === "Fiado" && !!clienteFiadoSelecionado && !clienteFiadoSelecionado.telefone;
 
   async function finalizarVenda() {
     if (salvando) return;
@@ -175,7 +181,16 @@ export default function VendasPage() {
     if (!token || !empresaId || carrinho.length === 0) return;
 
     if (precisaDeCliente && !clienteSelecionado) {
-      setErro("Selecione um cliente para registrar o valor que ficou faltando como fiado.");
+      setErro(
+        formaPagamento === "Fiado"
+          ? "Selecione o cliente que está comprando fiado."
+          : "Selecione um cliente para registrar o valor que ficou faltando como fiado."
+      );
+      return;
+    }
+
+    if (formaPagamento === "Fiado" && !dataVencimento) {
+      setErro("Informe a data de vencimento da venda fiado.");
       return;
     }
 
@@ -196,6 +211,7 @@ export default function VendasPage() {
               ? valorPago
               : null,
           parcelas: formaPagamento === "Crédito" ? Number(parcelas || "1") : null,
+          dataVencimento: formaPagamento === "Fiado" ? dataVencimento : null,
           itens: carrinho.map((i) => ({
             produtoId: i.produtoId,
             quantidade: i.quantidade,
@@ -219,6 +235,7 @@ export default function VendasPage() {
       setValorRecebido("");
       setParcelas("1");
       setClienteSelecionado("");
+      setDataVencimento("");
       await carregarTudo();
     } finally {
       setSalvando(false);
@@ -388,7 +405,7 @@ export default function VendasPage() {
             {(formaPagamento === "Dinheiro" || formaPagamento === "Fiado") && (
               <div className="flex flex-col gap-1">
                 <label className={labelStyle}>
-                  {formaPagamento === "Fiado" ? "Valor pago agora" : "Valor recebido"}
+                  {formaPagamento === "Fiado" ? "Valor pago agora (opcional)" : "Valor recebido"}
                 </label>
                 <input
                   type="number"
@@ -401,19 +418,65 @@ export default function VendasPage() {
               </div>
             )}
 
+            {formaPagamento === "Fiado" && (
+              <div className="flex flex-col gap-1">
+                <label className={labelStyle}>Data de vencimento</label>
+                <input
+                  type="date"
+                  value={dataVencimento}
+                  onChange={(e) => setDataVencimento(e.target.value)}
+                  className={`${inputStyle} w-40`}
+                />
+              </div>
+            )}
+
             <button
               onClick={finalizarVenda}
-              disabled={carrinho.length === 0 || salvando || (precisaDeCliente && !clienteSelecionado)}
+              disabled={
+                carrinho.length === 0 ||
+                salvando ||
+                (precisaDeCliente && !clienteSelecionado) ||
+                (formaPagamento === "Fiado" && !dataVencimento)
+              }
               className={`${botaoPrimario} ml-auto`}
             >
               {salvando ? "Salvando..." : "Finalizar venda"}
             </button>
           </div>
 
+          {formaPagamento === "Fiado" && (
+            <div className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 px-4 py-3 mb-3 text-sm">
+              <p className="font-semibold text-red-700 dark:text-red-400 mb-1">🔴 Venda fiado</p>
+              <div className="grid grid-cols-3 gap-2 text-black/70 dark:text-white/70">
+                <div>
+                  <div className={labelStyle}>Cliente</div>
+                  <div>{clienteFiadoSelecionado?.nome ?? "—"}</div>
+                </div>
+                <div>
+                  <div className={labelStyle}>Valor</div>
+                  <div>R$ {(totalCarrinho - valorPago).toFixed(2)}</div>
+                </div>
+                <div>
+                  <div className={labelStyle}>Vencimento</div>
+                  <div>
+                    {dataVencimento
+                      ? new Date(dataVencimento + "T00:00:00").toLocaleDateString("pt-BR")
+                      : "—"}
+                  </div>
+                </div>
+              </div>
+              {fiadoSemTelefone && (
+                <p className="text-amber-600 dark:text-amber-500 mt-2">
+                  Este cliente não tem telefone cadastrado — não será possível cobrar pelo WhatsApp.
+                </p>
+              )}
+            </div>
+          )}
+
           {trocoCalculado !== null && (
             <p className="text-sm font-medium text-green-600">Troco: R$ {trocoCalculado.toFixed(2)}</p>
           )}
-          {faltante > 0 && (formaPagamento === "Dinheiro" || formaPagamento === "Fiado") && (
+          {faltante > 0 && formaPagamento === "Dinheiro" && (
             <p className="text-sm font-medium text-amber-600">
               {clienteSelecionado
                 ? `Fica devendo: R$ ${faltante.toFixed(2)}`
