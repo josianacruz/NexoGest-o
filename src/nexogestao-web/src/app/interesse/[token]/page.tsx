@@ -87,32 +87,32 @@ export default function InteressePage() {
   }
 
   return (
-    <main className="max-w-sm mx-auto px-4 py-8">
+    <main className="max-w-sm mx-auto px-4 py-5">
       <div className={`${cardStyle} overflow-hidden`}>
         {info.fotoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={info.fotoUrl} alt={info.produtoNome} className="w-full aspect-square object-cover" />
         ) : (
-          <div className="w-full aspect-square bg-black/5 dark:bg-white/5 flex items-center justify-center text-4xl">
+          <div className="w-full h-36 bg-black/5 dark:bg-white/5 flex items-center justify-center text-4xl">
             💎
           </div>
         )}
 
-        <div className="p-5 flex flex-col gap-2">
+        <div className="p-4 flex flex-col gap-1.5">
           <span className="text-xs font-medium text-black/50 dark:text-white/50">{info.empresaNome}</span>
           <h1 className="text-lg font-semibold leading-tight">{info.produtoNome}</h1>
-          <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+          <span className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
             R$ {info.preco.toFixed(2)}
           </span>
 
           {!info.disponivel ? (
-            <p className="text-sm text-red-600 mt-2">{info.mensagem ?? "Essa peça não está mais disponível."}</p>
+            <p className="text-sm text-red-600 mt-1">{info.mensagem ?? "Essa peça não está mais disponível."}</p>
           ) : enviado ? (
-            <div className="mt-2 rounded-lg bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 text-sm p-3">
+            <div className="mt-1 rounded-lg bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 text-sm p-3">
               Interesse registrado! A loja pode demorar um pouco para responder — fique de olho no WhatsApp. 💎
             </div>
           ) : !mostrarForm ? (
-            <button onClick={() => setMostrarForm(true)} className={`${botaoPrimario} mt-2`}>
+            <button onClick={() => setMostrarForm(true)} className={`${botaoPrimario} mt-1 h-12 text-base`}>
               Tenho interesse 💎
             </button>
           ) : (
@@ -142,7 +142,7 @@ export default function InteressePage() {
                 Concordo em ser contatado(a) pela loja no WhatsApp sobre esse item.
               </label>
               {erro && <p className="text-sm text-red-600">{erro}</p>}
-              <button type="submit" disabled={enviando || !consentimento} className={botaoPrimario}>
+              <button type="submit" disabled={enviando || !consentimento} className={`${botaoPrimario} h-12 text-base`}>
                 {enviando ? "Enviando..." : "Confirmar interesse"}
               </button>
             </form>

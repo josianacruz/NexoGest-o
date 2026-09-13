@@ -32,12 +32,20 @@ const STATUS_ESTILO: Record<StatusInteresse, string> = {
   Perdido: "bg-black/5 dark:bg-white/5 text-black/40 dark:text-white/40 line-through",
 };
 
+// Rótulos em linguagem simples pra quem não usa termos de sistema no dia a dia.
+const STATUS_LABEL: Record<StatusInteresse, string> = {
+  Novo: "Novo",
+  Reservado: "Reservado",
+  Convertido: "Vendido",
+  Perdido: "Não avançou",
+};
+
 const FILTROS: { chave: string; label: string }[] = [
   { chave: "", label: "Todos" },
   { chave: "Novo", label: "Novos" },
   { chave: "Reservado", label: "Reservados" },
-  { chave: "Convertido", label: "Convertidos" },
-  { chave: "Perdido", label: "Perdidos" },
+  { chave: "Convertido", label: "Vendidos" },
+  { chave: "Perdido", label: "Não avançaram" },
 ];
 
 async function mensagemDeErro(res: Response, padrao: string) {
@@ -221,8 +229,17 @@ export default function InteressesPage() {
   return (
     <>
       <Nav empresaNome={empresaNome} comandasHabilitadas={comandasHabilitadas} />
-      <main className="max-w-3xl mx-auto px-4 sm:px-5 py-8 w-full min-w-0">
+      <main className="max-w-3xl mx-auto px-4 sm:px-5 py-6 w-full min-w-0">
         <PageHeader titulo="Interesses" />
+
+        {!carregando && interesses.filter((i) => i.status === "Novo").length > 0 && filtro === "" && (
+          <div className="rounded-xl bg-indigo-600 text-white px-4 py-3 mb-4 flex items-center gap-2 text-sm font-medium">
+            <span className="text-lg">👉</span>
+            {interesses.filter((i) => i.status === "Novo").length === 1
+              ? "1 pessoa nova interessada — chame no WhatsApp!"
+              : `${interesses.filter((i) => i.status === "Novo").length} pessoas novas interessadas — chame no WhatsApp!`}
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2 mb-4">
           {FILTROS.map((f) => (
@@ -249,17 +266,17 @@ export default function InteressesPage() {
               <div className="flex items-center gap-3">
                 {i.produtoFotoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={i.produtoFotoUrl} alt="" className="w-12 h-12 object-cover rounded-lg shrink-0" />
+                  <img src={i.produtoFotoUrl} alt="" className="w-14 h-14 object-cover rounded-lg shrink-0" />
                 ) : (
-                  <div className="w-12 h-12 rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center text-lg shrink-0">
+                  <div className="w-14 h-14 rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center text-xl shrink-0">
                     💎
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium truncate">{i.clienteNome}</span>
+                    <span className="font-semibold truncate">{i.clienteNome}</span>
                     <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${STATUS_ESTILO[i.status]}`}>
-                      {i.status}
+                      {STATUS_LABEL[i.status]}
                     </span>
                   </div>
                   <div className="text-sm text-black/60 dark:text-white/60 truncate">
@@ -286,29 +303,38 @@ export default function InteressesPage() {
               )}
 
               {i.status !== "Convertido" && i.status !== "Perdido" && (
-                <div className="flex flex-wrap gap-2 pt-2 border-t border-black/5 dark:border-white/5">
+                <div className="flex flex-col gap-2 pt-2 border-t border-black/5 dark:border-white/5">
                   <button
                     onClick={() => chamarNoWhatsApp(i)}
-                    className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700"
+                    className="h-11 w-full inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-semibold bg-green-600 text-white hover:bg-green-700"
                   >
-                    Chamar no WhatsApp
+                    💬 Chamar no WhatsApp
                   </button>
-                  {i.status === "Novo" && (
-                    <button onClick={() => reservar(i)} disabled={salvando} className={botaoTexto}>
-                      Reservar
+                  <div className="flex flex-wrap gap-2">
+                    {i.status === "Novo" && (
+                      <button onClick={() => reservar(i)} disabled={salvando} className={`${botaoSecundario} flex-1`}>
+                        Reservar
+                      </button>
+                    )}
+                    <button onClick={() => abrirConversao(i)} disabled={salvando} className={`${botaoPrimario} flex-1`}>
+                      Vender
                     </button>
-                  )}
-                  <button onClick={() => abrirConversao(i)} disabled={salvando} className={botaoTexto}>
-                    Converter em venda
-                  </button>
-                  <button onClick={() => marcarPerdido(i)} disabled={salvando} className="text-red-600 hover:underline text-sm font-medium">
-                    Marcar como perdido
+                  </div>
+                  <button
+                    onClick={() => marcarPerdido(i)}
+                    disabled={salvando}
+                    className="text-xs text-black/40 dark:text-white/40 hover:text-red-600 hover:underline self-center"
+                  >
+                    Não avançou
                   </button>
                 </div>
               )}
 
               {i.status === "Convertido" && i.vendaId && (
-                <a href="/vendas" className={`${botaoTexto} pt-2 border-t border-black/5 dark:border-white/5`}>
+                <a
+                  href="/vendas"
+                  className="pt-2 border-t border-black/5 dark:border-white/5 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                >
                   Ver venda #{i.vendaId}
                 </a>
               )}
@@ -322,7 +348,7 @@ export default function InteressesPage() {
       </main>
 
       {convertendo && (
-        <Modal titulo={`Converter interesse de ${convertendo.clienteNome}`} onFechar={() => setConvertendo(null)}>
+        <Modal titulo={`Vender para ${convertendo.clienteNome}`} onFechar={() => setConvertendo(null)}>
           <form onSubmit={confirmarConversao} className="flex flex-col gap-3">
             <p className="text-sm text-black/60 dark:text-white/60">
               {convertendo.produtoNome} — R$ {convertendo.produtoPreco.toFixed(2)}
@@ -385,7 +411,7 @@ export default function InteressesPage() {
                 Cancelar
               </button>
               <button type="submit" disabled={salvando} className={botaoPrimario}>
-                {salvando ? "Convertendo..." : "Converter em venda"}
+                {salvando ? "Vendendo..." : "Confirmar venda"}
               </button>
             </div>
           </form>
