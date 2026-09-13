@@ -10,7 +10,8 @@ public enum Modulo
     Agenda,
     Servicos,
     Marketing,
-    Financeiro
+    Financeiro,
+    Interesses
 }
 
 public enum TipoNegocio

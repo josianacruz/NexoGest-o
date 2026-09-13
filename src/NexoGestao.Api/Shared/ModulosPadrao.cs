@@ -17,7 +17,7 @@ public static class ModulosPadrao
         },
         [TipoNegocio.Comercio] = new[]
         {
-            Modulo.Clientes, Modulo.Produtos, Modulo.Vendas, Modulo.Cobrancas, Modulo.Marketing,
+            Modulo.Clientes, Modulo.Produtos, Modulo.Vendas, Modulo.Cobrancas, Modulo.Marketing, Modulo.Interesses,
         },
         [TipoNegocio.Beleza] = new[]
         {
