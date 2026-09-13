@@ -10,6 +10,7 @@ const linksBase = [
   { href: "/produtos", label: "Produtos" },
   { href: "/vendas", label: "Vendas" },
   { href: "/cobrancas", label: "Cobranças" },
+  { href: "/marketing", label: "Marketing" },
 ];
 
 export default function Nav({
