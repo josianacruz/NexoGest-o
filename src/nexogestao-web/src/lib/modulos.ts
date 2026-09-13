@@ -8,15 +8,17 @@ export interface ModuloMenu {
   href: string;
 }
 
-// Só entram aqui módulos que já têm uma tela pronta. Agenda, Servicos e
-// Financeiro já existem como módulo no backend (pra empresas de outros
-// segmentos poderem ser configuradas), mas ainda não têm tela — não
-// adianta linkar pra uma página que não existe.
+// Só entram aqui módulos que já têm uma tela pronta. Financeiro já existe
+// como módulo no backend (pra empresas de outros segmentos poderem ser
+// configuradas), mas ainda não tem tela — não adianta linkar pra uma
+// página que não existe.
 export const MODULOS_MENU: ModuloMenu[] = [
   { chave: "Clientes", label: "Clientes", href: "/clientes" },
   { chave: "Produtos", label: "Produtos", href: "/produtos" },
   { chave: "Vendas", label: "Vendas", href: "/vendas" },
   { chave: "Comandas", label: "Comandas", href: "/comandas" },
+  { chave: "Agenda", label: "Agenda", href: "/agenda" },
+  { chave: "Servicos", label: "Serviços", href: "/servicos" },
   { chave: "Cobrancas", label: "Cobranças", href: "/cobrancas" },
   { chave: "Marketing", label: "Marketing", href: "/marketing" },
 ];
