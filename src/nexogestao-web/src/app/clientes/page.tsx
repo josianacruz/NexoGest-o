@@ -9,7 +9,7 @@ import Drawer from "../_components/Drawer";
 import PageHeader from "../_components/PageHeader";
 import SearchInput from "../_components/SearchInput";
 import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../_components/ui";
-import { API_URL } from "../../lib/api";
+import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
 import { abrirWhatsApp, mensagemLembreteVencimento, mensagemCobrancaVencida } from "../../lib/whatsapp";
 
 interface Cliente {
@@ -94,6 +94,10 @@ export default function ClientesPage() {
         `${API_URL}/api/empresas/${primeiraEmpresa.id}/clientes`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      if (moduloIndisponivel(resClientes)) {
+        setErro(MODULO_INDISPONIVEL_MSG);
+        return;
+      }
       const listaClientes = await resClientes.json();
       setClientes(listaClientes);
     } finally {

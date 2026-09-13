@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Nav from "../_components/Nav";
 import PageHeader from "../_components/PageHeader";
 import { labelStyle, botaoTexto, cardStyle } from "../_components/ui";
-import { API_URL } from "../../lib/api";
+import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
 import { abrirWhatsApp, mensagemLembreteVencimento, mensagemCobrancaVencida } from "../../lib/whatsapp";
 
 interface ContaReceber {
@@ -95,6 +95,11 @@ export default function CobrancasPage() {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
+
+      if (moduloIndisponivel(resContas, resResumo)) {
+        setErro(MODULO_INDISPONIVEL_MSG);
+        return;
+      }
 
       setContas(await resContas.json());
       setResumo(await resResumo.json());

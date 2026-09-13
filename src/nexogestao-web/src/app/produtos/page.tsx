@@ -7,7 +7,7 @@ import Modal from "../_components/Modal";
 import PageHeader from "../_components/PageHeader";
 import SearchInput from "../_components/SearchInput";
 import { inputStyle, labelStyle, botaoPrimario, botaoTexto, cardStyle, badgeEstoque } from "../_components/ui";
-import { API_URL } from "../../lib/api";
+import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
 
 interface Produto {
   id: number;
@@ -76,6 +76,10 @@ export default function ProdutosPage() {
         `${API_URL}/api/empresas/${primeiraEmpresa.id}/produtos`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      if (moduloIndisponivel(resProdutos)) {
+        setErro(MODULO_INDISPONIVEL_MSG);
+        return;
+      }
       const listaProdutos = await resProdutos.json();
       setProdutos(listaProdutos);
     } finally {
