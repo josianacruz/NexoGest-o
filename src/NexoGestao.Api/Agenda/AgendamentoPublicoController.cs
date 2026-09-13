@@ -90,8 +90,8 @@ public class AgendamentoPublicoController : ControllerBase
             return NotFound(new { mensagem = "Serviço não encontrado." });
 
         var config = await Context.ConfiguracoesAgenda.FirstOrDefaultAsync(c => c.EmpresaId == empresaId);
-        var horaInicio = config?.HoraInicioAtendimento ?? "08:00";
-        var horaFim = config?.HoraFimAtendimento ?? "18:00";
+        var horaInicio = string.IsNullOrWhiteSpace(config?.HoraInicioAtendimento) ? "08:00" : config.HoraInicioAtendimento;
+        var horaFim = string.IsNullOrWhiteSpace(config?.HoraFimAtendimento) ? "18:00" : config.HoraFimAtendimento;
 
         var dataBase = DateTime.SpecifyKind(data.Date, DateTimeKind.Utc);
         var inicioJanela = CombinarDataHora(dataBase, horaInicio);

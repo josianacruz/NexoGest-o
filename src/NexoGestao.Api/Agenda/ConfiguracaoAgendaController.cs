@@ -37,8 +37,8 @@ public class ConfiguracaoAgendaController : TenantControllerBase
             horasAntesLembrete = config?.HorasAntesLembrete ?? 24,
             horasMinimasCancelamento = config?.HorasMinimasCancelamento ?? 24,
             cobrarCancelamentoForaPrazo = config?.CobrarCancelamentoForaPrazo ?? false,
-            horaInicioAtendimento = config?.HoraInicioAtendimento ?? "08:00",
-            horaFimAtendimento = config?.HoraFimAtendimento ?? "18:00",
+            horaInicioAtendimento = string.IsNullOrWhiteSpace(config?.HoraInicioAtendimento) ? "08:00" : config.HoraInicioAtendimento,
+            horaFimAtendimento = string.IsNullOrWhiteSpace(config?.HoraFimAtendimento) ? "18:00" : config.HoraFimAtendimento,
         });
     }
 

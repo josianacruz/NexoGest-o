@@ -29,6 +29,7 @@ export default function AutoagendamentoPage() {
   const [data, setData] = useState("");
   const [horarios, setHorarios] = useState<string[]>([]);
   const [buscandoHorarios, setBuscandoHorarios] = useState(false);
+  const [erroHorarios, setErroHorarios] = useState<string | null>(null);
   const [hora, setHora] = useState<string | null>(null);
   const [nome, setNome] = useState("");
   const [celular, setCelular] = useState("");
@@ -57,13 +58,14 @@ export default function AutoagendamentoPage() {
   useEffect(() => {
     setHora(null);
     setHorarios([]);
+    setErroHorarios(null);
     if (!servicoId || !data) return;
 
     setBuscandoHorarios(true);
     fetch(`${API_URL}/api/publico/empresas/${empresaId}/agenda/horarios?servicoId=${servicoId}&data=${data}`)
       .then(async (res) => {
         if (!res.ok) {
-          setHorarios([]);
+          setErroHorarios(await mensagemDeErro(res, "Não foi possível buscar os horários. Tente novamente."));
           return;
         }
         setHorarios(await res.json());
@@ -184,6 +186,8 @@ export default function AutoagendamentoPage() {
             <label className={labelStyle}>Horário</label>
             {buscandoHorarios ? (
               <p className="text-sm text-black/50 dark:text-white/50">Buscando horários...</p>
+            ) : erroHorarios ? (
+              <p className="text-sm text-red-600">{erroHorarios}</p>
             ) : horarios.length === 0 ? (
               <p className="text-sm text-black/50 dark:text-white/50">Nenhum horário disponível nesse dia.</p>
             ) : (
