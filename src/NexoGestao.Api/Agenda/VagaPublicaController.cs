@@ -34,20 +34,16 @@ public class VagaPublicaController : ControllerBase
 
     private async Task<int> MinutosDisponiveisAsync(VagaDivulgada vaga)
     {
-        var config = await Context.ConfiguracoesAgenda.FirstOrDefaultAsync(c => c.EmpresaId == vaga.EmpresaId);
-        var horaFimStr = string.IsNullOrWhiteSpace(config?.HoraFimAtendimento) ? "18:00" : config.HoraFimAtendimento;
-        var partes = horaFimStr.Split(':');
-        var fimJanela = DateTime.SpecifyKind(
-            vaga.DataHora.Date.AddHours(int.Parse(partes[0])).AddMinutes(int.Parse(partes[1])),
-            DateTimeKind.Utc);
-
+        // O horário de fechamento configurado não entra aqui: quem divulgou a vaga
+        // já escolheu esse horário de propósito. Só o próximo agendamento do mesmo
+        // dia limita — sem ele, assume uma janela generosa (cabe qualquer serviço).
         var proximoAgendamento = await Context.Agendamentos
             .Where(a => a.Status != StatusAgendamento.Cancelado && a.DataHora > vaga.DataHora && a.DataHora.Date == vaga.DataHora.Date)
             .OrderBy(a => a.DataHora)
             .Select(a => a.DataHora)
             .FirstOrDefaultAsync();
 
-        var limite = proximoAgendamento != default && proximoAgendamento < fimJanela ? proximoAgendamento : fimJanela;
+        var limite = proximoAgendamento != default ? proximoAgendamento : vaga.DataHora.AddHours(6);
         var minutos = (int)(limite - vaga.DataHora).TotalMinutes;
         return Math.Max(0, minutos);
     }

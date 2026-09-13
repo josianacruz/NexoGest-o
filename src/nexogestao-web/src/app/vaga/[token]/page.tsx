@@ -134,12 +134,9 @@ export default function VagaPage() {
       <p className="text-sm text-black/50 dark:text-white/50 mb-5">Vagou um horário — garanta o seu!</p>
 
       <form onSubmit={confirmar} className={`${cardStyle} p-5 flex flex-col gap-4`}>
-        <div className={`${inputStyle} flex items-center justify-between font-semibold`}>
-          <span>
-            {dataHora?.toLocaleDateString("pt-BR", { timeZone: "UTC" })} às{" "}
-            {dataHora?.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })}
-          </span>
-          <span className="text-xs font-normal text-black/40 dark:text-white/40">horário travado</span>
+        <div className={`${inputStyle} font-semibold`}>
+          {dataHora?.toLocaleDateString("pt-BR", { timeZone: "UTC" })} às{" "}
+          {dataHora?.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })}
         </div>
 
         {servicos.length === 0 ? (
