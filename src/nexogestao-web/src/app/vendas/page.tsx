@@ -389,7 +389,7 @@ export default function VendasPage() {
             <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">R$ {totalCarrinho.toFixed(2)}</span>
           </div>
 
-          <div className="flex flex-wrap gap-3 items-end mb-3">
+          <div className="flex flex-wrap gap-3 items-end mb-4">
             <div className="flex flex-col gap-1">
               <label className={labelStyle}>Cliente</label>
               <select
@@ -473,25 +473,12 @@ export default function VendasPage() {
                 </div>
               </div>
             )}
-
-            <button
-              onClick={finalizarVenda}
-              disabled={
-                carrinho.length === 0 ||
-                salvando ||
-                (precisaDeCliente && !clienteSelecionado) ||
-                (formaPagamento === "Fiado" && !dataVencimento)
-              }
-              className={`${botaoPrimario} ml-auto`}
-            >
-              {salvando ? "Salvando..." : "Finalizar venda"}
-            </button>
           </div>
 
           {formaPagamento === "Fiado" && (
-            <div className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 px-4 py-3 mb-3 text-sm">
-              <p className="font-semibold text-red-700 dark:text-red-400 mb-1">🔴 Venda fiado</p>
-              <div className="grid grid-cols-3 gap-2 text-black/70 dark:text-white/70">
+            <div className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 px-4 py-3 mb-4 text-sm">
+              <p className="font-semibold text-red-700 dark:text-red-400 mb-2">🔴 Venda fiado</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-black/70 dark:text-white/70">
                 <div>
                   <div className={labelStyle}>Cliente</div>
                   <div>{clienteFiadoSelecionado?.nome ?? "—"}</div>
@@ -517,19 +504,35 @@ export default function VendasPage() {
             </div>
           )}
 
-          {trocoCalculado !== null && (
-            <p className="text-sm font-medium text-green-600">Troco: R$ {trocoCalculado.toFixed(2)}</p>
-          )}
-          {faltante > 0 && formaPagamento === "Dinheiro" && (
-            <p className="text-sm font-medium text-amber-600">
-              {clienteSelecionado
-                ? `Fica devendo: R$ ${faltante.toFixed(2)}`
-                : `Falta R$ ${faltante.toFixed(2)} — selecione um cliente pra registrar como fiado`}
-            </p>
-          )}
+          <div className="flex flex-col gap-1 mb-4">
+            {trocoCalculado !== null && (
+              <p className="text-sm font-medium text-green-600">Troco: R$ {trocoCalculado.toFixed(2)}</p>
+            )}
+            {faltante > 0 && formaPagamento === "Dinheiro" && (
+              <p className="text-sm font-medium text-amber-600">
+                {clienteSelecionado
+                  ? `Fica devendo: R$ ${faltante.toFixed(2)}`
+                  : `Falta R$ ${faltante.toFixed(2)} — selecione um cliente pra registrar como fiado`}
+              </p>
+            )}
+            {avisoEstoque && <p className="text-sm font-medium text-amber-600">{avisoEstoque}</p>}
+            {erro && <p className="text-sm text-red-600">{erro}</p>}
+          </div>
 
-          {avisoEstoque && <p className="text-sm font-medium text-amber-600 mt-3">{avisoEstoque}</p>}
-          {erro && <p className="text-sm text-red-600 mt-3">{erro}</p>}
+          <div className="flex justify-end">
+            <button
+              onClick={finalizarVenda}
+              disabled={
+                carrinho.length === 0 ||
+                salvando ||
+                (precisaDeCliente && !clienteSelecionado) ||
+                (formaPagamento === "Fiado" && !dataVencimento)
+              }
+              className={`${botaoPrimario} w-full sm:w-auto`}
+            >
+              {salvando ? "Salvando..." : "Finalizar venda"}
+            </button>
+          </div>
         </div>
 
         {itensSemEstoque.length > 0 && (
@@ -557,14 +560,14 @@ export default function VendasPage() {
                 <thead>
                   <tr className="text-left text-black/50 dark:text-white/50 bg-black/[0.02] dark:bg-white/[0.03]">
                     <th className="py-2 px-3 font-medium">Produto</th>
-                    <th className="py-2 px-3 font-medium">Quantidade vendida sem estoque</th>
+                    <th className="py-2 px-3 font-medium text-right">Qtd. sem estoque</th>
                   </tr>
                 </thead>
                 <tbody>
                   {itensSemEstoque.map((i) => (
                     <tr key={i.produtoId} className="border-t border-black/5 dark:border-white/5">
                       <td className="py-2 px-3">{i.produtoNome}</td>
-                      <td className="py-2 px-3 text-amber-600 dark:text-amber-500 font-medium">{i.quantidade}</td>
+                      <td className="py-2 px-3 text-right text-amber-600 dark:text-amber-500 font-medium">{i.quantidade}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -573,7 +576,7 @@ export default function VendasPage() {
           </div>
         )}
 
-        <h2 className="text-sm font-semibold mb-3">Histórico de vendas</h2>
+        <h2 className="text-sm font-semibold mb-4">Histórico de vendas</h2>
 
         {vendas.length > 0 && (
           <div className="flex flex-wrap gap-3 mb-4">
@@ -620,8 +623,8 @@ export default function VendasPage() {
                   <td className="py-2.5 px-4">
                     {v.troco != null && v.troco > 0 && <span>Troco: R$ {v.troco.toFixed(2)}</span>}
                     {v.saldoDevedor != null && v.saldoDevedor > 0 && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-amber-600">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-amber-600 whitespace-nowrap">
                           {v.clienteNome ?? "cliente"} deve R$ {v.saldoDevedor.toFixed(2)}
                         </span>
                         <input
@@ -636,7 +639,7 @@ export default function VendasPage() {
                         <button
                           onClick={() => registrarPagamentoFiado(v.id)}
                           disabled={salvando}
-                          className={botaoTexto}
+                          className={`${botaoTexto} whitespace-nowrap`}
                         >
                           registrar
                         </button>
