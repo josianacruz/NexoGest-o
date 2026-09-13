@@ -647,12 +647,24 @@ export default function ComandasPage() {
                 {formaPagamento === "Fiado" && (
                   <div className="flex flex-col gap-1">
                     <label className={labelStyle}>Vencimento</label>
-                    <input
-                      type="date"
-                      value={dataVencimento}
-                      onChange={(e) => setDataVencimento(e.target.value)}
-                      className={`${inputStyle} w-40`}
-                    />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={dataVencimento}
+                        onChange={(e) => setDataVencimento(e.target.value)}
+                        className={`${inputStyle} w-40 ${dataVencimento ? "pr-7" : ""}`}
+                      />
+                      {dataVencimento && (
+                        <button
+                          type="button"
+                          onClick={() => setDataVencimento("")}
+                          aria-label="Limpar data"
+                          className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70 hover:bg-black/5 dark:hover:bg-white/10"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

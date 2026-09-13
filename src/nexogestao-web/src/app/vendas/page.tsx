@@ -47,6 +47,14 @@ interface Venda {
   data: string;
 }
 
+interface ItemSemEstoque {
+  produtoId: number;
+  produtoNome: string;
+  quantidade: number;
+}
+
+type PeriodoSemEstoque = "dia" | "semana" | "mes";
+
 async function mensagemDeErro(res: Response, padrao: string) {
   const data = await res.json().catch(() => null);
   return data?.mensagem ?? padrao;
@@ -75,6 +83,8 @@ export default function VendasPage() {
   const [busca, setBusca] = useState("");
   const [filtroPagamento, setFiltroPagamento] = useState("");
   const [vendaDetalhe, setVendaDetalhe] = useState<Venda | null>(null);
+  const [itensSemEstoque, setItensSemEstoque] = useState<ItemSemEstoque[]>([]);
+  const [periodoSemEstoque, setPeriodoSemEstoque] = useState<PeriodoSemEstoque>("dia");
   const router = useRouter();
 
   function getToken() {
@@ -119,14 +129,31 @@ export default function VendasPage() {
       setProdutos(await resProdutos.json());
       setVendas(await resVendas.json());
       setClientes(await resClientes.json());
+      await carregarSemEstoque(empresa.id, periodoSemEstoque);
     } finally {
       setCarregando(false);
     }
   }
 
+  async function carregarSemEstoque(idEmpresa: number, periodo: PeriodoSemEstoque) {
+    const token = getToken();
+    if (!token) return;
+    const res = await fetch(
+      `${API_URL}/api/empresas/${idEmpresa}/vendas/sem-estoque?periodo=${periodo}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (res.ok) setItensSemEstoque(await res.json());
+  }
+
   useEffect(() => {
     carregarTudo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (empresaId) carregarSemEstoque(empresaId, periodoSemEstoque);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodoSemEstoque]);
 
   function adicionarAoCarrinho() {
     const produto = produtos.find((p) => p.id === Number(produtoSelecionado));
@@ -421,12 +448,24 @@ export default function VendasPage() {
             {formaPagamento === "Fiado" && (
               <div className="flex flex-col gap-1">
                 <label className={labelStyle}>Data de vencimento</label>
-                <input
-                  type="date"
-                  value={dataVencimento}
-                  onChange={(e) => setDataVencimento(e.target.value)}
-                  className={`${inputStyle} w-40`}
-                />
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={dataVencimento}
+                    onChange={(e) => setDataVencimento(e.target.value)}
+                    className={`${inputStyle} w-40 ${dataVencimento ? "pr-7" : ""}`}
+                  />
+                  {dataVencimento && (
+                    <button
+                      type="button"
+                      onClick={() => setDataVencimento("")}
+                      aria-label="Limpar data"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70 hover:bg-black/5 dark:hover:bg-white/10"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
@@ -487,6 +526,47 @@ export default function VendasPage() {
           {avisoEstoque && <p className="text-sm font-medium text-amber-600 mt-3">{avisoEstoque}</p>}
           {erro && <p className="text-sm text-red-600 mt-3">{erro}</p>}
         </div>
+
+        {itensSemEstoque.length > 0 && (
+          <div className={`${cardStyle} p-5 mb-6`}>
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+              <h2 className="text-sm font-semibold">Vendas sem estoque suficiente</h2>
+              <div className="flex gap-1">
+                {(["dia", "semana", "mes"] as PeriodoSemEstoque[]).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPeriodoSemEstoque(p)}
+                    className={`h-8 px-3 rounded-lg text-xs font-medium transition-colors ${
+                      periodoSemEstoque === p
+                        ? "bg-indigo-600 text-white"
+                        : "bg-black/5 dark:bg-white/10 text-black/70 dark:text-white/70 hover:bg-black/10 dark:hover:bg-white/20"
+                    }`}
+                  >
+                    {p === "dia" ? "Hoje" : p === "semana" ? "7 dias" : "30 dias"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-lg border border-black/10 dark:border-white/10 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-black/50 dark:text-white/50 bg-black/[0.02] dark:bg-white/[0.03]">
+                    <th className="py-2 px-3 font-medium">Produto</th>
+                    <th className="py-2 px-3 font-medium">Quantidade vendida sem estoque</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {itensSemEstoque.map((i) => (
+                    <tr key={i.produtoId} className="border-t border-black/5 dark:border-white/5">
+                      <td className="py-2 px-3">{i.produtoNome}</td>
+                      <td className="py-2 px-3 text-amber-600 dark:text-amber-500 font-medium">{i.quantidade}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         <h2 className="text-sm font-semibold mb-3">Histórico de vendas</h2>
 

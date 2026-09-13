@@ -65,6 +65,7 @@ public class VendasController : TenantControllerBase
         };
 
         decimal total = 0;
+        var registrosSemEstoque = new List<RegistroVendaSemEstoque>();
         foreach (var itemReq in request.Itens)
         {
             var produto = produtos.First(p => p.Id == itemReq.ProdutoId);
@@ -78,6 +79,20 @@ public class VendasController : TenantControllerBase
             };
             venda.Itens.Add(item);
             total += produto.Preco * itemReq.Quantidade;
+
+            // Quanto dessa venda não tinha estoque disponível (pra registrar no relatório).
+            var disponivel = Math.Max(0, produto.Estoque);
+            var semEstoque = Math.Max(0, itemReq.Quantidade - disponivel);
+            if (semEstoque > 0)
+            {
+                registrosSemEstoque.Add(new RegistroVendaSemEstoque
+                {
+                    EmpresaId = empresaAutorizada.Value,
+                    ProdutoId = produto.Id,
+                    Venda = venda,
+                    Quantidade = semEstoque,
+                });
+            }
 
             // Baixa de estoque
             produto.Estoque -= itemReq.Quantidade;
@@ -135,6 +150,9 @@ public class VendasController : TenantControllerBase
             Context.ContasReceber.Add(contaReceber);
         }
 
+        if (registrosSemEstoque.Count > 0)
+            Context.RegistrosVendaSemEstoque.AddRange(registrosSemEstoque);
+
         await Context.SaveChangesAsync();
 
         var estoqueNegativo = produtos.Where(p => p.Estoque < 0).Select(p => p.Nome).ToList();
@@ -176,6 +194,36 @@ public class VendasController : TenantControllerBase
             .ToListAsync();
 
         return Ok(vendas);
+    }
+
+    [HttpGet("sem-estoque")]
+    public async Task<IActionResult> ListarSemEstoque(int empresaId, [FromQuery] string periodo = "dia")
+    {
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        if (empresaAutorizada is null)
+            return Forbid();
+
+        var agora = DateTime.UtcNow;
+        var desde = periodo switch
+        {
+            "semana" => agora.Date.AddDays(-7),
+            "mes" => agora.Date.AddMonths(-1),
+            _ => agora.Date,
+        };
+
+        var registros = await Context.RegistrosVendaSemEstoque
+            .Where(r => r.Data >= desde)
+            .GroupBy(r => new { r.ProdutoId, r.Produto.Nome })
+            .Select(g => new
+            {
+                ProdutoId = g.Key.ProdutoId,
+                ProdutoNome = g.Key.Nome,
+                Quantidade = g.Sum(r => r.Quantidade),
+            })
+            .OrderByDescending(r => r.Quantidade)
+            .ToListAsync();
+
+        return Ok(registros);
     }
 
     [HttpPost("{vendaId:int}/pagamentos")]
