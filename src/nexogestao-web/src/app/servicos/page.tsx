@@ -13,6 +13,7 @@ interface Servico {
   nome: string;
   duracaoMinutos: number;
   preco: number;
+  permiteAutoagendamento: boolean;
 }
 
 async function mensagemDeErro(res: Response, padrao: string) {
@@ -20,7 +21,7 @@ async function mensagemDeErro(res: Response, padrao: string) {
   return data?.mensagem ?? padrao;
 }
 
-const formVazio = { nome: "", duracaoMinutos: "30", preco: "" };
+const formVazio = { nome: "", duracaoMinutos: "30", preco: "", permiteAutoagendamento: false };
 
 export default function ServicosPage() {
   const [empresaId, setEmpresaId] = useState<number | null>(null);
@@ -91,7 +92,12 @@ export default function ServicosPage() {
   function abrirEdicao(s: Servico) {
     setErro(null);
     setServicoEditando(s);
-    setForm({ nome: s.nome, duracaoMinutos: String(s.duracaoMinutos), preco: String(s.preco) });
+    setForm({
+      nome: s.nome,
+      duracaoMinutos: String(s.duracaoMinutos),
+      preco: String(s.preco),
+      permiteAutoagendamento: s.permiteAutoagendamento,
+    });
     setModalAberto("editar");
   }
 
@@ -120,6 +126,7 @@ export default function ServicosPage() {
           nome: form.nome,
           duracaoMinutos: Number(form.duracaoMinutos),
           preco: Number(form.preco),
+          permiteAutoagendamento: form.permiteAutoagendamento,
         }),
       });
 
@@ -179,6 +186,7 @@ export default function ServicosPage() {
                 <th className="py-2.5 px-4 font-medium">Nome</th>
                 <th className="py-2.5 px-4 font-medium">Duração</th>
                 <th className="py-2.5 px-4 font-medium">Preço</th>
+                <th className="py-2.5 px-4 font-medium">Autoagendamento</th>
                 <th className="py-2.5 px-4 font-medium text-center">Ações</th>
               </tr>
             </thead>
@@ -188,6 +196,7 @@ export default function ServicosPage() {
                   <td className="py-2.5 px-4">{s.nome}</td>
                   <td className="py-2.5 px-4">{s.duracaoMinutos} min</td>
                   <td className="py-2.5 px-4">R$ {s.preco.toFixed(2)}</td>
+                  <td className="py-2.5 px-4">{s.permiteAutoagendamento ? "Sim" : "Não"}</td>
                   <td className="py-2.5 px-4 text-center">
                     <div className="flex items-center justify-center gap-3">
                       <button onClick={() => abrirEdicao(s)} className={botaoTexto}>
@@ -202,7 +211,7 @@ export default function ServicosPage() {
               ))}
               {servicos.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                  <td colSpan={5} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
                     {carregando ? "Carregando..." : "Nenhum serviço cadastrado."}
                   </td>
                 </tr>
@@ -252,6 +261,14 @@ export default function ServicosPage() {
                 />
               </div>
             </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.permiteAutoagendamento}
+                onChange={(e) => setForm({ ...form, permiteAutoagendamento: e.target.checked })}
+              />
+              Permitir autoagendamento
+            </label>
             {erro && <p className="text-sm text-red-600">{erro}</p>}
             <div className="flex justify-end gap-2 mt-1">
               <button type="button" onClick={fecharModal} className="h-10 px-3 text-sm rounded-lg hover:bg-black/5 dark:hover:bg-white/10">

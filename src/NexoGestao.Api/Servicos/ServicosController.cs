@@ -7,8 +7,8 @@ using NexoGestao.Api.Shared;
 
 namespace NexoGestao.Api.Servicos;
 
-public record CriarServicoRequest(string Nome, int DuracaoMinutos, decimal Preco);
-public record AtualizarServicoRequest(string Nome, int DuracaoMinutos, decimal Preco);
+public record CriarServicoRequest(string Nome, int DuracaoMinutos, decimal Preco, bool PermiteAutoagendamento = false);
+public record AtualizarServicoRequest(string Nome, int DuracaoMinutos, decimal Preco, bool PermiteAutoagendamento = false);
 
 [ApiController]
 [Route("api/empresas/{empresaId:int}/servicos")]
@@ -36,11 +36,12 @@ public class ServicosController : TenantControllerBase
             Nome = request.Nome,
             DuracaoMinutos = request.DuracaoMinutos,
             Preco = request.Preco,
+            PermiteAutoagendamento = request.PermiteAutoagendamento,
         };
         Context.Servicos.Add(servico);
         await Context.SaveChangesAsync();
 
-        return Ok(new { servico.Id, servico.Nome, servico.DuracaoMinutos, servico.Preco });
+        return Ok(new { servico.Id, servico.Nome, servico.DuracaoMinutos, servico.Preco, servico.PermiteAutoagendamento });
     }
 
     [HttpGet]
@@ -53,7 +54,7 @@ public class ServicosController : TenantControllerBase
         var servicos = await Context.Servicos
             .Where(s => s.Ativo)
             .OrderBy(s => s.Nome)
-            .Select(s => new { s.Id, s.Nome, s.DuracaoMinutos, s.Preco })
+            .Select(s => new { s.Id, s.Nome, s.DuracaoMinutos, s.Preco, s.PermiteAutoagendamento })
             .ToListAsync();
 
         return Ok(servicos);
@@ -79,9 +80,10 @@ public class ServicosController : TenantControllerBase
         servico.Nome = request.Nome;
         servico.DuracaoMinutos = request.DuracaoMinutos;
         servico.Preco = request.Preco;
+        servico.PermiteAutoagendamento = request.PermiteAutoagendamento;
         await Context.SaveChangesAsync();
 
-        return Ok(new { servico.Id, servico.Nome, servico.DuracaoMinutos, servico.Preco });
+        return Ok(new { servico.Id, servico.Nome, servico.DuracaoMinutos, servico.Preco, servico.PermiteAutoagendamento });
     }
 
     [HttpDelete("{servicoId:int}")]

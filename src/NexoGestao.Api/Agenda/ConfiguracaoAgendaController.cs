@@ -10,7 +10,9 @@ namespace NexoGestao.Api.Agenda;
 public record ConfiguracaoAgendaRequest(
     int HorasAntesLembrete,
     int HorasMinimasCancelamento,
-    bool CobrarCancelamentoForaPrazo);
+    bool CobrarCancelamentoForaPrazo,
+    string? HoraInicioAtendimento = null,
+    string? HoraFimAtendimento = null);
 
 [ApiController]
 [Route("api/empresas/{empresaId:int}/agenda/configuracao")]
@@ -35,6 +37,8 @@ public class ConfiguracaoAgendaController : TenantControllerBase
             horasAntesLembrete = config?.HorasAntesLembrete ?? 24,
             horasMinimasCancelamento = config?.HorasMinimasCancelamento ?? 24,
             cobrarCancelamentoForaPrazo = config?.CobrarCancelamentoForaPrazo ?? false,
+            horaInicioAtendimento = config?.HoraInicioAtendimento ?? "08:00",
+            horaFimAtendimento = config?.HoraFimAtendimento ?? "18:00",
         });
     }
 
@@ -58,6 +62,10 @@ public class ConfiguracaoAgendaController : TenantControllerBase
         config.HorasAntesLembrete = request.HorasAntesLembrete;
         config.HorasMinimasCancelamento = request.HorasMinimasCancelamento;
         config.CobrarCancelamentoForaPrazo = request.CobrarCancelamentoForaPrazo;
+        if (!string.IsNullOrWhiteSpace(request.HoraInicioAtendimento))
+            config.HoraInicioAtendimento = request.HoraInicioAtendimento;
+        if (!string.IsNullOrWhiteSpace(request.HoraFimAtendimento))
+            config.HoraFimAtendimento = request.HoraFimAtendimento;
 
         await Context.SaveChangesAsync();
 
@@ -66,6 +74,8 @@ public class ConfiguracaoAgendaController : TenantControllerBase
             config.HorasAntesLembrete,
             config.HorasMinimasCancelamento,
             config.CobrarCancelamentoForaPrazo,
+            config.HoraInicioAtendimento,
+            config.HoraFimAtendimento,
         });
     }
 }

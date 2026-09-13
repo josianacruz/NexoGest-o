@@ -9,4 +9,5 @@ public class Servico
     public int DuracaoMinutos { get; set; }
     public decimal Preco { get; set; }
     public bool Ativo { get; set; } = true;
+    public bool PermiteAutoagendamento { get; set; } = false;
 }
