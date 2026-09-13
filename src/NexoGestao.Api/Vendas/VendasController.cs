@@ -53,13 +53,6 @@ public class VendasController : TenantControllerBase
         if (produtos.Count != produtoIds.Distinct().Count())
             return BadRequest(new { mensagem = "Um ou mais produtos não foram encontrados nessa empresa." });
 
-        foreach (var itemReq in request.Itens)
-        {
-            var produto = produtos.First(p => p.Id == itemReq.ProdutoId);
-            if (produto.Estoque < itemReq.Quantidade)
-                return BadRequest(new { mensagem = $"Estoque insuficiente de {produto.Nome}." });
-        }
-
         var venda = new Venda
         {
             EmpresaId = empresaAutorizada.Value,
@@ -122,7 +115,9 @@ public class VendasController : TenantControllerBase
         Context.Vendas.Add(venda);
         await Context.SaveChangesAsync();
 
-        return Ok(new { venda.Id, venda.Total, venda.Troco, venda.SaldoDevedor, venda.Data });
+        var estoqueNegativo = produtos.Where(p => p.Estoque < 0).Select(p => p.Nome).ToList();
+
+        return Ok(new { venda.Id, venda.Total, venda.Troco, venda.SaldoDevedor, venda.Data, estoqueNegativo });
     }
 
     [HttpGet]

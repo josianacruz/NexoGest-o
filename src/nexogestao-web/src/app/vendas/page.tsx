@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "../_components/Nav";
+import Modal from "../_components/Modal";
+import PageHeader from "../_components/PageHeader";
+import SearchInput from "../_components/SearchInput";
+import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../_components/ui";
 import { API_URL } from "../../lib/api";
 
 interface Produto {
@@ -23,6 +27,12 @@ interface ItemCarrinho {
   quantidade: number;
 }
 
+interface ItemVenda {
+  produtoId: number;
+  quantidade: number;
+  precoUnitario: number;
+}
+
 interface Venda {
   id: number;
   total: number;
@@ -32,11 +42,9 @@ interface Venda {
   parcelas?: number | null;
   saldoDevedor?: number | null;
   clienteNome?: string | null;
+  itens: ItemVenda[];
   data: string;
 }
-
-const inputStyle =
-  "px-3 py-2 rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-black/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
 async function mensagemDeErro(res: Response, padrao: string) {
   const data = await res.json().catch(() => null);
@@ -58,10 +66,13 @@ export default function VendasPage() {
   const [valorRecebido, setValorRecebido] = useState("");
   const [parcelas, setParcelas] = useState("1");
   const [erro, setErro] = useState<string | null>(null);
+  const [avisoEstoque, setAvisoEstoque] = useState<string | null>(null);
   const [valorPagamento, setValorPagamento] = useState<Record<number, string>>({});
   const [salvando, setSalvando] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [busca, setBusca] = useState("");
+  const [filtroPagamento, setFiltroPagamento] = useState("");
+  const [vendaDetalhe, setVendaDetalhe] = useState<Venda | null>(null);
   const router = useRouter();
 
   function getToken() {
@@ -128,6 +139,7 @@ export default function VendasPage() {
         quantidade: Number(quantidade),
       },
     ]);
+    setProdutoSelecionado("");
     setQuantidade("1");
   }
 
@@ -168,6 +180,7 @@ export default function VendasPage() {
     }
 
     setSalvando(true);
+    setAvisoEstoque(null);
     try {
       const res = await fetch(`${API_URL}/api/empresas/${empresaId}/vendas`, {
         method: "POST",
@@ -193,6 +206,13 @@ export default function VendasPage() {
       if (!res.ok) {
         setErro(await mensagemDeErro(res, "Não foi possível registrar a venda."));
         return;
+      }
+
+      const data = await res.json().catch(() => null);
+      if (data?.estoqueNegativo?.length > 0) {
+        setAvisoEstoque(
+          `Atenção: estoque ficou negativo para ${data.estoqueNegativo.join(", ")}.`
+        );
       }
 
       setCarrinho([]);
@@ -235,75 +255,126 @@ export default function VendasPage() {
     }
   }
 
+  const formasPagamento = Array.from(new Set(vendas.map((v) => v.formaPagamento))).sort();
+
+  const vendasFiltradas = vendas.filter((v) => {
+    const termo = busca.trim().toLowerCase();
+    if (termo && !(v.clienteNome ?? "").toLowerCase().includes(termo)) return false;
+    if (filtroPagamento && v.formaPagamento !== filtroPagamento) return false;
+    return true;
+  });
+
   return (
     <>
       <Nav empresaNome={empresaNome} comandasHabilitadas={comandasHabilitadas} />
-      <main className="max-w-4xl mx-auto px-5 py-8">
-        <h1 className="text-xl font-semibold tracking-tight mb-6">Vendas</h1>
+      <main className="max-w-5xl mx-auto px-4 sm:px-5 py-8 w-full min-w-0">
+        <PageHeader titulo="Vendas" />
 
-        <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-5 shadow-sm mb-6">
-          <h2 className="text-sm font-medium text-black/60 dark:text-white/60 mb-3">Adicionar produto</h2>
+        <div className={`${cardStyle} p-5 mb-6`}>
+          <h2 className="text-sm font-semibold mb-4">Nova venda</h2>
+
           <div className="flex flex-wrap gap-3 items-end mb-4">
-            <select
-              value={produtoSelecionado}
-              onChange={(e) => setProdutoSelecionado(e.target.value)}
-              className={inputStyle}
-            >
-              <option value="">Selecione um produto</option>
-              {produtos.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nome} — R$ {p.preco}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              min="1"
-              value={quantidade}
-              onChange={(e) => setQuantidade(e.target.value)}
-              className={`${inputStyle} w-20`}
-            />
-            <button onClick={adicionarAoCarrinho} className="px-4 py-2 rounded-md bg-black/5 dark:bg-white/10 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/20">
-              Adicionar
+            <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
+              <label className={labelStyle}>Produto</label>
+              <select
+                value={produtoSelecionado}
+                onChange={(e) => setProdutoSelecionado(e.target.value)}
+                className={inputStyle}
+              >
+                <option value="">Selecione um produto</option>
+                {produtos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome} — R$ {p.preco}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelStyle}>Qtd.</label>
+              <input
+                type="number"
+                min="1"
+                value={quantidade}
+                onChange={(e) => setQuantidade(e.target.value)}
+                className={`${inputStyle} w-20`}
+              />
+            </div>
+            <button onClick={adicionarAoCarrinho} disabled={!produtoSelecionado} className={botaoSecundario}>
+              + Adicionar
             </button>
           </div>
 
           {carrinho.length > 0 && (
-            <table className="w-full text-sm mb-3">
-              <tbody>
-                {carrinho.map((item, i) => (
-                  <tr key={i} className="border-b border-black/5 dark:border-white/5 last:border-0">
-                    <td className="py-2">{item.nome}</td>
-                    <td className="py-2">{item.quantidade}x</td>
-                    <td className="py-2">R$ {(item.precoUnitario * item.quantidade).toFixed(2)}</td>
-                    <td className="py-2 text-right">
-                      <button onClick={() => removerDoCarrinho(i)} className="text-red-600 hover:underline">
-                        remover
-                      </button>
-                    </td>
+            <div className="rounded-lg border border-black/10 dark:border-white/10 overflow-hidden mb-4">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-black/50 dark:text-white/50 bg-black/[0.02] dark:bg-white/[0.03]">
+                    <th className="py-2 px-3 font-medium">Produto</th>
+                    <th className="py-2 px-3 font-medium">Qtd.</th>
+                    <th className="py-2 px-3 font-medium">Preço</th>
+                    <th className="py-2 px-3 font-medium">Subtotal</th>
+                    <th className="py-2 px-3"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {carrinho.map((item, i) => (
+                    <tr key={i} className="border-t border-black/5 dark:border-white/5">
+                      <td className="py-2 px-3">{item.nome}</td>
+                      <td className="py-2 px-3">{item.quantidade}</td>
+                      <td className="py-2 px-3">R$ {item.precoUnitario.toFixed(2)}</td>
+                      <td className="py-2 px-3 font-medium">R$ {(item.precoUnitario * item.quantidade).toFixed(2)}</td>
+                      <td className="py-2 px-3 text-right">
+                        <button onClick={() => removerDoCarrinho(i)} className="text-red-600 hover:underline text-xs font-medium">
+                          remover
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-          <p className="font-semibold mb-4">Total: R$ {totalCarrinho.toFixed(2)}</p>
 
-          <div className="flex flex-wrap gap-3 items-center mb-3">
-            <select
-              value={formaPagamento}
-              onChange={(e) => setFormaPagamento(e.target.value)}
-              className={inputStyle}
-            >
-              <option value="PIX">PIX</option>
-              <option value="Dinheiro">Dinheiro</option>
-              <option value="Débito">Débito</option>
-              <option value="Crédito">Crédito</option>
-              <option value="Fiado">Fiado</option>
-            </select>
+          <div className="flex items-center justify-between rounded-lg bg-indigo-600/10 px-4 py-3 mb-4">
+            <span className="text-sm font-medium text-black/70 dark:text-white/70">Total da venda</span>
+            <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">R$ {totalCarrinho.toFixed(2)}</span>
+          </div>
+
+          <div className="flex flex-wrap gap-3 items-end mb-3">
+            <div className="flex flex-col gap-1">
+              <label className={labelStyle}>Cliente</label>
+              <select
+                value={clienteSelecionado}
+                onChange={(e) => setClienteSelecionado(e.target.value)}
+                className={`${inputStyle} min-w-[160px]`}
+              >
+                <option value="">Consumidor não identificado</option>
+                {clientes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className={labelStyle}>Forma de pagamento</label>
+              <select
+                value={formaPagamento}
+                onChange={(e) => setFormaPagamento(e.target.value)}
+                className={inputStyle}
+              >
+                <option value="PIX">PIX</option>
+                <option value="Dinheiro">Dinheiro</option>
+                <option value="Débito">Débito</option>
+                <option value="Crédito">Crédito</option>
+                <option value="Fiado">Fiado</option>
+              </select>
+            </div>
 
             {formaPagamento === "Crédito" && (
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-black/60 dark:text-white/60">Parcelas</label>
+                <label className={labelStyle}>Parcelas</label>
                 <input
                   type="number"
                   min="1"
@@ -316,7 +387,7 @@ export default function VendasPage() {
 
             {(formaPagamento === "Dinheiro" || formaPagamento === "Fiado") && (
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-black/60 dark:text-white/60">
+                <label className={labelStyle}>
                   {formaPagamento === "Fiado" ? "Valor pago agora" : "Valor recebido"}
                 </label>
                 <input
@@ -330,28 +401,10 @@ export default function VendasPage() {
               </div>
             )}
 
-            {(formaPagamento === "Fiado" || (formaPagamento === "Dinheiro" && faltante > 0)) && (
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-black/60 dark:text-white/60">Cliente</label>
-                <select
-                  value={clienteSelecionado}
-                  onChange={(e) => setClienteSelecionado(e.target.value)}
-                  className={inputStyle}
-                >
-                  <option value="">Selecione</option>
-                  {clientes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
             <button
               onClick={finalizarVenda}
               disabled={carrinho.length === 0 || salvando || (precisaDeCliente && !clienteSelecionado)}
-              className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              className={`${botaoPrimario} ml-auto`}
             >
               {salvando ? "Salvando..." : "Finalizar venda"}
             </button>
@@ -368,67 +421,55 @@ export default function VendasPage() {
             </p>
           )}
 
+          {avisoEstoque && <p className="text-sm font-medium text-amber-600 mt-3">{avisoEstoque}</p>}
           {erro && <p className="text-sm text-red-600 mt-3">{erro}</p>}
         </div>
 
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-medium text-black/60 dark:text-white/60">Histórico de vendas</h2>
-        </div>
+        <h2 className="text-sm font-semibold mb-3">Histórico de vendas</h2>
 
         {vendas.length > 0 && (
-          <div className="relative mb-4 max-w-xs">
-            <svg
-              viewBox="0 0 24 24"
-              width="16"
-              height="16"
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 dark:text-white/40"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden="true"
+          <div className="flex flex-wrap gap-3 mb-4">
+            <SearchInput value={busca} onChange={setBusca} placeholder="Buscar por nome do cliente..." className="max-w-xs flex-1" />
+            <select
+              value={filtroPagamento}
+              onChange={(e) => setFiltroPagamento(e.target.value)}
+              className={`${inputStyle} w-44`}
             >
-              <circle cx="11" cy="11" r="7" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar por nome do cliente..."
-              className={`${inputStyle} w-full pl-9`}
-            />
+              <option value="">Qualquer pagamento</option>
+              {formasPagamento.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
           </div>
         )}
 
-        <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl overflow-hidden shadow-sm">
-          <table className="w-full text-sm">
+        <div className={`${cardStyle} overflow-x-auto`}>
+          <table className="w-full text-sm min-w-[720px]">
             <thead>
               <tr className="text-left text-black/50 dark:text-white/50 border-b border-black/10 dark:border-white/10">
-                <th className="py-2 px-4 font-medium">Data</th>
-                <th className="py-2 px-4 font-medium">Cliente</th>
-                <th className="py-2 px-4 font-medium">Total</th>
-                <th className="py-2 px-4 font-medium">Pagamento</th>
-                <th className="py-2 px-4 font-medium">Detalhe</th>
+                <th className="py-2.5 px-4 font-medium">Data</th>
+                <th className="py-2.5 px-4 font-medium">Cliente</th>
+                <th className="py-2.5 px-4 font-medium">Total</th>
+                <th className="py-2.5 px-4 font-medium">Pagamento</th>
+                <th className="py-2.5 px-4 font-medium">Detalhe</th>
+                <th className="py-2.5 px-4 font-medium text-center">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {vendas
-                .filter((v) => {
-                  const termo = busca.trim().toLowerCase();
-                  if (!termo) return true;
-                  return (v.clienteNome ?? "").toLowerCase().includes(termo);
-                })
-                .map((v) => (
+              {vendasFiltradas.map((v) => (
                 <tr key={v.id} className="border-b border-black/5 dark:border-white/5 last:border-0">
-                  <td className="py-2 px-4">{new Date(v.data).toLocaleString("pt-BR")}</td>
-                  <td className="py-2 px-4">
+                  <td className="py-2.5 px-4">{new Date(v.data).toLocaleString("pt-BR")}</td>
+                  <td className="py-2.5 px-4">
                     {v.clienteNome ?? <span className="text-black/30 dark:text-white/30">—</span>}
                   </td>
-                  <td className="py-2 px-4">R$ {v.total.toFixed(2)}</td>
-                  <td className="py-2 px-4">
+                  <td className="py-2.5 px-4">R$ {v.total.toFixed(2)}</td>
+                  <td className="py-2.5 px-4">
                     {v.formaPagamento}
                     {v.parcelas && v.parcelas > 1 ? ` ${v.parcelas}x` : ""}
                   </td>
-                  <td className="py-2 px-4">
+                  <td className="py-2.5 px-4">
                     {v.troco != null && v.troco > 0 && <span>Troco: R$ {v.troco.toFixed(2)}</span>}
                     {v.saldoDevedor != null && v.saldoDevedor > 0 && (
                       <div className="flex items-center gap-2">
@@ -442,39 +483,105 @@ export default function VendasPage() {
                           placeholder="pagar"
                           value={valorPagamento[v.id] ?? ""}
                           onChange={(e) => setValorPagamento({ ...valorPagamento, [v.id]: e.target.value })}
-                          className={`${inputStyle} w-20 !py-1`}
+                          className={`${inputStyle} h-8 w-20`}
                         />
                         <button
                           onClick={() => registrarPagamentoFiado(v.id)}
                           disabled={salvando}
-                          className="text-indigo-600 hover:underline text-xs font-medium disabled:opacity-40"
+                          className={botaoTexto}
                         >
                           registrar
                         </button>
                       </div>
                     )}
                   </td>
+                  <td className="py-2.5 px-4 text-center">
+                    <button onClick={() => setVendaDetalhe(v)} className={botaoTexto}>
+                      Ver detalhes
+                    </button>
+                  </td>
                 </tr>
               ))}
-              {vendas.length === 0 && (
+              {vendasFiltradas.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
-                    {carregando ? "Carregando..." : "Nenhuma venda registrada."}
+                  <td colSpan={6} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                    {carregando
+                      ? "Carregando..."
+                      : vendas.length === 0
+                      ? "Nenhuma venda registrada."
+                      : "Nenhuma venda encontrada pra esse filtro."}
                   </td>
                 </tr>
               )}
-              {vendas.length > 0 &&
-                vendas.filter((v) => (v.clienteNome ?? "").toLowerCase().includes(busca.trim().toLowerCase())).length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
-                      Nenhuma venda encontrada pra essa busca.
-                    </td>
-                  </tr>
-                )}
             </tbody>
           </table>
         </div>
       </main>
+
+      {vendaDetalhe && (
+        <Modal titulo={`Venda #${vendaDetalhe.id}`} onFechar={() => setVendaDetalhe(null)}>
+          <div className="flex flex-col gap-3 text-sm">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <div className={labelStyle}>Data/hora</div>
+                <div>{new Date(vendaDetalhe.data).toLocaleString("pt-BR")}</div>
+              </div>
+              <div>
+                <div className={labelStyle}>Cliente</div>
+                <div>{vendaDetalhe.clienteNome ?? "Consumidor não identificado"}</div>
+              </div>
+              <div>
+                <div className={labelStyle}>Pagamento</div>
+                <div>
+                  {vendaDetalhe.formaPagamento}
+                  {vendaDetalhe.parcelas && vendaDetalhe.parcelas > 1 ? ` ${vendaDetalhe.parcelas}x` : ""}
+                </div>
+              </div>
+              <div>
+                <div className={labelStyle}>Total</div>
+                <div className="font-semibold">R$ {vendaDetalhe.total.toFixed(2)}</div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-black/10 dark:border-white/10 overflow-hidden mt-1">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-black/50 dark:text-white/50 bg-black/[0.02] dark:bg-white/[0.03]">
+                    <th className="py-2 px-3 font-medium">Produto</th>
+                    <th className="py-2 px-3 font-medium">Qtd.</th>
+                    <th className="py-2 px-3 font-medium">Preço</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vendaDetalhe.itens.map((item, i) => {
+                    const produto = produtos.find((p) => p.id === item.produtoId);
+                    return (
+                      <tr key={i} className="border-t border-black/5 dark:border-white/5">
+                        <td className="py-2 px-3">{produto?.nome ?? `Produto #${item.produtoId}`}</td>
+                        <td className="py-2 px-3">{item.quantidade}</td>
+                        <td className="py-2 px-3">R$ {item.precoUnitario.toFixed(2)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {vendaDetalhe.troco != null && vendaDetalhe.troco > 0 && (
+              <p className="text-green-600 font-medium">Troco: R$ {vendaDetalhe.troco.toFixed(2)}</p>
+            )}
+            {vendaDetalhe.saldoDevedor != null && vendaDetalhe.saldoDevedor > 0 && (
+              <p className="text-amber-600 font-medium">Saldo devedor: R$ {vendaDetalhe.saldoDevedor.toFixed(2)}</p>
+            )}
+
+            <div className="flex justify-end mt-1">
+              <button onClick={() => setVendaDetalhe(null)} className={botaoSecundario}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

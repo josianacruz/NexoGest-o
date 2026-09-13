@@ -9,6 +9,7 @@ namespace NexoGestao.Api.Comandas;
 
 public record AbrirComandaRequest(string? NomeCliente = null);
 public record AdicionarItemRequest(int ProdutoId, int Quantidade);
+public record AlterarQuantidadeRequest(int Quantidade);
 public record FecharComandaRequest(
     string FormaPagamento,
     int? ClienteId = null,
@@ -58,7 +59,8 @@ public class ComandasController : TenantControllerBase
                 c.Id,
                 c.Numero,
                 c.NomeCliente,
-                Itens = c.Itens.Select(i => new { i.ProdutoId, i.Produto.Nome, i.Quantidade, i.Produto.Preco })
+                c.DataAbertura,
+                Itens = c.Itens.Select(i => new { i.Id, i.ProdutoId, i.Produto.Nome, i.Quantidade, i.Produto.Preco })
             })
             .ToListAsync();
 
@@ -83,6 +85,17 @@ public class ComandasController : TenantControllerBase
         if (produto is null)
             return NotFound(new { mensagem = "Produto não encontrado." });
 
+        // Mesmo produto já está na comanda: soma na mesma linha em vez de duplicar.
+        var itemExistente = await Context.ItensComanda
+            .FirstOrDefaultAsync(i => i.ComandaId == comanda.Id && i.ProdutoId == produto.Id);
+
+        if (itemExistente is not null)
+        {
+            itemExistente.Quantidade += request.Quantidade;
+            await Context.SaveChangesAsync();
+            return Ok(new { itemExistente.Id, itemExistente.ProdutoId, produto.Nome, itemExistente.Quantidade });
+        }
+
         var item = new ItemComanda
         {
             ComandaId = comanda.Id,
@@ -93,6 +106,55 @@ public class ComandasController : TenantControllerBase
         await Context.SaveChangesAsync();
 
         return Ok(new { item.Id, item.ProdutoId, produto.Nome, item.Quantidade });
+    }
+
+    [HttpPut("{comandaId:int}/itens/{itemId:int}")]
+    public async Task<IActionResult> AlterarQuantidade(int empresaId, int comandaId, int itemId, AlterarQuantidadeRequest request)
+    {
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        if (empresaAutorizada is null)
+            return Forbid();
+
+        var comanda = await Context.Comandas.FirstOrDefaultAsync(c => c.Id == comandaId);
+        if (comanda is null || comanda.Status != StatusComanda.Aberta)
+            return NotFound(new { mensagem = "Comanda não encontrada ou já fechada." });
+
+        var item = await Context.ItensComanda.FirstOrDefaultAsync(i => i.Id == itemId && i.ComandaId == comandaId);
+        if (item is null)
+            return NotFound(new { mensagem = "Item não encontrado nessa comanda." });
+
+        if (request.Quantidade <= 0)
+        {
+            Context.ItensComanda.Remove(item);
+            await Context.SaveChangesAsync();
+            return Ok(new { removido = true });
+        }
+
+        item.Quantidade = request.Quantidade;
+        await Context.SaveChangesAsync();
+
+        return Ok(new { item.Id, item.Quantidade });
+    }
+
+    [HttpDelete("{comandaId:int}/itens/{itemId:int}")]
+    public async Task<IActionResult> RemoverItem(int empresaId, int comandaId, int itemId)
+    {
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId);
+        if (empresaAutorizada is null)
+            return Forbid();
+
+        var comanda = await Context.Comandas.FirstOrDefaultAsync(c => c.Id == comandaId);
+        if (comanda is null || comanda.Status != StatusComanda.Aberta)
+            return NotFound(new { mensagem = "Comanda não encontrada ou já fechada." });
+
+        var item = await Context.ItensComanda.FirstOrDefaultAsync(i => i.Id == itemId && i.ComandaId == comandaId);
+        if (item is null)
+            return NotFound(new { mensagem = "Item não encontrado nessa comanda." });
+
+        Context.ItensComanda.Remove(item);
+        await Context.SaveChangesAsync();
+
+        return Ok(new { removido = true });
     }
 
     [HttpPost("{comandaId:int}/fechar")]

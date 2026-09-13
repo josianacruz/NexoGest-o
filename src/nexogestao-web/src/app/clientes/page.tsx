@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "../_components/Nav";
 import WhatsAppMenu from "../_components/WhatsAppMenu";
+import Modal from "../_components/Modal";
+import PageHeader from "../_components/PageHeader";
+import SearchInput from "../_components/SearchInput";
+import { inputStyle, labelStyle, botaoPrimario, botaoTexto, cardStyle } from "../_components/ui";
 import { API_URL } from "../../lib/api";
 
 interface Cliente {
@@ -14,20 +18,25 @@ interface Cliente {
   saldoDevedor?: number | null;
 }
 
-const inputStyle =
-  "px-3 py-2 rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-black/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
+async function mensagemDeErro(res: Response, padrao: string) {
+  const data = await res.json().catch(() => null);
+  return data?.mensagem ?? padrao;
+}
+
+const formVazio = { nome: "", telefone: "", email: "" };
 
 export default function ClientesPage() {
   const [empresaId, setEmpresaId] = useState<number | null>(null);
   const [empresaNome, setEmpresaNome] = useState("");
   const [comandasHabilitadas, setComandasHabilitadas] = useState(true);
   const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [nome, setNome] = useState("");
-  const [telefone, setTelefone] = useState("");
-  const [email, setEmail] = useState("");
+  const [busca, setBusca] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [carregando, setCarregando] = useState(true);
+  const [modalAberto, setModalAberto] = useState<"novo" | "editar" | null>(null);
+  const [clienteEditando, setClienteEditando] = useState<Cliente | null>(null);
+  const [form, setForm] = useState(formVazio);
   const router = useRouter();
 
   function getToken() {
@@ -74,95 +83,118 @@ export default function ClientesPage() {
     carregarEmpresaEClientes();
   }, []);
 
-  async function handleAdicionar(e: React.FormEvent) {
-    e.preventDefault();
-    if (salvando) return;
+  function abrirNovo() {
     setErro(null);
+    setForm(formVazio);
+    setModalAberto("novo");
+  }
+
+  function abrirEdicao(c: Cliente) {
+    setErro(null);
+    setClienteEditando(c);
+    setForm({ nome: c.nome, telefone: c.telefone ?? "", email: c.email ?? "" });
+    setModalAberto("editar");
+  }
+
+  function fecharModal() {
+    setModalAberto(null);
+    setClienteEditando(null);
+  }
+
+  async function salvar(e: React.FormEvent) {
+    e.preventDefault();
+    if (salvando || !empresaId) return;
     const token = getToken();
-    if (!token || !empresaId) return;
+    if (!token) return;
+
+    const editando = modalAberto === "editar" && clienteEditando;
+    const url = editando
+      ? `${API_URL}/api/empresas/${empresaId}/clientes/${clienteEditando!.id}`
+      : `${API_URL}/api/empresas/${empresaId}/clientes`;
 
     setSalvando(true);
     try {
-      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/clientes`, {
-        method: "POST",
+      const res = await fetch(url, {
+        method: editando ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ nome, telefone, email }),
+        body: JSON.stringify(form),
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        setErro(data?.mensagem ?? "Não foi possível cadastrar o cliente.");
+        setErro(await mensagemDeErro(res, "Não foi possível salvar o cliente."));
         return;
       }
 
-      setNome("");
-      setTelefone("");
-      setEmail("");
+      fecharModal();
       await carregarEmpresaEClientes();
     } finally {
       setSalvando(false);
     }
   }
 
+  const clientesFiltrados = clientes.filter((c) => {
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return true;
+    return (
+      c.nome.toLowerCase().includes(termo) ||
+      (c.telefone ?? "").toLowerCase().includes(termo) ||
+      (c.email ?? "").toLowerCase().includes(termo)
+    );
+  });
+
   return (
     <>
       <Nav empresaNome={empresaNome} comandasHabilitadas={comandasHabilitadas} />
-      <main className="max-w-4xl mx-auto px-5 py-8">
-        <h1 className="text-xl font-semibold tracking-tight mb-6">Clientes</h1>
-
-        <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-5 shadow-sm mb-6">
-          <form onSubmit={handleAdicionar} className="flex flex-wrap gap-3 items-end">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-black/60 dark:text-white/60">Nome</label>
-              <input value={nome} onChange={(e) => setNome(e.target.value)} required className={inputStyle} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-black/60 dark:text-white/60">Telefone</label>
-              <input value={telefone} onChange={(e) => setTelefone(e.target.value)} className={inputStyle} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-black/60 dark:text-white/60">Email</label>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} className={inputStyle} />
-            </div>
-            <button
-              type="submit"
-              disabled={salvando}
-              className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {salvando ? "Adicionando..." : "Adicionar"}
+      <main className="max-w-5xl mx-auto px-4 sm:px-5 py-8 w-full min-w-0">
+        <PageHeader
+          titulo="Clientes"
+          acao={
+            <button onClick={abrirNovo} className={botaoPrimario}>
+              + Novo cliente
             </button>
-          </form>
-          {erro && <p className="text-sm text-red-600 mt-3">{erro}</p>}
-        </div>
+          }
+        />
 
-        <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl shadow-sm overflow-x-auto">
+        {clientes.length > 0 && (
+          <SearchInput
+            value={busca}
+            onChange={setBusca}
+            placeholder="Buscar por nome, telefone ou email..."
+            className="mb-4 max-w-xs"
+          />
+        )}
+
+        {erro && !modalAberto && <p className="text-sm text-red-600 mb-4">{erro}</p>}
+
+        <div className={`${cardStyle} overflow-x-auto`}>
           <table className="w-full text-sm min-w-[640px]">
             <thead>
               <tr className="text-left text-black/50 dark:text-white/50 border-b border-black/10 dark:border-white/10">
-                <th className="py-2 px-4 font-medium">Nome</th>
-                <th className="py-2 px-4 font-medium">Telefone</th>
-                <th className="py-2 px-4 font-medium">Email</th>
-                <th className="py-2 px-4 font-medium">Deve (fiado)</th>
-                <th className="py-2 px-4 font-medium text-center">WhatsApp</th>
+                <th className="py-2.5 px-4 font-medium">Nome</th>
+                <th className="py-2.5 px-4 font-medium">Telefone</th>
+                <th className="py-2.5 px-4 font-medium">Email</th>
+                <th className="py-2.5 px-4 font-medium">Deve (fiado)</th>
+                <th className="py-2.5 px-4 font-medium text-center">WhatsApp</th>
+                <th className="py-2.5 px-4 font-medium text-center">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {clientes.map((c) => (
+              {clientesFiltrados.map((c) => (
                 <tr key={c.id} className="border-b border-black/5 dark:border-white/5 last:border-0">
-                  <td className="py-2 px-4">{c.nome}</td>
-                  <td className="py-2 px-4">{c.telefone}</td>
-                  <td className="py-2 px-4">{c.email}</td>
-                  <td className="py-2 px-4">
+                  <td className="py-2.5 px-4">{c.nome}</td>
+                  <td className="py-2.5 px-4">{c.telefone}</td>
+                  <td className="py-2.5 px-4">{c.email}</td>
+                  <td className="py-2.5 px-4">
                     {c.saldoDevedor ? (
                       <span className="text-amber-600 font-medium">R$ {c.saldoDevedor.toFixed(2)}</span>
                     ) : (
                       <span className="text-black/30 dark:text-white/30">—</span>
                     )}
                   </td>
-                  <td className="py-2 px-4 text-center">
+                  <td className="py-2.5 px-4 text-center">
                     <WhatsAppMenu
                       nome={c.nome}
                       telefone={c.telefone}
@@ -170,12 +202,21 @@ export default function ClientesPage() {
                       onErro={setErro}
                     />
                   </td>
+                  <td className="py-2.5 px-4 text-center">
+                    <button onClick={() => abrirEdicao(c)} className={botaoTexto}>
+                      Editar
+                    </button>
+                  </td>
                 </tr>
               ))}
-              {clientes.length === 0 && (
+              {clientesFiltrados.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
-                    {carregando ? "Carregando..." : "Nenhum cliente cadastrado."}
+                  <td colSpan={6} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                    {carregando
+                      ? "Carregando..."
+                      : clientes.length === 0
+                      ? "Nenhum cliente cadastrado."
+                      : "Nenhum cliente encontrado pra essa busca."}
                   </td>
                 </tr>
               )}
@@ -183,6 +224,51 @@ export default function ClientesPage() {
           </table>
         </div>
       </main>
+
+      {modalAberto && (
+        <Modal
+          titulo={modalAberto === "novo" ? "Novo cliente" : `Editar ${clienteEditando?.nome}`}
+          onFechar={fecharModal}
+        >
+          <form onSubmit={salvar} className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <label className={labelStyle}>Nome</label>
+              <input
+                value={form.nome}
+                onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                required
+                autoFocus
+                className={inputStyle}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelStyle}>Telefone</label>
+              <input
+                value={form.telefone}
+                onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+                className={inputStyle}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelStyle}>Email</label>
+              <input
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className={inputStyle}
+              />
+            </div>
+            {erro && <p className="text-sm text-red-600">{erro}</p>}
+            <div className="flex justify-end gap-2 mt-1">
+              <button type="button" onClick={fecharModal} className="h-10 px-3 text-sm rounded-lg hover:bg-black/5 dark:hover:bg-white/10">
+                Cancelar
+              </button>
+              <button type="submit" disabled={salvando} className={botaoPrimario}>
+                {salvando ? "Salvando..." : "Salvar cliente"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </>
   );
 }

@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "../_components/Nav";
+import Drawer from "../_components/Drawer";
+import PageHeader from "../_components/PageHeader";
+import SearchInput from "../_components/SearchInput";
+import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, cardStyle } from "../_components/ui";
 import { API_URL } from "../../lib/api";
 
 interface Produto {
@@ -17,6 +21,7 @@ interface Cliente {
 }
 
 interface ItemComanda {
+  id: number;
   produtoId: number;
   nome: string;
   quantidade: number;
@@ -27,14 +32,9 @@ interface Comanda {
   id: number;
   numero: number;
   nomeCliente?: string | null;
+  dataAbertura: string;
   itens: ItemComanda[];
 }
-
-const inputStyle =
-  "px-3 py-2 rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-black/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
-
-const botaoSecundario =
-  "px-4 py-2 rounded-md bg-black/5 dark:bg-white/10 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/20";
 
 async function mensagemDeErro(res: Response, padrao: string) {
   const data = await res.json().catch(() => null);
@@ -48,17 +48,20 @@ export default function ComandasPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [comandas, setComandas] = useState<Comanda[]>([]);
-  const [produtoSelecionado, setProdutoSelecionado] = useState<Record<number, string>>({});
-  const [quantidadeSelecionada, setQuantidadeSelecionada] = useState<Record<number, string>>({});
-  const [formaPagamento, setFormaPagamento] = useState<Record<number, string>>({});
-  const [valorRecebido, setValorRecebido] = useState<Record<number, string>>({});
-  const [parcelas, setParcelas] = useState<Record<number, string>>({});
-  const [clienteSelecionado, setClienteSelecionado] = useState<Record<number, string>>({});
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [carregando, setCarregando] = useState(true);
-  const [nomeNovoCliente, setNomeNovoCliente] = useState("");
   const [busca, setBusca] = useState("");
+  const [nomeNovaComanda, setNomeNovaComanda] = useState("");
+
+  const [comandaAbertaId, setComandaAbertaId] = useState<number | null>(null);
+  const [produtoSelecionado, setProdutoSelecionado] = useState("");
+  const [quantidade, setQuantidade] = useState("1");
+  const [formaPagamento, setFormaPagamento] = useState("PIX");
+  const [valorRecebido, setValorRecebido] = useState("");
+  const [parcelas, setParcelas] = useState("1");
+  const [clienteSelecionado, setClienteSelecionado] = useState("");
+
   const router = useRouter();
 
   function getToken() {
@@ -126,7 +129,7 @@ export default function ComandasPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ nomeCliente: nomeNovoCliente.trim() || null }),
+        body: JSON.stringify({ nomeCliente: nomeNovaComanda.trim() || null }),
       });
 
       if (!res.ok) {
@@ -134,24 +137,38 @@ export default function ComandasPage() {
         return;
       }
 
-      setNomeNovoCliente("");
+      setNomeNovaComanda("");
       await carregarTudo();
     } finally {
       setSalvando(false);
     }
   }
 
-  async function adicionarItem(comandaId: number) {
-    if (salvando) return;
+  function abrirDrawer(comanda: Comanda) {
+    setErro(null);
+    setComandaAbertaId(comanda.id);
+    setProdutoSelecionado("");
+    setQuantidade("1");
+    setFormaPagamento("PIX");
+    setValorRecebido("");
+    setParcelas("1");
+    setClienteSelecionado("");
+  }
+
+  function fecharDrawer() {
+    setComandaAbertaId(null);
+  }
+
+  async function adicionarItem() {
+    if (salvando || !comandaAbertaId || !produtoSelecionado || !empresaId) return;
     setErro(null);
     const token = getToken();
-    const produtoId = produtoSelecionado[comandaId];
-    if (!token || !empresaId || !produtoId) return;
+    if (!token) return;
 
     setSalvando(true);
     try {
       const res = await fetch(
-        `${API_URL}/api/empresas/${empresaId}/comandas/${comandaId}/itens`,
+        `${API_URL}/api/empresas/${empresaId}/comandas/${comandaAbertaId}/itens`,
         {
           method: "POST",
           headers: {
@@ -159,8 +176,8 @@ export default function ComandasPage() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            produtoId: Number(produtoId),
-            quantidade: Number(quantidadeSelecionada[comandaId] ?? "1"),
+            produtoId: Number(produtoSelecionado),
+            quantidade: Number(quantidade || "1"),
           }),
         }
       );
@@ -170,64 +187,36 @@ export default function ComandasPage() {
         return;
       }
 
-      setProdutoSelecionado({ ...produtoSelecionado, [comandaId]: "" });
-      setQuantidadeSelecionada({ ...quantidadeSelecionada, [comandaId]: "1" });
+      setProdutoSelecionado("");
+      setQuantidade("1");
       await carregarTudo();
     } finally {
       setSalvando(false);
     }
   }
 
-  function faltantePara(comandaId: number, total: number) {
-    const forma = formaPagamento[comandaId] ?? "PIX";
-    if (forma !== "Dinheiro" && forma !== "Fiado") return 0;
-    const pago = Number(valorRecebido[comandaId] || "0");
-    return total - pago;
-  }
-
-  function precisaDeClientePara(comandaId: number, total: number) {
-    const forma = formaPagamento[comandaId] ?? "PIX";
-    return faltantePara(comandaId, total) > 0 && (forma === "Dinheiro" || forma === "Fiado");
-  }
-
-  async function fecharComanda(comandaId: number, total: number) {
-    if (salvando) return;
+  async function alterarQuantidade(itemId: number, novaQuantidade: number) {
+    if (salvando || !comandaAbertaId || !empresaId) return;
     setErro(null);
     const token = getToken();
-    if (!token || !empresaId) return;
-
-    const forma = formaPagamento[comandaId] ?? "PIX";
-    const cliente = clienteSelecionado[comandaId];
-
-    if (precisaDeClientePara(comandaId, total) && !cliente) {
-      setErro("Selecione um cliente para registrar o valor que ficou faltando como fiado.");
-      return;
-    }
+    if (!token) return;
 
     setSalvando(true);
     try {
       const res = await fetch(
-        `${API_URL}/api/empresas/${empresaId}/comandas/${comandaId}/fechar`,
+        `${API_URL}/api/empresas/${empresaId}/comandas/${comandaAbertaId}/itens/${itemId}`,
         {
-          method: "POST",
+          method: "PUT",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            formaPagamento: forma,
-            clienteId: cliente ? Number(cliente) : null,
-            valorRecebido:
-              forma === "Dinheiro" || forma === "Fiado"
-                ? Number(valorRecebido[comandaId] || "0")
-                : null,
-            parcelas: forma === "Crédito" ? Number(parcelas[comandaId] || "1") : null,
-          }),
+          body: JSON.stringify({ quantidade: novaQuantidade }),
         }
       );
 
       if (!res.ok) {
-        setErro(await mensagemDeErro(res, "Não foi possível fechar a comanda."));
+        setErro(await mensagemDeErro(res, "Não foi possível atualizar o item."));
         return;
       }
 
@@ -237,246 +226,335 @@ export default function ComandasPage() {
     }
   }
 
+  async function removerItem(itemId: number) {
+    if (salvando || !comandaAbertaId || !empresaId) return;
+    setErro(null);
+    const token = getToken();
+    if (!token) return;
+
+    setSalvando(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/empresas/${empresaId}/comandas/${comandaAbertaId}/itens/${itemId}`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!res.ok) {
+        setErro(await mensagemDeErro(res, "Não foi possível remover o item."));
+        return;
+      }
+
+      await carregarTudo();
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  const comandaAberta = comandas.find((c) => c.id === comandaAbertaId) ?? null;
+  const totalAberta = comandaAberta
+    ? comandaAberta.itens.reduce((soma, i) => soma + i.preco * i.quantidade, 0)
+    : 0;
+  const valorPago = Number(valorRecebido || "0");
+  const faltante =
+    formaPagamento === "Dinheiro" || formaPagamento === "Fiado" ? totalAberta - valorPago : 0;
+  const trocoCalculado =
+    formaPagamento === "Dinheiro" && valorRecebido && faltante <= 0 ? valorPago - totalAberta : null;
+  const precisaDeCliente = faltante > 0 && (formaPagamento === "Dinheiro" || formaPagamento === "Fiado");
+
+  async function fecharComanda() {
+    if (salvando || !comandaAbertaId || !empresaId) return;
+    setErro(null);
+    const token = getToken();
+    if (!token) return;
+
+    if (precisaDeCliente && !clienteSelecionado) {
+      setErro("Selecione um cliente para registrar o valor que ficou faltando como fiado.");
+      return;
+    }
+
+    setSalvando(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/empresas/${empresaId}/comandas/${comandaAbertaId}/fechar`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            formaPagamento,
+            clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
+            valorRecebido:
+              formaPagamento === "Dinheiro" || formaPagamento === "Fiado" ? valorPago : null,
+            parcelas: formaPagamento === "Crédito" ? Number(parcelas || "1") : null,
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        setErro(await mensagemDeErro(res, "Não foi possível fechar a comanda."));
+        return;
+      }
+
+      fecharDrawer();
+      await carregarTudo();
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  const comandasFiltradas = comandas.filter((c) => {
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return true;
+    return String(c.numero).includes(termo) || (c.nomeCliente ?? "").toLowerCase().includes(termo);
+  });
+
   return (
     <>
       <Nav empresaNome={empresaNome} comandasHabilitadas={comandasHabilitadas} />
-      <main className="max-w-4xl mx-auto px-5 py-8">
-        <h1 className="text-xl font-semibold tracking-tight mb-6">Comandas</h1>
+      <main className="max-w-5xl mx-auto px-4 sm:px-5 py-8 w-full min-w-0">
+        <PageHeader titulo="Comandas" />
 
-        <div className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-5 shadow-sm mb-6">
-          <div className="flex flex-wrap gap-2 items-end">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-black/60 dark:text-white/60">Nome do cliente (opcional)</label>
-              <input
-                value={nomeNovoCliente}
-                onChange={(e) => setNomeNovoCliente(e.target.value)}
-                placeholder="Ex: João"
-                className={`${inputStyle} w-48`}
-              />
-            </div>
-            <button onClick={abrirComanda} disabled={salvando} className={`${botaoSecundario} disabled:opacity-40 disabled:cursor-not-allowed`}>
-              {salvando ? "Abrindo..." : "+ Abrir nova comanda"}
-            </button>
-          </div>
-        </div>
-
-        {erro && <p className="text-sm text-red-600 mb-4">{erro}</p>}
-
-        {comandas.length > 0 && (
-          <div className="relative mb-4 max-w-xs">
-            <svg
-              viewBox="0 0 24 24"
-              width="16"
-              height="16"
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 dark:text-white/40"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden="true"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
+        <div className={`${cardStyle} p-4 mb-4 flex flex-wrap gap-3 items-end`}>
+          <div className="flex flex-col gap-1">
+            <label className={labelStyle}>Nome do cliente (opcional)</label>
             <input
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar por nome ou número da comanda..."
-              className={`${inputStyle} w-full pl-9`}
+              value={nomeNovaComanda}
+              onChange={(e) => setNomeNovaComanda(e.target.value)}
+              placeholder="Ex: João"
+              className={`${inputStyle} w-48`}
             />
           </div>
+          <button onClick={abrirComanda} disabled={salvando} className={botaoPrimario}>
+            {salvando ? "Abrindo..." : "+ Abrir comanda"}
+          </button>
+        </div>
+
+        {comandas.length > 0 && (
+          <SearchInput
+            value={busca}
+            onChange={setBusca}
+            placeholder="Buscar por nome ou número da comanda..."
+            className="mb-4 max-w-xs"
+          />
         )}
 
-        {comandas.length === 0 && (
-          <p className="text-black/40 dark:text-white/40 text-sm">
-            {carregando ? "Carregando..." : "Nenhuma comanda aberta."}
-          </p>
-        )}
+        {erro && !comandaAbertaId && <p className="text-sm text-red-600 mb-4">{erro}</p>}
 
-        {comandas.length > 0 &&
-          comandas.filter((c) => {
-            const termo = busca.trim().toLowerCase();
-            if (!termo) return true;
+        <div className={`${cardStyle} divide-y divide-black/5 dark:divide-white/5`}>
+          {comandasFiltradas.map((c) => {
+            const total = c.itens.reduce((soma, i) => soma + i.preco * i.quantidade, 0);
+            const qtdItens = c.itens.reduce((soma, i) => soma + i.quantidade, 0);
             return (
-              String(c.numero).includes(termo) ||
-              (c.nomeCliente ?? "").toLowerCase().includes(termo)
-            );
-          }).length === 0 && (
-            <p className="text-black/40 dark:text-white/40 text-sm">Nenhuma comanda encontrada pra essa busca.</p>
-          )}
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          {comandas
-            .filter((c) => {
-              const termo = busca.trim().toLowerCase();
-              if (!termo) return true;
-              return (
-                String(c.numero).includes(termo) ||
-                (c.nomeCliente ?? "").toLowerCase().includes(termo)
-              );
-            })
-            .map((comanda) => {
-            const total = comanda.itens.reduce((soma, item) => soma + item.preco * item.quantidade, 0);
-            const forma = formaPagamento[comanda.id] ?? "PIX";
-            const faltante = faltantePara(comanda.id, total);
-            const trocoCalculado = forma === "Dinheiro" && valorRecebido[comanda.id] && faltante <= 0
-              ? Number(valorRecebido[comanda.id]) - total
-              : null;
-            const precisaDeCliente = precisaDeClientePara(comanda.id, total);
-
-            return (
-              <div
-                key={comanda.id}
-                className="bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-5 shadow-sm flex flex-col gap-3"
+              <button
+                key={c.id}
+                onClick={() => abrirDrawer(c)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors"
               >
-                <h3 className="font-semibold">
-                  Comanda {comanda.numero}
-                  {comanda.nomeCliente && (
-                    <span className="text-black/50 dark:text-white/50 font-normal"> — {comanda.nomeCliente}</span>
-                  )}
-                </h3>
-
-                {comanda.itens.length > 0 && (
-                  <table className="w-full text-sm">
-                    <tbody>
-                      {comanda.itens.map((item, i) => (
-                        <tr key={i}>
-                          <td className="py-0.5">{item.nome}</td>
-                          <td className="py-0.5">{item.quantidade}x</td>
-                          <td className="py-0.5 text-right">R$ {(item.preco * item.quantidade).toFixed(2)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-                <p className="font-semibold text-sm">Total: R$ {total.toFixed(2)}</p>
-
-                <div className="flex flex-wrap gap-2">
-                  <select
-                    value={produtoSelecionado[comanda.id] ?? ""}
-                    onChange={(e) =>
-                      setProdutoSelecionado({ ...produtoSelecionado, [comanda.id]: e.target.value })
-                    }
-                    className={`${inputStyle} flex-1 min-w-0`}
-                  >
-                    <option value="">Selecione um produto</option>
-                    {produtos.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.nome} — R$ {p.preco}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    min="1"
-                    value={quantidadeSelecionada[comanda.id] ?? "1"}
-                    onChange={(e) =>
-                      setQuantidadeSelecionada({ ...quantidadeSelecionada, [comanda.id]: e.target.value })
-                    }
-                    className={`${inputStyle} w-16`}
-                  />
-                  <button
-                    onClick={() => adicionarItem(comanda.id)}
-                    disabled={salvando}
-                    className={`${botaoSecundario} disabled:opacity-40 disabled:cursor-not-allowed`}
-                  >
-                    Adicionar
-                  </button>
-                </div>
-
-                <div className="flex flex-col gap-2 pt-2 border-t border-black/5 dark:border-white/5">
-                  <div className="flex flex-wrap gap-2 items-end">
-                    <select
-                      value={forma}
-                      onChange={(e) =>
-                        setFormaPagamento({ ...formaPagamento, [comanda.id]: e.target.value })
-                      }
-                      className={inputStyle}
-                    >
-                      <option value="PIX">PIX</option>
-                      <option value="Dinheiro">Dinheiro</option>
-                      <option value="Débito">Débito</option>
-                      <option value="Crédito">Crédito</option>
-                      <option value="Fiado">Fiado</option>
-                    </select>
-
-                    {forma === "Crédito" && (
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs font-medium text-black/60 dark:text-white/60">Parcelas</label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={parcelas[comanda.id] ?? "1"}
-                          onChange={(e) => setParcelas({ ...parcelas, [comanda.id]: e.target.value })}
-                          className={`${inputStyle} w-16`}
-                        />
-                      </div>
-                    )}
-
-                    {(forma === "Dinheiro" || forma === "Fiado") && (
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs font-medium text-black/60 dark:text-white/60">
-                          {forma === "Fiado" ? "Pago agora" : "Recebido"}
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={valorRecebido[comanda.id] ?? ""}
-                          onChange={(e) => setValorRecebido({ ...valorRecebido, [comanda.id]: e.target.value })}
-                          className={`${inputStyle} w-20`}
-                        />
-                      </div>
-                    )}
-
-                    {(forma === "Fiado" || (forma === "Dinheiro" && faltante > 0)) && (
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs font-medium text-black/60 dark:text-white/60">Cliente</label>
-                        <select
-                          value={clienteSelecionado[comanda.id] ?? ""}
-                          onChange={(e) =>
-                            setClienteSelecionado({ ...clienteSelecionado, [comanda.id]: e.target.value })
-                          }
-                          className={`${inputStyle} min-w-0`}
-                        >
-                          <option value="">Selecione</option>
-                          {clientes.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.nome}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-
-                  {trocoCalculado !== null && (
-                    <p className="text-sm font-medium text-green-600">Troco: R$ {trocoCalculado.toFixed(2)}</p>
-                  )}
-                  {faltante > 0 && (forma === "Dinheiro" || forma === "Fiado") && (
-                    <p className="text-sm font-medium text-amber-600">
-                      {clienteSelecionado[comanda.id]
-                        ? `Fica devendo: R$ ${faltante.toFixed(2)}`
-                        : `Falta R$ ${faltante.toFixed(2)} — selecione um cliente pra registrar como fiado`}
-                    </p>
-                  )}
-
-                  <button
-                    onClick={() => fecharComanda(comanda.id, total)}
-                    disabled={
-                      comanda.itens.length === 0 ||
-                      salvando ||
-                      (precisaDeCliente && !clienteSelecionado[comanda.id])
-                    }
-                    className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {salvando ? "Salvando..." : "Fechar comanda"}
-                  </button>
-                </div>
-              </div>
+                <span className="text-indigo-600 dark:text-indigo-400 font-semibold w-10 shrink-0">#{c.numero}</span>
+                <span className="flex-1 min-w-0 truncate">{c.nomeCliente ?? "Sem nome"}</span>
+                <span className="text-black/50 dark:text-white/50 text-sm shrink-0">
+                  {qtdItens} {qtdItens === 1 ? "item" : "itens"}
+                </span>
+                <span className="font-semibold w-24 text-right shrink-0">R$ {total.toFixed(2)}</span>
+              </button>
             );
           })}
+          {comandasFiltradas.length === 0 && (
+            <p className="py-6 px-4 text-center text-black/40 dark:text-white/40 text-sm">
+              {carregando
+                ? "Carregando..."
+                : comandas.length === 0
+                ? "Nenhuma comanda aberta."
+                : "Nenhuma comanda encontrada pra essa busca."}
+            </p>
+          )}
         </div>
       </main>
+
+      {comandaAberta && (
+        <Drawer
+          titulo={`Comanda #${comandaAberta.numero}`}
+          subtitulo={`${comandaAberta.nomeCliente ?? "Sem nome"} · aberta às ${new Date(
+            comandaAberta.dataAbertura
+          ).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`}
+          onFechar={fecharDrawer}
+        >
+          <div className="flex flex-col gap-4">
+            {comandaAberta.itens.length > 0 && (
+              <div className="rounded-lg border border-black/10 dark:border-white/10 overflow-hidden">
+                <table className="w-full text-sm">
+                  <tbody>
+                    {comandaAberta.itens.map((item) => (
+                      <tr key={item.id} className="border-b border-black/5 dark:border-white/5 last:border-0">
+                        <td className="py-2 px-3">{item.nome}</td>
+                        <td className="py-2 px-3">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => alterarQuantidade(item.id, item.quantidade - 1)}
+                              disabled={salvando}
+                              className="w-6 h-6 flex items-center justify-center rounded bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 disabled:opacity-40"
+                            >
+                              −
+                            </button>
+                            <span className="w-5 text-center">{item.quantidade}</span>
+                            <button
+                              onClick={() => alterarQuantidade(item.id, item.quantidade + 1)}
+                              disabled={salvando}
+                              className="w-6 h-6 flex items-center justify-center rounded bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 disabled:opacity-40"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </td>
+                        <td className="py-2 px-3 text-right font-medium">
+                          R$ {(item.preco * item.quantidade).toFixed(2)}
+                        </td>
+                        <td className="py-2 px-3 text-right">
+                          <button
+                            onClick={() => removerItem(item.id)}
+                            disabled={salvando}
+                            className="text-red-600 hover:underline text-xs font-medium disabled:opacity-40"
+                          >
+                            remover
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="flex gap-2 items-end">
+              <div className="flex flex-col gap-1 flex-1 min-w-0">
+                <label className={labelStyle}>Produto</label>
+                <select
+                  value={produtoSelecionado}
+                  onChange={(e) => setProdutoSelecionado(e.target.value)}
+                  className={`${inputStyle} w-full`}
+                >
+                  <option value="">Selecione um produto</option>
+                  {produtos.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome} — R$ {p.preco}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1 w-16">
+                <label className={labelStyle}>Qtd.</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={quantidade}
+                  onChange={(e) => setQuantidade(e.target.value)}
+                  className={inputStyle}
+                />
+              </div>
+              <button onClick={adicionarItem} disabled={salvando || !produtoSelecionado} className={botaoSecundario}>
+                + Add
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg bg-indigo-600/10 px-4 py-3">
+              <span className="text-sm font-medium text-black/70 dark:text-white/70">Total</span>
+              <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                R$ {totalAberta.toFixed(2)}
+              </span>
+            </div>
+
+            <div className="border-t border-black/10 dark:border-white/10 pt-4 flex flex-col gap-3">
+              <div className="flex flex-wrap gap-2 items-end">
+                <div className="flex flex-col gap-1">
+                  <label className={labelStyle}>Pagamento</label>
+                  <select
+                    value={formaPagamento}
+                    onChange={(e) => setFormaPagamento(e.target.value)}
+                    className={inputStyle}
+                  >
+                    <option value="PIX">PIX</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                    <option value="Débito">Débito</option>
+                    <option value="Crédito">Crédito</option>
+                    <option value="Fiado">Fiado</option>
+                  </select>
+                </div>
+
+                {formaPagamento === "Crédito" && (
+                  <div className="flex flex-col gap-1">
+                    <label className={labelStyle}>Parcelas</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={parcelas}
+                      onChange={(e) => setParcelas(e.target.value)}
+                      className={`${inputStyle} w-16`}
+                    />
+                  </div>
+                )}
+
+                {(formaPagamento === "Dinheiro" || formaPagamento === "Fiado") && (
+                  <div className="flex flex-col gap-1">
+                    <label className={labelStyle}>{formaPagamento === "Fiado" ? "Pago agora" : "Recebido"}</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={valorRecebido}
+                      onChange={(e) => setValorRecebido(e.target.value)}
+                      className={`${inputStyle} w-24`}
+                    />
+                  </div>
+                )}
+
+                {(formaPagamento === "Fiado" || (formaPagamento === "Dinheiro" && faltante > 0)) && (
+                  <div className="flex flex-col gap-1 flex-1 min-w-0">
+                    <label className={labelStyle}>Cliente</label>
+                    <select
+                      value={clienteSelecionado}
+                      onChange={(e) => setClienteSelecionado(e.target.value)}
+                      className={`${inputStyle} w-full`}
+                    >
+                      <option value="">Selecione</option>
+                      {clientes.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {trocoCalculado !== null && (
+                <p className="text-sm font-medium text-green-600">Troco: R$ {trocoCalculado.toFixed(2)}</p>
+              )}
+              {faltante > 0 && (formaPagamento === "Dinheiro" || formaPagamento === "Fiado") && (
+                <p className="text-sm font-medium text-amber-600">
+                  {clienteSelecionado
+                    ? `Fica devendo: R$ ${faltante.toFixed(2)}`
+                    : `Falta R$ ${faltante.toFixed(2)} — selecione um cliente pra registrar como fiado`}
+                </p>
+              )}
+              {erro && <p className="text-sm text-red-600">{erro}</p>}
+
+              <button
+                onClick={fecharComanda}
+                disabled={
+                  comandaAberta.itens.length === 0 ||
+                  salvando ||
+                  (precisaDeCliente && !clienteSelecionado)
+                }
+                className={botaoPrimario}
+              >
+                {salvando ? "Salvando..." : "Fechar comanda"}
+              </button>
+            </div>
+          </div>
+        </Drawer>
+      )}
     </>
   );
 }
