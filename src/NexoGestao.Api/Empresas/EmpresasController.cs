@@ -10,7 +10,7 @@ using System.Security.Claims;
 namespace NexoGestao.Api.Empresas;
 
 public record CriarEmpresaRequest(string Nome, string? Segmento, bool ComandasHabilitadas = true, TipoNegocio? TipoNegocio = null);
-public record AtualizarEmpresaRequest(bool ComandasHabilitadas);
+public record AtualizarEmpresaRequest(bool ComandasHabilitadas, string? Nome = null);
 public record ModuloConfigDto(string Modulo, bool Habilitado);
 public record AtualizarModulosRequest(List<ModuloConfigDto> Modulos);
 
@@ -118,9 +118,11 @@ public class EmpresasController : ControllerBase
             return NotFound();
 
         empresa.ComandasHabilitadas = request.ComandasHabilitadas;
+        if (!string.IsNullOrWhiteSpace(request.Nome))
+            empresa.Nome = request.Nome.Trim();
         await _context.SaveChangesAsync();
 
-        return Ok(new { empresa.Id, empresa.ComandasHabilitadas });
+        return Ok(new { empresa.Id, empresa.Nome, empresa.ComandasHabilitadas });
     }
 
     // Endpoint preparado para o futuro painel administrativo da plataforma definir os

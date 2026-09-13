@@ -89,11 +89,26 @@ public class AgendamentoPublicoController : ControllerBase
         if (servico is null)
             return NotFound(new { mensagem = "Serviço não encontrado." });
 
-        var config = await Context.ConfiguracoesAgenda.FirstOrDefaultAsync(c => c.EmpresaId == empresaId);
-        var horaInicio = string.IsNullOrWhiteSpace(config?.HoraInicioAtendimento) ? "08:00" : config.HoraInicioAtendimento;
-        var horaFim = string.IsNullOrWhiteSpace(config?.HoraFimAtendimento) ? "18:00" : config.HoraFimAtendimento;
-
         var dataBase = DateTime.SpecifyKind(data.Date, DateTimeKind.Utc);
+
+        var diaConfigurado = await Context.ConfiguracoesDiaSemana
+            .FirstOrDefaultAsync(d => d.DiaSemana == (int)dataBase.DayOfWeek);
+
+        string horaInicio, horaFim;
+        if (diaConfigurado is not null)
+        {
+            if (!diaConfigurado.Ativo)
+                return Ok(Array.Empty<string>());
+            horaInicio = diaConfigurado.HoraInicio;
+            horaFim = diaConfigurado.HoraFim;
+        }
+        else
+        {
+            var config = await Context.ConfiguracoesAgenda.FirstOrDefaultAsync(c => c.EmpresaId == empresaId);
+            horaInicio = string.IsNullOrWhiteSpace(config?.HoraInicioAtendimento) ? "08:00" : config.HoraInicioAtendimento;
+            horaFim = string.IsNullOrWhiteSpace(config?.HoraFimAtendimento) ? "18:00" : config.HoraFimAtendimento;
+        }
+
         var inicioJanela = CombinarDataHora(dataBase, horaInicio);
         var fimJanela = CombinarDataHora(dataBase, horaFim);
 

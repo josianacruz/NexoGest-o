@@ -30,6 +30,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<CobrancaAgendamento> CobrancasAgendamento => Set<CobrancaAgendamento>();
     public DbSet<VagaDivulgada> VagasDivulgadas => Set<VagaDivulgada>();
     public DbSet<Notificacao> Notificacoes => Set<Notificacao>();
+    public DbSet<ConfiguracaoDiaSemana> ConfiguracoesDiaSemana => Set<ConfiguracaoDiaSemana>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -48,5 +49,6 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         builder.Entity<VagaDivulgada>().HasQueryFilter(v => EmpresaAtualId != null && v.EmpresaId == EmpresaAtualId);
         builder.Entity<VagaDivulgada>().HasIndex(v => v.Token).IsUnique();
         builder.Entity<Notificacao>().HasQueryFilter(n => EmpresaAtualId != null && n.EmpresaId == EmpresaAtualId);
+        builder.Entity<ConfiguracaoDiaSemana>().HasQueryFilter(d => EmpresaAtualId != null && d.EmpresaId == EmpresaAtualId);
     }
 }
