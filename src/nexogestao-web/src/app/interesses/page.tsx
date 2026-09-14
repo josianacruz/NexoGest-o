@@ -3,10 +3,23 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "../_components/Nav";
+import Modal from "../_components/Modal";
 import PageHeader from "../_components/PageHeader";
-import { botaoPrimario, botaoSecundario, cardStyle } from "../_components/ui";
+import { botaoSecundario, botaoPrimario, cardStyle, labelStyle } from "../_components/ui";
 import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
 import { abrirWhatsApp, mensagemInteresseProduto } from "../../lib/whatsapp";
+
+interface VendaResumo {
+  id: number;
+  total: number;
+  formaPagamento: string;
+  parcelas?: number | null;
+  troco?: number | null;
+  saldoDevedor?: number | null;
+  clienteNome?: string | null;
+  data: string;
+  itens: { produtoId: number; quantidade: number; precoUnitario: number }[];
+}
 
 type StatusInteresse = "Novo" | "Reservado" | "Convertido" | "Perdido";
 
@@ -61,6 +74,8 @@ export default function InteressesPage() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [vendaPopup, setVendaPopup] = useState<VendaResumo | null>(null);
+  const [carregandoVenda, setCarregandoVenda] = useState(false);
 
   const router = useRouter();
 
@@ -165,6 +180,24 @@ export default function InteressesPage() {
       produtoPreco: String(i.produtoPreco),
     });
     router.push(`/vendas?${params.toString()}`);
+  }
+
+  async function verVenda(vendaId: number) {
+    if (!empresaId) return;
+    const token = getToken();
+    if (!token) return;
+    setCarregandoVenda(true);
+    try {
+      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/vendas`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const vendas: VendaResumo[] = await res.json();
+      const venda = vendas.find((v) => v.id === vendaId);
+      if (venda) setVendaPopup(venda);
+    } finally {
+      setCarregandoVenda(false);
+    }
   }
 
   function formatarData(iso: string) {
@@ -280,12 +313,13 @@ export default function InteressesPage() {
               )}
 
               {i.status === "Convertido" && i.vendaId && (
-                <a
-                  href="/vendas"
-                  className="pt-2 border-t border-black/5 dark:border-white/5 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                <button
+                  onClick={() => verVenda(i.vendaId!)}
+                  disabled={carregandoVenda}
+                  className="pt-2 border-t border-black/5 dark:border-white/5 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline text-left"
                 >
                   Ver venda #{i.vendaId}
-                </a>
+                </button>
               )}
             </div>
           ))}
@@ -300,6 +334,47 @@ export default function InteressesPage() {
           )}
         </div>
       </main>
+
+      {vendaPopup && (
+        <Modal titulo={`Venda #${vendaPopup.id}`} onFechar={() => setVendaPopup(null)}>
+          <div className="flex flex-col gap-3 text-sm">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <div className={labelStyle}>Data/hora</div>
+                <div>{new Date(vendaPopup.data).toLocaleString("pt-BR")}</div>
+              </div>
+              <div>
+                <div className={labelStyle}>Cliente</div>
+                <div>{vendaPopup.clienteNome ?? "Consumidor não identificado"}</div>
+              </div>
+              <div>
+                <div className={labelStyle}>Pagamento</div>
+                <div>
+                  {vendaPopup.formaPagamento}
+                  {vendaPopup.parcelas && vendaPopup.parcelas > 1 ? ` ${vendaPopup.parcelas}x` : ""}
+                </div>
+              </div>
+              <div>
+                <div className={labelStyle}>Total</div>
+                <div className="font-semibold">R$ {vendaPopup.total.toFixed(2)}</div>
+              </div>
+            </div>
+
+            {vendaPopup.troco != null && vendaPopup.troco > 0 && (
+              <p className="text-green-600 font-medium">Troco: R$ {vendaPopup.troco.toFixed(2)}</p>
+            )}
+            {vendaPopup.saldoDevedor != null && vendaPopup.saldoDevedor > 0 && (
+              <p className="text-amber-600 font-medium">Saldo devedor: R$ {vendaPopup.saldoDevedor.toFixed(2)}</p>
+            )}
+
+            <div className="flex justify-end mt-1">
+              <button onClick={() => setVendaPopup(null)} className={botaoPrimario}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }
