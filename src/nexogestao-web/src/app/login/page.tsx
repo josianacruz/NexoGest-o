@@ -7,6 +7,7 @@ import { API_URL } from "../../lib/api";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [mostrarSenha, setMostrarSenha] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
   const router = useRouter();
@@ -52,13 +53,23 @@ export default function LoginPage() {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium">Senha</label>
-            <input
-              type="password"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              required
-              className="px-3 py-2 rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-black/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            <div className="relative">
+              <input
+                type={mostrarSenha ? "text" : "password"}
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                required
+                className="w-full px-3 py-2 pr-10 rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-black/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <button
+                type="button"
+                onClick={() => setMostrarSenha((v) => !v)}
+                aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70"
+              >
+                {mostrarSenha ? "🙈" : "👁️"}
+              </button>
+            </div>
           </div>
           {erro && <p className="text-sm text-red-600">{erro}</p>}
           <button

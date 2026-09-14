@@ -28,10 +28,11 @@ export default function Nav({
   // (e presos até o próximo fetch, se a requisição demorasse).
   const [modulos, setModulos] = useState<string[] | null>(null);
 
-  const links = (modulos ?? [])
-    .map((chave) => MODULOS_MENU.find((m) => m.chave === chave))
-    .filter((m): m is (typeof MODULOS_MENU)[number] => !!m)
-    .filter((m) => m.chave !== "Comandas" || comandasHabilitadas);
+  // Ordem sempre a de MODULOS_MENU (pensada pro fluxo mais comum primeiro),
+  // não a ordem em que o backend devolve — só filtra o que está habilitado.
+  const links = MODULOS_MENU.filter(
+    (m) => (modulos ?? []).includes(m.chave) && (m.chave !== "Comandas" || comandasHabilitadas)
+  );
 
   useEffect(() => {
     const token = typeof window !== "undefined" ? localStorage.getItem("nexo_token") : null;
@@ -150,7 +151,7 @@ export default function Nav({
             </Link>
           )}
           {empresaNome && (
-            <span className="hidden sm:flex items-baseline gap-1.5 truncate max-w-[220px]">
+            <span className="flex items-baseline gap-1.5 truncate max-w-[220px]">
               <span className="font-medium text-black/70 dark:text-white/70 truncate">{empresaNome.split(" | ")[0]}</span>
               {empresaNome.includes(" | ") && (
                 <span className="text-black/40 dark:text-white/40 text-xs truncate">{empresaNome.split(" | ")[1]}</span>
