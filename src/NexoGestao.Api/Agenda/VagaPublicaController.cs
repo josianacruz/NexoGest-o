@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using NexoGestao.Api.Data;
 using NexoGestao.Api.Domain;
@@ -13,6 +14,7 @@ public record ConfirmarVagaRequest(int ServicoId, string NomeCliente, string Cel
 // pelo token, o cliente só escolhe o serviço que cabe no tempo livre.
 [ApiController]
 [Route("api/publico/vagas/{token}")]
+[EnableRateLimiting("publico")]
 public class VagaPublicaController : ControllerBase
 {
     private readonly AppDbContext Context;
@@ -103,6 +105,16 @@ public class VagaPublicaController : ControllerBase
         if (telefoneNormalizado is null)
             return BadRequest(new { mensagem = "Informe um celular válido." });
 
+        // Trava por vaga: dois cliques (ou duas abas) confirmando o mesmo link
+        // ao mesmo tempo nunca passam os dois pela checagem de status — o
+        // segundo só entra depois que o primeiro já commitou "Preenchida".
+        await using var transacao = await Context.Database.BeginTransactionAsync();
+        await ConcorrenciaUtil.TravarChaveAsync(Context, $"vaga:{vaga.Id}");
+
+        await Context.Entry(vaga).ReloadAsync();
+        if (vaga.Status != StatusVaga.Ativa)
+            return Conflict(new { mensagem = "Este horário já foi preenchido." });
+
         var minutosDisponiveis = await MinutosDisponiveisAsync(vaga);
         var servico = await Context.Servicos
             .FirstOrDefaultAsync(s => s.Id == request.ServicoId && s.Ativo && s.PermiteAutoagendamento);
@@ -121,6 +133,7 @@ public class VagaPublicaController : ControllerBase
         {
             vaga.Status = StatusVaga.Expirada;
             await Context.SaveChangesAsync();
+            await transacao.CommitAsync();
             return Conflict(new { mensagem = "Este horário já foi preenchido." });
         }
 
@@ -168,6 +181,7 @@ public class VagaPublicaController : ControllerBase
         });
 
         await Context.SaveChangesAsync();
+        await transacao.CommitAsync();
 
         return Ok(new { agendamento.Id, agendamento.DataHora, agendamento.ServicoNome });
     }

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using NexoGestao.Api.Data;
 using NexoGestao.Api.Domain;
@@ -18,6 +19,7 @@ public record CriarAgendamentoPublicoRequest(
 // a empresa é validada só pela existência + módulo Agenda habilitado.
 [ApiController]
 [Route("api/publico/empresas/{empresaId:int}/agenda")]
+[EnableRateLimiting("publico")]
 public class AgendamentoPublicoController : ControllerBase
 {
     private readonly AppDbContext Context;
@@ -157,10 +159,12 @@ public class AgendamentoPublicoController : ControllerBase
         if (inicio < DateTime.UtcNow)
             return BadRequest(new { mensagem = "Esse horário já passou." });
 
-        if (!await HorarioLivreAsync(inicio, servico.DuracaoMinutos))
-        {
-            return Conflict(new { mensagem = "Esse horário acabou de ficar indisponível. Escolha outro horário." });
-        }
+        // Trava só quem tenta marcar na mesma empresa+dia — outras empresas e
+        // outros dias seguem em paralelo sem esperar. A trava fica até o fim
+        // da transação, então o segundo clique só entra depois que o primeiro
+        // já confirmou (ou desistiu) desse horário.
+        await using var transacao = await Context.Database.BeginTransactionAsync();
+        await ConcorrenciaUtil.TravarChaveAsync(Context, $"agenda:{empresaId}:{inicio:yyyyMMdd}");
 
         // Casa pelo telefone normalizado (mesmos dígitos), evitando duplicar cliente.
         var clientesDaEmpresa = await Context.Clientes.ToListAsync();
@@ -178,8 +182,25 @@ public class AgendamentoPublicoController : ControllerBase
             await Context.SaveChangesAsync();
         }
 
-        // Revalida o conflito de novo, agora dentro da mesma transação lógica
-        // (proteção extra contra corrida entre duas pessoas marcando ao mesmo tempo).
+        // Clique duplicado / retry de rede pro mesmo cliente+horário: devolve o
+        // agendamento que já existe em vez de checar disponibilidade de novo
+        // (senão o próprio agendamento do clique anterior "ocuparia" o horário
+        // e o clique repetido veria como indisponível em vez de já confirmado).
+        var existente = await Context.Agendamentos.FirstOrDefaultAsync(a =>
+            a.ClienteId == cliente.Id && a.DataHora == inicio && a.Status != StatusAgendamento.Cancelado);
+        if (existente is not null)
+        {
+            await transacao.CommitAsync();
+            return Ok(new
+            {
+                existente.Id,
+                existente.DataHora,
+                existente.ServicoNome,
+                existente.DuracaoMinutos,
+                existente.Valor,
+            });
+        }
+
         if (!await HorarioLivreAsync(inicio, servico.DuracaoMinutos))
         {
             return Conflict(new { mensagem = "Esse horário acabou de ficar indisponível. Escolha outro horário." });
@@ -199,6 +220,7 @@ public class AgendamentoPublicoController : ControllerBase
         };
         Context.Agendamentos.Add(agendamento);
         await Context.SaveChangesAsync();
+        await transacao.CommitAsync();
 
         return Ok(new
         {

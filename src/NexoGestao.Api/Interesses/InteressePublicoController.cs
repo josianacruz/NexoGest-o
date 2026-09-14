@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using NexoGestao.Api.Data;
 using NexoGestao.Api.Domain;
@@ -12,6 +13,7 @@ public record CriarInteresseRequest(string NomeCliente, string Celular);
 // Id, só pelo token opaco gerado em ProdutosController.GerarLinkStory.
 [ApiController]
 [Route("api/publico/interesses/{token}")]
+[EnableRateLimiting("publico")]
 public class InteressePublicoController : ControllerBase
 {
     private readonly AppDbContext Context;
@@ -81,6 +83,17 @@ public class InteressePublicoController : ControllerBase
             };
             Context.Clientes.Add(cliente);
             await Context.SaveChangesAsync();
+        }
+
+        // Clique duplicado / retry de rede pro mesmo produto+cliente: devolve o
+        // interesse já criado em vez de registrar outro igual.
+        var jaExistente = await Context.Interesses.FirstOrDefaultAsync(i =>
+            i.ProdutoId == produto.Id &&
+            i.ClienteId == cliente.Id &&
+            i.DataCriacao > DateTime.UtcNow.AddMinutes(-1));
+        if (jaExistente is not null)
+        {
+            return Ok(new { jaExistente.Id, mensagem = "Interesse registrado! A loja pode demorar um pouco para responder." });
         }
 
         var interesse = new Interesse

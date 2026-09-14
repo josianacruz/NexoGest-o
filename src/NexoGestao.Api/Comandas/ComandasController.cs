@@ -209,10 +209,6 @@ public class ComandasController : TenantControllerBase
         if (request.FormaPagamento == "Crédito" && request.Parcelas is not null && request.Parcelas < 1)
             return BadRequest(new { mensagem = "O número de parcelas deve ser maior que zero." });
 
-        var itemSemEstoque = comanda.Itens.FirstOrDefault(i => i.Produto.Estoque < i.Quantidade);
-        if (itemSemEstoque is not null)
-            return BadRequest(new { mensagem = $"Estoque insuficiente de {itemSemEstoque.Produto.Nome}." });
-
         var venda = new Venda
         {
             EmpresaId = empresaAutorizada.Value,
@@ -220,9 +216,23 @@ public class ComandasController : TenantControllerBase
             FormaPagamento = request.FormaPagamento,
         };
 
+        // Transação + trava de linha por produto: reproduz o mesmo bloqueio de
+        // "estoque insuficiente" de antes, mas checando o valor travado no banco
+        // em vez do valor lido antes — impede duas comandas concorrentes de
+        // ambas passarem no cheque vendo a mesma última unidade disponível.
+        await using var transacao = await Context.Database.BeginTransactionAsync();
+
         decimal total = 0;
+        var estoqueFinalPorProduto = new Dictionary<int, int>();
         foreach (var item in comanda.Itens)
         {
+            var estoqueAtual = estoqueFinalPorProduto.TryGetValue(item.ProdutoId, out var jaLido)
+                ? jaLido
+                : await EstoqueUtil.TravarEObterEstoqueAsync(Context, item.ProdutoId);
+
+            if (estoqueAtual < item.Quantidade)
+                return BadRequest(new { mensagem = $"Estoque insuficiente de {item.Produto.Nome}." });
+
             venda.Itens.Add(new ItemVenda
             {
                 ProdutoId = item.ProdutoId,
@@ -230,7 +240,7 @@ public class ComandasController : TenantControllerBase
                 PrecoUnitario = item.Produto.Preco,
             });
             total += item.Produto.Preco * item.Quantidade;
-            item.Produto.Estoque -= item.Quantidade;
+            estoqueFinalPorProduto[item.ProdutoId] = estoqueAtual - item.Quantidade;
         }
         venda.Total = total;
 
@@ -287,6 +297,11 @@ public class ComandasController : TenantControllerBase
         }
 
         await Context.SaveChangesAsync();
+
+        foreach (var (produtoId, estoqueFinal) in estoqueFinalPorProduto)
+            await EstoqueUtil.DefinirEstoqueAsync(Context, produtoId, estoqueFinal);
+
+        await transacao.CommitAsync();
 
         return Ok(new
         {

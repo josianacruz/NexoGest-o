@@ -64,8 +64,14 @@ public class VendasController : TenantControllerBase
             FormaPagamento = request.FormaPagamento,
         };
 
+        // Transação + trava de linha (FOR UPDATE) por produto: duas vendas
+        // concorrentes do mesmo item nunca leem o mesmo estoque "por baixo do
+        // outro" — a segunda só lê depois que a primeira baixou e commitou.
+        await using var transacao = await Context.Database.BeginTransactionAsync();
+
         decimal total = 0;
         var registrosSemEstoque = new List<RegistroVendaSemEstoque>();
+        var estoqueFinalPorProduto = new Dictionary<int, int>();
         foreach (var itemReq in request.Itens)
         {
             var produto = produtos.First(p => p.Id == itemReq.ProdutoId);
@@ -80,8 +86,12 @@ public class VendasController : TenantControllerBase
             venda.Itens.Add(item);
             total += produto.Preco * itemReq.Quantidade;
 
+            var estoqueAtual = estoqueFinalPorProduto.TryGetValue(produto.Id, out var jaLido)
+                ? jaLido
+                : await EstoqueUtil.TravarEObterEstoqueAsync(Context, produto.Id);
+
             // Quanto dessa venda não tinha estoque disponível (pra registrar no relatório).
-            var disponivel = Math.Max(0, produto.Estoque);
+            var disponivel = Math.Max(0, estoqueAtual);
             var semEstoque = Math.Max(0, itemReq.Quantidade - disponivel);
             if (semEstoque > 0)
             {
@@ -94,8 +104,7 @@ public class VendasController : TenantControllerBase
                 });
             }
 
-            // Baixa de estoque
-            produto.Estoque -= itemReq.Quantidade;
+            estoqueFinalPorProduto[produto.Id] = estoqueAtual - itemReq.Quantidade;
         }
         venda.Total = total;
 
@@ -155,7 +164,15 @@ public class VendasController : TenantControllerBase
 
         await Context.SaveChangesAsync();
 
-        var estoqueNegativo = produtos.Where(p => p.Estoque < 0).Select(p => p.Nome).ToList();
+        foreach (var (produtoId, estoqueFinal) in estoqueFinalPorProduto)
+            await EstoqueUtil.DefinirEstoqueAsync(Context, produtoId, estoqueFinal);
+
+        await transacao.CommitAsync();
+
+        var estoqueNegativo = produtos
+            .Where(p => estoqueFinalPorProduto.TryGetValue(p.Id, out var e) && e < 0)
+            .Select(p => p.Nome)
+            .ToList();
 
         return Ok(new
         {
