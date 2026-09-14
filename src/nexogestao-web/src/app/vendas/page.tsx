@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Nav from "../_components/Nav";
 import Modal from "../_components/Modal";
 import PageHeader from "../_components/PageHeader";
@@ -61,6 +61,15 @@ async function mensagemDeErro(res: Response, padrao: string) {
 }
 
 export default function VendasPage() {
+  return (
+    <Suspense>
+      <VendasConteudo />
+    </Suspense>
+  );
+}
+
+function VendasConteudo() {
+  const searchParams = useSearchParams();
   const [empresaId, setEmpresaId] = useState<number | null>(null);
   const [empresaNome, setEmpresaNome] = useState("");
   const [comandasHabilitadas, setComandasHabilitadas] = useState(true);
@@ -85,6 +94,16 @@ export default function VendasPage() {
   const [vendaDetalhe, setVendaDetalhe] = useState<Venda | null>(null);
   const [itensSemEstoque, setItensSemEstoque] = useState<ItemSemEstoque[]>([]);
   const [periodoSemEstoque, setPeriodoSemEstoque] = useState<PeriodoSemEstoque>("dia");
+
+  const [mostrarNovaVenda, setMostrarNovaVenda] = useState(false);
+  const [interesseId, setInteresseId] = useState<number | null>(null);
+  const [clienteInteresseNome, setClienteInteresseNome] = useState<string | null>(null);
+
+  const [clienteNovoAberto, setClienteNovoAberto] = useState(false);
+  const [clienteNovoNome, setClienteNovoNome] = useState("");
+  const [clienteNovoTelefone, setClienteNovoTelefone] = useState("");
+  const [salvandoClienteNovo, setSalvandoClienteNovo] = useState(false);
+
   const router = useRouter();
 
   function getToken() {
@@ -135,8 +154,35 @@ export default function VendasPage() {
       setVendas(await resVendas.json());
       setClientes(await resClientes.json());
       await carregarSemEstoque(empresa.id, periodoSemEstoque);
+      preencherAPartirDaUrl();
     } finally {
       setCarregando(false);
+    }
+  }
+
+  // Chegando de um Interesse já vem tudo escolhido — só falta o pagamento.
+  function preencherAPartirDaUrl() {
+    const idInteresse = searchParams.get("interesseId");
+    const clienteId = searchParams.get("clienteId");
+    const produtoId = searchParams.get("produtoId");
+    const produtoNome = searchParams.get("produtoNome");
+    const produtoPreco = searchParams.get("produtoPreco");
+
+    if (idInteresse && clienteId && produtoId && produtoNome && produtoPreco) {
+      setInteresseId(Number(idInteresse));
+      setClienteInteresseNome(searchParams.get("clienteNome"));
+      setClienteSelecionado(clienteId);
+      setCarrinho([
+        {
+          produtoId: Number(produtoId),
+          nome: produtoNome,
+          precoUnitario: Number(produtoPreco),
+          quantidade: 1,
+        },
+      ]);
+      setMostrarNovaVenda(true);
+    } else if (searchParams.get("nova") === "1") {
+      setMostrarNovaVenda(true);
     }
   }
 
@@ -229,26 +275,38 @@ export default function VendasPage() {
     setSalvando(true);
     setAvisoEstoque(null);
     try {
-      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/vendas`, {
+      // Venda que veio de um Interesse usa o endpoint que já cuida de marcar
+      // o interesse como vendido — o restante (cobrança, estoque) é o mesmo.
+      const url = interesseId
+        ? `${API_URL}/api/empresas/${empresaId}/interesses/${interesseId}/converter`
+        : `${API_URL}/api/empresas/${empresaId}/vendas`;
+
+      const corpo = interesseId
+        ? {
+            formaPagamento,
+            valorRecebido: formaPagamento === "Dinheiro" || formaPagamento === "Fiado" ? valorPago : null,
+            parcelas: formaPagamento === "Crédito" ? Number(parcelas || "1") : null,
+            dataVencimento: formaPagamento === "Fiado" ? dataVencimento : null,
+          }
+        : {
+            formaPagamento,
+            clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
+            valorRecebido: formaPagamento === "Dinheiro" || formaPagamento === "Fiado" ? valorPago : null,
+            parcelas: formaPagamento === "Crédito" ? Number(parcelas || "1") : null,
+            dataVencimento: formaPagamento === "Fiado" ? dataVencimento : null,
+            itens: carrinho.map((i) => ({
+              produtoId: i.produtoId,
+              quantidade: i.quantidade,
+            })),
+          };
+
+      const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          formaPagamento,
-          clienteId: clienteSelecionado ? Number(clienteSelecionado) : null,
-          valorRecebido:
-            formaPagamento === "Dinheiro" || formaPagamento === "Fiado"
-              ? valorPago
-              : null,
-          parcelas: formaPagamento === "Crédito" ? Number(parcelas || "1") : null,
-          dataVencimento: formaPagamento === "Fiado" ? dataVencimento : null,
-          itens: carrinho.map((i) => ({
-            produtoId: i.produtoId,
-            quantidade: i.quantidade,
-          })),
-        }),
+        body: JSON.stringify(corpo),
       });
 
       if (!res.ok) {
@@ -268,9 +326,41 @@ export default function VendasPage() {
       setParcelas("1");
       setClienteSelecionado("");
       setDataVencimento("");
+      setMostrarNovaVenda(false);
+      if (interesseId) {
+        setInteresseId(null);
+        setClienteInteresseNome(null);
+        router.replace("/vendas");
+      }
       await carregarTudo();
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function salvarClienteNovo() {
+    if (!empresaId || salvandoClienteNovo || !clienteNovoNome.trim()) return;
+    const token = getToken();
+    if (!token) return;
+    setSalvandoClienteNovo(true);
+    try {
+      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/clientes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ nome: clienteNovoNome.trim(), telefone: clienteNovoTelefone.trim() || null }),
+      });
+      if (!res.ok) {
+        setErro(await mensagemDeErro(res, "Não foi possível cadastrar o cliente."));
+        return;
+      }
+      const novoCliente = await res.json();
+      setClientes((atual) => [...atual, novoCliente].sort((a, b) => a.nome.localeCompare(b.nome)));
+      setClienteSelecionado(String(novoCliente.id));
+      setClienteNovoAberto(false);
+      setClienteNovoNome("");
+      setClienteNovoTelefone("");
+    } finally {
+      setSalvandoClienteNovo(false);
     }
   }
 
@@ -317,41 +407,74 @@ export default function VendasPage() {
     <>
       <Nav empresaNome={empresaNome} comandasHabilitadas={comandasHabilitadas} />
       <main className="max-w-5xl mx-auto px-4 sm:px-5 py-8 w-full min-w-0">
-        <PageHeader titulo="Vendas" />
+        <PageHeader
+          titulo="Vendas"
+          acao={
+            !mostrarNovaVenda && (
+              <button onClick={() => setMostrarNovaVenda(true)} className={`${botaoPrimario} h-11 px-5 text-base`}>
+                + Nova venda
+              </button>
+            )
+          }
+        />
 
+        {mostrarNovaVenda && (
         <div className={`${cardStyle} p-5 mb-6`}>
-          <h2 className="text-sm font-semibold mb-4">Nova venda</h2>
-
-          <div className="flex flex-wrap gap-3 items-end mb-4">
-            <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
-              <label className={labelStyle}>Produto</label>
-              <select
-                value={produtoSelecionado}
-                onChange={(e) => setProdutoSelecionado(e.target.value)}
-                className={inputStyle}
-              >
-                <option value="">Selecione um produto</option>
-                {produtos.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nome} — R$ {p.preco}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className={labelStyle}>Qtd.</label>
-              <input
-                type="number"
-                min="1"
-                value={quantidade}
-                onChange={(e) => setQuantidade(e.target.value)}
-                className={`${inputStyle} w-20`}
-              />
-            </div>
-            <button onClick={adicionarAoCarrinho} disabled={!produtoSelecionado} className={botaoSecundario}>
-              + Adicionar
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold">Nova venda</h2>
+            <button
+              onClick={() => {
+                setMostrarNovaVenda(false);
+                setCarrinho([]);
+                setInteresseId(null);
+                setClienteInteresseNome(null);
+                setClienteSelecionado("");
+                router.replace("/vendas");
+              }}
+              className="text-xs text-black/40 dark:text-white/40 hover:underline"
+            >
+              Cancelar
             </button>
           </div>
+
+          {clienteInteresseNome && (
+            <div className="rounded-lg bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 text-sm px-3 py-2 mb-4">
+              Fechando a venda pro interesse de <strong>{clienteInteresseNome}</strong> — só falta escolher o pagamento.
+            </div>
+          )}
+
+          {!interesseId && (
+            <div className="flex flex-wrap gap-3 items-end mb-4">
+              <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
+                <label className={labelStyle}>Produto</label>
+                <select
+                  value={produtoSelecionado}
+                  onChange={(e) => setProdutoSelecionado(e.target.value)}
+                  className={inputStyle}
+                >
+                  <option value="">Selecione um produto</option>
+                  {produtos.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome} — R$ {p.preco}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className={labelStyle}>Qtd.</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={quantidade}
+                  onChange={(e) => setQuantidade(e.target.value)}
+                  className={`${inputStyle} w-20`}
+                />
+              </div>
+              <button onClick={adicionarAoCarrinho} disabled={!produtoSelecionado} className={botaoSecundario}>
+                + Adicionar
+              </button>
+            </div>
+          )}
 
           {carrinho.length > 0 && (
             <div className="rounded-lg border border-black/10 dark:border-white/10 overflow-hidden mb-4">
@@ -373,9 +496,11 @@ export default function VendasPage() {
                       <td className="py-2 px-3">R$ {item.precoUnitario.toFixed(2)}</td>
                       <td className="py-2 px-3 font-medium">R$ {(item.precoUnitario * item.quantidade).toFixed(2)}</td>
                       <td className="py-2 px-3 text-right">
-                        <button onClick={() => removerDoCarrinho(i)} className="text-red-600 hover:underline text-xs font-medium">
-                          remover
-                        </button>
+                        {!interesseId && (
+                          <button onClick={() => removerDoCarrinho(i)} className="text-red-600 hover:underline text-xs font-medium">
+                            remover
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -392,18 +517,54 @@ export default function VendasPage() {
           <div className="flex flex-wrap gap-3 items-end mb-4">
             <div className="flex flex-col gap-1">
               <label className={labelStyle}>Cliente</label>
-              <select
-                value={clienteSelecionado}
-                onChange={(e) => setClienteSelecionado(e.target.value)}
-                className={`${inputStyle} min-w-[160px]`}
-              >
-                <option value="">Consumidor não identificado</option>
-                {clientes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={clienteSelecionado}
+                  onChange={(e) => setClienteSelecionado(e.target.value)}
+                  disabled={!!interesseId}
+                  className={`${inputStyle} min-w-[160px]`}
+                >
+                  <option value="">Consumidor não identificado</option>
+                  {clientes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nome}
+                    </option>
+                  ))}
+                </select>
+                {!interesseId && !clienteNovoAberto && (
+                  <button type="button" onClick={() => setClienteNovoAberto(true)} className={botaoTexto}>
+                    + Novo
+                  </button>
+                )}
+              </div>
+              {clienteNovoAberto && (
+                <div className="flex flex-wrap gap-2 mt-1 items-end">
+                  <input
+                    value={clienteNovoNome}
+                    onChange={(e) => setClienteNovoNome(e.target.value)}
+                    placeholder="Nome do cliente"
+                    autoFocus
+                    className={`${inputStyle} w-40`}
+                  />
+                  <input
+                    value={clienteNovoTelefone}
+                    onChange={(e) => setClienteNovoTelefone(e.target.value)}
+                    placeholder="Celular (opcional)"
+                    className={`${inputStyle} w-36`}
+                  />
+                  <button
+                    type="button"
+                    onClick={salvarClienteNovo}
+                    disabled={salvandoClienteNovo || !clienteNovoNome.trim()}
+                    className={botaoSecundario}
+                  >
+                    {salvandoClienteNovo ? "Salvando..." : "Salvar"}
+                  </button>
+                  <button type="button" onClick={() => setClienteNovoAberto(false)} className="text-xs text-black/40 dark:text-white/40 hover:underline">
+                    cancelar
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-1">
@@ -534,6 +695,7 @@ export default function VendasPage() {
             </button>
           </div>
         </div>
+        )}
 
         {itensSemEstoque.length > 0 && (
           <div className={`${cardStyle} p-5 mb-6`}>

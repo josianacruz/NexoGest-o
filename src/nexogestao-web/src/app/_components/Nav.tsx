@@ -6,6 +6,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { API_URL } from "../../lib/api";
 import { MODULOS_MENU, temModulo } from "../../lib/modulos";
 
+// Ids de empresa configuradas pra ficar sempre no modo claro (pedido pontual
+// de identidade visual). Fica por Id — nome é dado editável do usuário e não
+// deve decidir comportamento do sistema.
+const EMPRESAS_TEMA_CLARO = [3];
+
 export default function Nav({
   empresaNome,
   comandasHabilitadas = true,
@@ -42,6 +47,13 @@ export default function Nav({
         if (empresas.length === 0) return;
 
         setModulos(empresas[0].modulos ?? []);
+
+        // Modo claro travado só pra essa empresa (por Id, nunca por nome —
+        // o nome é dado editável do usuário) — não mexe no tema de mais
+        // ninguém, que continua seguindo a preferência do aparelho.
+        const claroForcado = EMPRESAS_TEMA_CLARO.includes(empresas[0].id);
+        localStorage.setItem("nexo_tema_claro_forcado", claroForcado ? "1" : "0");
+        if (claroForcado) document.documentElement.classList.remove("dark");
 
         if (temModulo(empresas[0].modulos ?? [], "Agenda")) {
           const resNotificacoes = await fetch(
@@ -88,6 +100,16 @@ export default function Nav({
         <div className="flex flex-wrap items-center gap-2 sm:gap-4 min-w-0">
           <span className="font-semibold tracking-tight shrink-0">NexoGestão</span>
           <div className="flex flex-wrap gap-1">
+            <Link
+              href="/inicio"
+              className={`shrink-0 h-9 px-3 inline-flex items-center rounded-lg text-sm font-medium transition-colors ${
+                pathname === "/inicio"
+                  ? "bg-indigo-600 text-white"
+                  : "text-black/70 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/10"
+              }`}
+            >
+              Início
+            </Link>
             {links.map((link) => {
               const ativo = pathname === link.href;
               return (
@@ -128,8 +150,11 @@ export default function Nav({
             </Link>
           )}
           {empresaNome && (
-            <span className="hidden sm:inline text-black/50 dark:text-white/50 truncate max-w-[140px]">
-              {empresaNome}
+            <span className="hidden sm:flex items-baseline gap-1.5 truncate max-w-[220px]">
+              <span className="font-medium text-black/70 dark:text-white/70 truncate">{empresaNome.split(" | ")[0]}</span>
+              {empresaNome.includes(" | ") && (
+                <span className="text-black/40 dark:text-white/40 text-xs truncate">{empresaNome.split(" | ")[1]}</span>
+              )}
             </span>
           )}
           <button

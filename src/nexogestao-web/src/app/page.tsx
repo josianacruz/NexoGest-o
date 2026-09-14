@@ -8,7 +8,7 @@ export default function Home() {
 
   useEffect(() => {
     const token = typeof window !== "undefined" ? localStorage.getItem("nexo_token") : null;
-    router.replace(token ? "/clientes" : "/login");
+    router.replace(token ? "/inicio" : "/login");
   }, [router]);
 
   return null;

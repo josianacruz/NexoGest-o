@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { inputStyle, labelStyle, botaoPrimario, cardStyle } from "../../_components/ui";
 import { API_URL } from "../../../lib/api";
+import { separarNomeEslogan } from "../../../lib/modulos";
 
 interface ProdutoInfo {
   disponivel: boolean;
@@ -99,7 +100,10 @@ export default function InteressePage() {
         )}
 
         <div className="p-4 flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-black/50 dark:text-white/50">{info.empresaNome}</span>
+          <span className="text-xs font-medium text-black/50 dark:text-white/50">
+            {separarNomeEslogan(info.empresaNome).nome}
+            {separarNomeEslogan(info.empresaNome).slogan && ` · ${separarNomeEslogan(info.empresaNome).slogan}`}
+          </span>
           <h1 className="text-lg font-semibold leading-tight">{info.produtoNome}</h1>
           <span className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
             R$ {info.preco.toFixed(2)}

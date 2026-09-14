@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Dark mode vira controlado por classe (.dark na <html>) em vez de só pela
+   preferência do sistema — necessário pra travar uma empresa específica no
+   modo claro sem depender do tema do aparelho. Um script no layout decide a
+   classe antes da primeira pintura (ver InlineThemeScript), reproduzindo o
+   comportamento anterior (media query) pra todo mundo que não tem essa
+   preferência salva — nada muda visualmente pras demais empresas. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -12,11 +20,9 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
 }
 
 body {

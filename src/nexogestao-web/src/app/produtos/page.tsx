@@ -8,6 +8,7 @@ import PageHeader from "../_components/PageHeader";
 import SearchInput from "../_components/SearchInput";
 import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle, badgeEstoque } from "../_components/ui";
 import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
+import { separarNomeEslogan } from "../../lib/modulos";
 
 interface Produto {
   id: number;
@@ -505,7 +506,7 @@ export default function ProdutosPage() {
                 <span className="absolute inset-0 flex items-center justify-center text-6xl">💎</span>
               )}
               <div className="relative z-10 flex flex-col gap-1">
-                <span className="text-[11px] uppercase tracking-wide opacity-80">{empresaNome}</span>
+                <span className="text-[11px] uppercase tracking-wide opacity-80">{separarNomeEslogan(empresaNome).nome}</span>
                 <span className="text-lg font-bold leading-tight">{storyProduto.nome}</span>
                 <span className="text-2xl font-extrabold text-indigo-300">R$ {storyProduto.preco.toFixed(2)}</span>
                 <span className="text-xs font-medium opacity-90 mt-1">Gostou? 💎 Toque no link para garantir o seu</span>

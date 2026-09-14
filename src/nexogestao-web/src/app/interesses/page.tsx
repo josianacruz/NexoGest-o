@@ -3,9 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "../_components/Nav";
-import Modal from "../_components/Modal";
 import PageHeader from "../_components/PageHeader";
-import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../_components/ui";
+import { botaoPrimario, botaoSecundario, cardStyle } from "../_components/ui";
 import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
 import { abrirWhatsApp, mensagemInteresseProduto } from "../../lib/whatsapp";
 
@@ -62,19 +61,6 @@ export default function InteressesPage() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
-
-  const [convertendo, setConvertendo] = useState<Interesse | null>(null);
-  const [formaPagamento, setFormaPagamento] = useState("PIX");
-  const [valorRecebido, setValorRecebido] = useState("");
-  const [parcelas, setParcelas] = useState("1");
-  const [dataVencimento, setDataVencimento] = useState("");
-  const [resultadoConversao, setResultadoConversao] = useState<{
-    interesseId: number;
-    vendaId: number;
-    total: number;
-    saldoDevedor: number | null;
-    contaReceberId: number | null;
-  } | null>(null);
 
   const router = useRouter();
 
@@ -167,58 +153,18 @@ export default function InteressesPage() {
     }
   }
 
-  function abrirConversao(i: Interesse) {
-    setErro(null);
-    setConvertendo(i);
-    setFormaPagamento("PIX");
-    setValorRecebido("");
-    setParcelas("1");
-    setDataVencimento("");
-  }
-
-  async function confirmarConversao(e: React.FormEvent) {
-    e.preventDefault();
-    if (!empresaId || !convertendo || salvando) return;
-    const token = getToken();
-    if (!token) return;
-
-    if (formaPagamento === "Fiado" && !dataVencimento) {
-      setErro("Informe a data de vencimento da venda fiado.");
-      return;
-    }
-
-    setSalvando(true);
-    try {
-      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/interesses/${convertendo.id}/converter`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          formaPagamento,
-          valorRecebido:
-            formaPagamento === "Dinheiro" || formaPagamento === "Fiado" ? Number(valorRecebido || "0") : null,
-          parcelas: formaPagamento === "Crédito" ? Number(parcelas || "1") : null,
-          dataVencimento: formaPagamento === "Fiado" ? dataVencimento : null,
-        }),
-      });
-
-      if (!res.ok) {
-        setErro(await mensagemDeErro(res, "Não foi possível converter em venda."));
-        return;
-      }
-
-      const venda = await res.json();
-      setResultadoConversao({
-        interesseId: convertendo.id,
-        vendaId: venda.id,
-        total: venda.total,
-        saldoDevedor: venda.saldoDevedor,
-        contaReceberId: venda.contaReceberId,
-      });
-      setConvertendo(null);
-      await carregar();
-    } finally {
-      setSalvando(false);
-    }
+  // Manda pra Vendas já com cliente e produto escolhidos — quem completa a
+  // venda ali é o mesmo endpoint que já cuida de cobrança automaticamente.
+  function irVenderNaTelaDeVendas(i: Interesse) {
+    const params = new URLSearchParams({
+      interesseId: String(i.id),
+      clienteId: String(i.clienteId),
+      clienteNome: i.clienteNome,
+      produtoId: String(i.produtoId),
+      produtoNome: i.produtoNome,
+      produtoPreco: String(i.produtoPreco),
+    });
+    router.push(`/vendas?${params.toString()}`);
   }
 
   function formatarData(iso: string) {
@@ -273,13 +219,15 @@ export default function InteressesPage() {
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <span className={`inline-block mb-0.5 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${STATUS_ESTILO[i.status]}`}>
-                    {STATUS_LABEL[i.status]}
-                  </span>
-                  <div className="leading-snug">
-                    <span className="font-semibold">{i.clienteNome}</span>
-                    <span className="text-black/60 dark:text-white/60"> quer </span>
-                    <span className="font-semibold">{i.produtoNome}</span>
+                  <div className="leading-snug flex items-center gap-2 flex-wrap">
+                    <span>
+                      <span className="font-semibold">{i.clienteNome}</span>
+                      <span className="text-black/60 dark:text-white/60"> quer </span>
+                      <span className="font-semibold">{i.produtoNome}</span>
+                    </span>
+                    <span className={`shrink-0 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${STATUS_ESTILO[i.status]}`}>
+                      {STATUS_LABEL[i.status]}
+                    </span>
                   </div>
                   <div className="text-sm text-black/60 dark:text-white/60">
                     R$ {i.produtoPreco.toFixed(2)} · {formatarData(i.dataCriacao)}
@@ -287,68 +235,44 @@ export default function InteressesPage() {
                 </div>
               </div>
 
-              {resultadoConversao?.interesseId === i.id && (
-                <div className="rounded-lg bg-green-500/10 text-green-700 dark:text-green-400 text-sm p-3">
-                  Venda #{resultadoConversao.vendaId} criada — total R$ {resultadoConversao.total.toFixed(2)}.
-                  {resultadoConversao.contaReceberId && (
-                    <>
-                      {" "}
-                      Cobrança gerada (pendente: R$ {(resultadoConversao.saldoDevedor ?? resultadoConversao.total).toFixed(2)}) —{" "}
-                      <a href="/cobrancas" className="underline font-medium">
-                        ver em Cobranças
-                      </a>
-                      .
-                    </>
-                  )}
-                </div>
-              )}
-
               {i.status === "Novo" && (
-                <div className="flex flex-col gap-2 pt-2 border-t border-black/5 dark:border-white/5">
-                  <span className="text-xs text-black/40 dark:text-white/40 -mb-1">Próximo passo</span>
+                <div className="flex flex-col gap-1.5 pt-2 border-t border-black/5 dark:border-white/5">
                   <button
                     onClick={() => chamarNoWhatsApp(i)}
                     className="h-11 w-full inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-semibold bg-green-600 text-white hover:bg-green-700"
                   >
                     💬 Chamar no WhatsApp
                   </button>
-                  <div className="flex flex-wrap gap-2">
-                    <button onClick={() => reservar(i)} disabled={salvando} className={`${botaoSecundario} flex-1`}>
+                  <div className="flex items-center justify-center gap-3 text-xs">
+                    <button onClick={() => reservar(i)} disabled={salvando} className="text-black/50 dark:text-white/50 hover:underline">
                       Reservar
                     </button>
-                    <button onClick={() => abrirConversao(i)} disabled={salvando} className={`${botaoSecundario} flex-1`}>
-                      Vender
+                    <span className="text-black/20 dark:text-white/20">·</span>
+                    <button onClick={() => irVenderNaTelaDeVendas(i)} className="text-black/50 dark:text-white/50 hover:underline">
+                      Já vendeu
+                    </button>
+                    <span className="text-black/20 dark:text-white/20">·</span>
+                    <button onClick={() => marcarPerdido(i)} disabled={salvando} className="text-black/40 dark:text-white/40 hover:text-red-600 hover:underline">
+                      Não avançou
                     </button>
                   </div>
-                  <button
-                    onClick={() => marcarPerdido(i)}
-                    disabled={salvando}
-                    className="text-xs text-black/40 dark:text-white/40 hover:text-red-600 hover:underline self-center"
-                  >
-                    Não avançou
-                  </button>
                 </div>
               )}
 
               {i.status === "Reservado" && (
-                <div className="flex flex-col gap-2 pt-2 border-t border-black/5 dark:border-white/5">
-                  <span className="text-xs text-black/40 dark:text-white/40 -mb-1">Próximo passo</span>
+                <div className="flex flex-col gap-1.5 pt-2 border-t border-black/5 dark:border-white/5">
                   <button
-                    onClick={() => abrirConversao(i)}
-                    disabled={salvando}
+                    onClick={() => irVenderNaTelaDeVendas(i)}
                     className="h-11 w-full inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700"
                   >
                     ✅ Vender agora
                   </button>
-                  <div className="flex flex-wrap gap-2">
-                    <button onClick={() => chamarNoWhatsApp(i)} className={`${botaoSecundario} flex-1`}>
-                      💬 WhatsApp
+                  <div className="flex items-center justify-center gap-3 text-xs">
+                    <button onClick={() => chamarNoWhatsApp(i)} className="text-black/50 dark:text-white/50 hover:underline">
+                      WhatsApp
                     </button>
-                    <button
-                      onClick={() => marcarPerdido(i)}
-                      disabled={salvando}
-                      className={`${botaoSecundario} flex-1 text-red-600 dark:text-red-400`}
-                    >
+                    <span className="text-black/20 dark:text-white/20">·</span>
+                    <button onClick={() => marcarPerdido(i)} disabled={salvando} className="text-black/40 dark:text-white/40 hover:text-red-600 hover:underline">
                       Não avançou
                     </button>
                   </div>
@@ -367,81 +291,15 @@ export default function InteressesPage() {
           ))}
 
           {!carregando && interesses.length === 0 && (
-            <p className="text-sm text-black/40 dark:text-white/40 text-center py-8">Nenhum interesse por aqui ainda.</p>
+            <div className="text-center py-10">
+              <p className="text-2xl mb-1">💎</p>
+              <p className="text-sm text-black/50 dark:text-white/50">
+                Nenhum interesse ainda. Crie uma Story em Produtos e compartilhe o link!
+              </p>
+            </div>
           )}
         </div>
       </main>
-
-      {convertendo && (
-        <Modal titulo={`Vender para ${convertendo.clienteNome}`} onFechar={() => setConvertendo(null)}>
-          <form onSubmit={confirmarConversao} className="flex flex-col gap-3">
-            <p className="text-sm text-black/60 dark:text-white/60">
-              {convertendo.produtoNome} — R$ {convertendo.produtoPreco.toFixed(2)}
-            </p>
-            <div className="flex flex-col gap-1">
-              <label className={labelStyle}>Forma de pagamento</label>
-              <select value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} className={inputStyle}>
-                <option value="PIX">PIX</option>
-                <option value="Dinheiro">Dinheiro</option>
-                <option value="Débito">Débito</option>
-                <option value="Crédito">Crédito</option>
-                <option value="Fiado">Fiado</option>
-              </select>
-            </div>
-
-            {formaPagamento === "Crédito" && (
-              <div className="flex flex-col gap-1">
-                <label className={labelStyle}>Parcelas</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={parcelas}
-                  onChange={(e) => setParcelas(e.target.value)}
-                  className={`${inputStyle} w-20`}
-                />
-              </div>
-            )}
-
-            {(formaPagamento === "Dinheiro" || formaPagamento === "Fiado") && (
-              <div className="flex flex-col gap-1">
-                <label className={labelStyle}>
-                  {formaPagamento === "Fiado" ? "Valor pago agora (opcional)" : "Valor recebido"}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={valorRecebido}
-                  onChange={(e) => setValorRecebido(e.target.value)}
-                  className={inputStyle}
-                />
-              </div>
-            )}
-
-            {formaPagamento === "Fiado" && (
-              <div className="flex flex-col gap-1">
-                <label className={labelStyle}>Data de vencimento</label>
-                <input
-                  type="date"
-                  value={dataVencimento}
-                  onChange={(e) => setDataVencimento(e.target.value)}
-                  className={inputStyle}
-                />
-              </div>
-            )}
-
-            {erro && <p className="text-sm text-red-600">{erro}</p>}
-            <div className="flex justify-end gap-2 mt-1">
-              <button type="button" onClick={() => setConvertendo(null)} className="h-10 px-3 text-sm rounded-lg hover:bg-black/5 dark:hover:bg-white/10">
-                Cancelar
-              </button>
-              <button type="submit" disabled={salvando} className={botaoPrimario}>
-                {salvando ? "Vendendo..." : "Confirmar venda"}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
     </>
   );
 }
