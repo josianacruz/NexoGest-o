@@ -273,16 +273,17 @@ export default function InteressesPage() {
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold truncate">{i.clienteNome}</span>
-                    <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${STATUS_ESTILO[i.status]}`}>
-                      {STATUS_LABEL[i.status]}
-                    </span>
+                  <span className={`inline-block mb-0.5 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${STATUS_ESTILO[i.status]}`}>
+                    {STATUS_LABEL[i.status]}
+                  </span>
+                  <div className="leading-snug">
+                    <span className="font-semibold">{i.clienteNome}</span>
+                    <span className="text-black/60 dark:text-white/60"> quer </span>
+                    <span className="font-semibold">{i.produtoNome}</span>
                   </div>
-                  <div className="text-sm text-black/60 dark:text-white/60 truncate">
-                    {i.produtoNome} — R$ {i.produtoPreco.toFixed(2)}
+                  <div className="text-sm text-black/60 dark:text-white/60">
+                    R$ {i.produtoPreco.toFixed(2)} · {formatarData(i.dataCriacao)}
                   </div>
-                  <div className="text-xs text-black/40 dark:text-white/40">{formatarData(i.dataCriacao)}</div>
                 </div>
               </div>
 
@@ -302,8 +303,9 @@ export default function InteressesPage() {
                 </div>
               )}
 
-              {i.status !== "Convertido" && i.status !== "Perdido" && (
+              {i.status === "Novo" && (
                 <div className="flex flex-col gap-2 pt-2 border-t border-black/5 dark:border-white/5">
+                  <span className="text-xs text-black/40 dark:text-white/40 -mb-1">Próximo passo</span>
                   <button
                     onClick={() => chamarNoWhatsApp(i)}
                     className="h-11 w-full inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-semibold bg-green-600 text-white hover:bg-green-700"
@@ -311,12 +313,10 @@ export default function InteressesPage() {
                     💬 Chamar no WhatsApp
                   </button>
                   <div className="flex flex-wrap gap-2">
-                    {i.status === "Novo" && (
-                      <button onClick={() => reservar(i)} disabled={salvando} className={`${botaoSecundario} flex-1`}>
-                        Reservar
-                      </button>
-                    )}
-                    <button onClick={() => abrirConversao(i)} disabled={salvando} className={`${botaoPrimario} flex-1`}>
+                    <button onClick={() => reservar(i)} disabled={salvando} className={`${botaoSecundario} flex-1`}>
+                      Reservar
+                    </button>
+                    <button onClick={() => abrirConversao(i)} disabled={salvando} className={`${botaoSecundario} flex-1`}>
                       Vender
                     </button>
                   </div>
@@ -327,6 +327,31 @@ export default function InteressesPage() {
                   >
                     Não avançou
                   </button>
+                </div>
+              )}
+
+              {i.status === "Reservado" && (
+                <div className="flex flex-col gap-2 pt-2 border-t border-black/5 dark:border-white/5">
+                  <span className="text-xs text-black/40 dark:text-white/40 -mb-1">Próximo passo</span>
+                  <button
+                    onClick={() => abrirConversao(i)}
+                    disabled={salvando}
+                    className="h-11 w-full inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700"
+                  >
+                    ✅ Vender agora
+                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => chamarNoWhatsApp(i)} className={`${botaoSecundario} flex-1`}>
+                      💬 WhatsApp
+                    </button>
+                    <button
+                      onClick={() => marcarPerdido(i)}
+                      disabled={salvando}
+                      className={`${botaoSecundario} flex-1 text-red-600 dark:text-red-400`}
+                    >
+                      Não avançou
+                    </button>
+                  </div>
                 </div>
               )}
 

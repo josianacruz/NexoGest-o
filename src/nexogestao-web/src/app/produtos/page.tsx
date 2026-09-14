@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "../_components/Nav";
 import Modal from "../_components/Modal";
 import PageHeader from "../_components/PageHeader";
 import SearchInput from "../_components/SearchInput";
-import { inputStyle, labelStyle, botaoPrimario, botaoTexto, cardStyle, badgeEstoque } from "../_components/ui";
+import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle, badgeEstoque } from "../_components/ui";
 import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
 
 interface Produto {
@@ -44,8 +44,15 @@ export default function ProdutosPage() {
   const [modalAberto, setModalAberto] = useState<"novo" | "editar" | null>(null);
   const [produtoEditando, setProdutoEditando] = useState<Produto | null>(null);
   const [form, setForm] = useState(formVazio);
-  const [linkCopiadoId, setLinkCopiadoId] = useState<number | null>(null);
-  const [gerandoLinkId, setGerandoLinkId] = useState<number | null>(null);
+  const [storyProduto, setStoryProduto] = useState<Produto | null>(null);
+  const [storyFoto, setStoryFoto] = useState<string | null>(null);
+  const [storyToken, setStoryToken] = useState<string | null>(null);
+  const [storyPreparandoLink, setStoryPreparandoLink] = useState(false);
+  const [storySalvandoFoto, setStorySalvandoFoto] = useState(false);
+  const [storyBaixando, setStoryBaixando] = useState(false);
+  const [storyLinkCopiado, setStoryLinkCopiado] = useState(false);
+  const storyPreviewRef = useRef<HTMLDivElement>(null);
+
   const router = useRouter();
 
   function getToken() {
@@ -172,26 +179,6 @@ export default function ProdutosPage() {
     leitor.readAsDataURL(arquivo);
   }
 
-  async function gerarLinkStory(produto: Produto) {
-    if (!empresaId || gerandoLinkId) return;
-    const token = getToken();
-    if (!token) return;
-    setGerandoLinkId(produto.id);
-    try {
-      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/produtos/${produto.id}/link-story`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        setErro(await mensagemDeErro(res, "Não foi possível gerar o link."));
-        return;
-      }
-      await carregarEmpresaEProdutos();
-    } finally {
-      setGerandoLinkId(null);
-    }
-  }
-
   async function alternarLinkStory(produto: Produto, ativo: boolean) {
     if (!empresaId) return;
     const token = getToken();
@@ -201,14 +188,93 @@ export default function ProdutosPage() {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ ativo }),
     });
+    setStoryProduto((atual) => (atual && atual.id === produto.id ? { ...atual, linkStoryAtivo: ativo } : atual));
     await carregarEmpresaEProdutos();
   }
 
-  function copiarLinkStory(produto: Produto) {
-    if (!produto.linkStoryToken) return;
-    navigator.clipboard.writeText(`${window.location.origin}/interesse/${produto.linkStoryToken}`);
-    setLinkCopiadoId(produto.id);
-    setTimeout(() => setLinkCopiadoId(null), 2000);
+  // Fluxo único e direto: clicar em "Criar Story" já gera o link (se ainda não
+  // existir) e abre a arte pronta pra baixar — sem passos extras pra decidir.
+  async function abrirCriarStory(produto: Produto) {
+    setErro(null);
+    setStoryProduto(produto);
+    setStoryFoto(produto.fotoUrl ?? null);
+    setStoryToken(produto.linkStoryToken ?? null);
+    setStoryLinkCopiado(false);
+
+    if (!produto.linkStoryToken && empresaId) {
+      setStoryPreparandoLink(true);
+      const token = getToken();
+      try {
+        const res = await fetch(`${API_URL}/api/empresas/${empresaId}/produtos/${produto.id}/link-story`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setStoryToken(data.linkStoryToken);
+        }
+      } finally {
+        setStoryPreparandoLink(false);
+      }
+      carregarEmpresaEProdutos();
+    }
+  }
+
+  function fecharStory() {
+    setStoryProduto(null);
+  }
+
+  function onStoryFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const arquivo = e.target.files?.[0];
+    if (!arquivo || !storyProduto || !empresaId) return;
+    const leitor = new FileReader();
+    leitor.onload = async () => {
+      const dataUrl = leitor.result as string;
+      setStoryFoto(dataUrl);
+      setStorySalvandoFoto(true);
+      const token = getToken();
+      try {
+        await fetch(`${API_URL}/api/empresas/${empresaId}/produtos/${storyProduto.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            nome: storyProduto.nome,
+            categoria: storyProduto.categoria,
+            preco: storyProduto.preco,
+            custo: storyProduto.custo,
+            estoque: storyProduto.estoque,
+            estoqueMinimo: storyProduto.estoqueMinimo,
+            fotoUrl: dataUrl,
+          }),
+        });
+        await carregarEmpresaEProdutos();
+      } finally {
+        setStorySalvandoFoto(false);
+      }
+    };
+    leitor.readAsDataURL(arquivo);
+  }
+
+  async function baixarStory() {
+    if (!storyPreviewRef.current || storyBaixando) return;
+    setStoryBaixando(true);
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(storyPreviewRef.current, { pixelRatio: 2 });
+      const link = document.createElement("a");
+      link.download = `story-${storyProduto?.nome ?? "produto"}.png`;
+      link.href = dataUrl;
+      link.click();
+    } finally {
+      setStoryBaixando(false);
+    }
+  }
+
+  function copiarStoryLinkAtual() {
+    if (!storyToken) return;
+    navigator.clipboard.writeText(`${window.location.origin}/interesse/${storyToken}`);
+    setStoryLinkCopiado(true);
+    setTimeout(() => setStoryLinkCopiado(false), 2000);
   }
 
   const categorias = Array.from(
@@ -297,31 +363,9 @@ export default function ProdutosPage() {
                       </div>
                     </td>
                     <td className="py-2.5 px-4">
-                      {!p.linkStoryToken ? (
-                        <button
-                          onClick={() => gerarLinkStory(p)}
-                          disabled={gerandoLinkId === p.id}
-                          className={botaoTexto}
-                        >
-                          {gerandoLinkId === p.id ? "Gerando..." : "Gerar link para Story"}
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <button onClick={() => copiarLinkStory(p)} className={botaoTexto}>
-                            {linkCopiadoId === p.id ? "Copiado!" : "Copiar link"}
-                          </button>
-                          <button
-                            onClick={() => alternarLinkStory(p, !p.linkStoryAtivo)}
-                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                              p.linkStoryAtivo
-                                ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                                : "bg-black/10 dark:bg-white/10 text-black/50 dark:text-white/50"
-                            }`}
-                          >
-                            {p.linkStoryAtivo ? "Ativo" : "Desativado"}
-                          </button>
-                        </div>
-                      )}
+                      <button onClick={() => abrirCriarStory(p)} className={`${botaoTexto} whitespace-nowrap`}>
+                        📸 Criar Story
+                      </button>
                     </td>
                     <td className="py-2.5 px-4 text-center">
                       <button onClick={() => abrirEdicao(p)} className={botaoTexto}>
@@ -437,6 +481,66 @@ export default function ProdutosPage() {
               </button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {storyProduto && (
+        <Modal titulo="Criar Story" onFechar={fecharStory}>
+          <div className="flex flex-col items-center gap-3">
+            <div
+              ref={storyPreviewRef}
+              className="w-full max-w-[220px] aspect-[9/16] rounded-xl overflow-hidden relative flex flex-col justify-end text-center px-5 py-6"
+              style={{ background: "linear-gradient(160deg,#1e1b3a,#0f0d1f)", color: "#fff" }}
+            >
+              {storyFoto ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={storyFoto} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                  <div
+                    className="absolute inset-0"
+                    style={{ background: "linear-gradient(to bottom, transparent 40%, rgba(15,13,31,0.95) 100%)" }}
+                  />
+                </>
+              ) : (
+                <span className="absolute inset-0 flex items-center justify-center text-6xl">💎</span>
+              )}
+              <div className="relative z-10 flex flex-col gap-1">
+                <span className="text-[11px] uppercase tracking-wide opacity-80">{empresaNome}</span>
+                <span className="text-lg font-bold leading-tight">{storyProduto.nome}</span>
+                <span className="text-2xl font-extrabold text-indigo-300">R$ {storyProduto.preco.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <label className="text-sm font-medium text-indigo-600 dark:text-indigo-400 cursor-pointer">
+              {storySalvandoFoto ? "Salvando foto..." : storyFoto ? "Trocar foto" : "Adicionar foto"}
+              <input type="file" accept="image/*" onChange={onStoryFotoChange} className="hidden" disabled={storySalvandoFoto} />
+            </label>
+
+            <div className="flex flex-col gap-1 w-full mt-1">
+              <button onClick={baixarStory} disabled={storyBaixando} className={`${botaoPrimario} w-full`}>
+                {storyBaixando ? "Gerando imagem..." : "⬇️ Baixar Story"}
+              </button>
+              <span className="text-xs text-black/40 dark:text-white/40 text-center">Salve a imagem para postar</span>
+            </div>
+
+            <div className="flex flex-col gap-1 w-full">
+              <button
+                onClick={copiarStoryLinkAtual}
+                disabled={storyPreparandoLink || !storyToken}
+                className={`${botaoSecundario} w-full`}
+              >
+                {storyPreparandoLink ? "Preparando link..." : storyLinkCopiado ? "Link copiado!" : "🔗 Copiar link"}
+              </button>
+              <span className="text-xs text-black/40 dark:text-white/40 text-center">Cole este link no seu Story</span>
+            </div>
+
+            <button
+              onClick={() => alternarLinkStory(storyProduto, !storyProduto.linkStoryAtivo)}
+              className="text-xs text-black/40 dark:text-white/40 underline"
+            >
+              {storyProduto.linkStoryAtivo ? "Desativar este link" : "Ativar este link de novo"}
+            </button>
+          </div>
         </Modal>
       )}
     </>
