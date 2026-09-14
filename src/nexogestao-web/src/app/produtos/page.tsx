@@ -260,7 +260,7 @@ export default function ProdutosPage() {
     setStoryBaixando(true);
     try {
       const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(storyPreviewRef.current, { pixelRatio: 2 });
+      const dataUrl = await toPng(storyPreviewRef.current, { pixelRatio: 3 });
       const link = document.createElement("a");
       link.download = `story-${storyProduto?.nome ?? "produto"}.png`;
       link.href = dataUrl;
@@ -508,6 +508,7 @@ export default function ProdutosPage() {
                 <span className="text-[11px] uppercase tracking-wide opacity-80">{empresaNome}</span>
                 <span className="text-lg font-bold leading-tight">{storyProduto.nome}</span>
                 <span className="text-2xl font-extrabold text-indigo-300">R$ {storyProduto.preco.toFixed(2)}</span>
+                <span className="text-xs font-medium opacity-90 mt-1">Gostou? 💎 Toque no link para garantir o seu</span>
               </div>
             </div>
 
@@ -516,11 +517,16 @@ export default function ProdutosPage() {
               <input type="file" accept="image/*" onChange={onStoryFotoChange} className="hidden" disabled={storySalvandoFoto} />
             </label>
 
+            <ol className="w-full text-sm text-black/70 dark:text-white/70 list-decimal list-inside flex flex-col gap-0.5 bg-black/[0.03] dark:bg-white/5 rounded-lg px-4 py-3 mt-1">
+              <li>Baixe a imagem</li>
+              <li>Publique no seu Story</li>
+              <li>Adicione o link copiado</li>
+            </ol>
+
             <div className="flex flex-col gap-1 w-full mt-1">
               <button onClick={baixarStory} disabled={storyBaixando} className={`${botaoPrimario} w-full`}>
-                {storyBaixando ? "Gerando imagem..." : "⬇️ Baixar Story"}
+                {storyBaixando ? "Gerando imagem..." : "Baixar imagem"}
               </button>
-              <span className="text-xs text-black/40 dark:text-white/40 text-center">Salve a imagem para postar</span>
             </div>
 
             <div className="flex flex-col gap-1 w-full">
@@ -529,9 +535,11 @@ export default function ProdutosPage() {
                 disabled={storyPreparandoLink || !storyToken}
                 className={`${botaoSecundario} w-full`}
               >
-                {storyPreparandoLink ? "Preparando link..." : storyLinkCopiado ? "Link copiado!" : "🔗 Copiar link"}
+                {storyPreparandoLink ? "Preparando link..." : storyLinkCopiado ? "Link copiado!" : "Copiar link"}
               </button>
-              <span className="text-xs text-black/40 dark:text-white/40 text-center">Cole este link no seu Story</span>
+              <span className="text-xs text-black/40 dark:text-white/40 text-center">
+                Cole este link no adesivo de link do Instagram.
+              </span>
             </div>
 
             <button
