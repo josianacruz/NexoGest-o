@@ -13,23 +13,23 @@ public static class ModulosPadrao
     {
         [TipoNegocio.Alimentacao] = new[]
         {
-            Modulo.Clientes, Modulo.Produtos, Modulo.Vendas, Modulo.Comandas, Modulo.Cobrancas, Modulo.Marketing,
+            Modulo.Clientes, Modulo.Produtos, Modulo.Vendas, Modulo.Comandas, Modulo.Cobrancas, Modulo.Marketing, Modulo.Financeiro,
         },
         [TipoNegocio.Comercio] = new[]
         {
-            Modulo.Clientes, Modulo.Produtos, Modulo.Vendas, Modulo.Cobrancas, Modulo.Marketing, Modulo.Interesses,
+            Modulo.Clientes, Modulo.Produtos, Modulo.Vendas, Modulo.Cobrancas, Modulo.Marketing, Modulo.Interesses, Modulo.Financeiro,
         },
         [TipoNegocio.Beleza] = new[]
         {
-            Modulo.Clientes, Modulo.Agenda, Modulo.Servicos, Modulo.Cobrancas, Modulo.Marketing,
+            Modulo.Clientes, Modulo.Agenda, Modulo.Servicos, Modulo.Cobrancas, Modulo.Marketing, Modulo.Financeiro,
         },
         [TipoNegocio.Saude] = new[]
         {
-            Modulo.Clientes, Modulo.Agenda, Modulo.Servicos, Modulo.Cobrancas,
+            Modulo.Clientes, Modulo.Agenda, Modulo.Servicos, Modulo.Cobrancas, Modulo.Financeiro,
         },
         [TipoNegocio.Servicos] = new[]
         {
-            Modulo.Clientes, Modulo.Agenda, Modulo.Servicos, Modulo.Cobrancas, Modulo.Marketing,
+            Modulo.Clientes, Modulo.Agenda, Modulo.Servicos, Modulo.Cobrancas, Modulo.Marketing, Modulo.Financeiro,
         },
     };
 }

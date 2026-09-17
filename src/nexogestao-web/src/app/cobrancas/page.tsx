@@ -3,10 +3,20 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "../_components/Nav";
+import Modal from "../_components/Modal";
 import PageHeader from "../_components/PageHeader";
-import { labelStyle, botaoTexto, cardStyle } from "../_components/ui";
+import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../_components/ui";
 import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
 import { abrirWhatsApp, mensagemLembreteVencimento, mensagemCobrancaVencida } from "../../lib/whatsapp";
+
+const FORMAS_PAGAMENTO = [
+  { valor: "Pix", label: "PIX" },
+  { valor: "Dinheiro", label: "Dinheiro" },
+  { valor: "CartaoCredito", label: "Cartão de crédito" },
+  { valor: "CartaoDebito", label: "Cartão de débito" },
+  { valor: "TransferenciaBancaria", label: "Transferência bancária" },
+  { valor: "Outros", label: "Outros" },
+];
 
 interface ContaReceber {
   id: number;
@@ -57,6 +67,11 @@ export default function CobrancasPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [carregando, setCarregando] = useState(true);
+  const [contaPagamento, setContaPagamento] = useState<ContaReceber | null>(null);
+  const [valorRecebidoModal, setValorRecebidoModal] = useState("");
+  const [dataPagamentoModal, setDataPagamentoModal] = useState("");
+  const [formaPagamentoModal, setFormaPagamentoModal] = useState("Pix");
+  const [erroModal, setErroModal] = useState<string | null>(null);
   const router = useRouter();
 
   function getToken() {
@@ -113,25 +128,57 @@ export default function CobrancasPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtro]);
 
-  async function registrarPagamento(contaId: number) {
-    if (salvando || !empresaId) return;
-    setErro(null);
+  function abrirModalPagamento(conta: ContaReceber) {
+    setContaPagamento(conta);
+    setValorRecebidoModal(conta.valorPendente.toFixed(2));
+    setDataPagamentoModal(new Date().toISOString().slice(0, 10));
+    setFormaPagamentoModal("Pix");
+    setErroModal(null);
+  }
+
+  function fecharModalPagamento() {
+    if (salvando) return;
+    setContaPagamento(null);
+  }
+
+  async function confirmarPagamento() {
+    // Trava contra clique duplicado: enquanto `salvando` for true, novos
+    // cliques em "Confirmar pagamento" não disparam uma segunda requisição.
+    if (salvando || !empresaId || !contaPagamento) return;
+    setErroModal(null);
+
+    const valor = Number(valorRecebidoModal.replace(",", "."));
+    if (!valor || valor <= 0) {
+      setErroModal("Informe o valor recebido.");
+      return;
+    }
+    if (valor > contaPagamento.valorPendente) {
+      setErroModal("O valor recebido não pode ser maior que a cobrança.");
+      return;
+    }
+
     const token = getToken();
     if (!token) return;
 
     setSalvando(true);
     try {
-      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/contas-receber/${contaId}/pagamento`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({}),
-      });
+      const res = await fetch(
+        `${API_URL}/api/empresas/${empresaId}/contas-receber/${contaPagamento.id}/pagamento`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ valor, formaPagamento: formaPagamentoModal }),
+        }
+      );
 
       if (!res.ok) {
-        setErro(await mensagemDeErro(res, "Não foi possível registrar o pagamento."));
+        // Falha não fecha o modal nem apaga o que foi digitado — o comerciante
+        // não precisa preencher tudo de novo pra tentar outra vez.
+        setErroModal(await mensagemDeErro(res, "Não foi possível registrar o pagamento."));
         return;
       }
 
+      setContaPagamento(null);
       await carregarTudo(filtro);
     } finally {
       setSalvando(false);
@@ -234,7 +281,7 @@ export default function CobrancasPage() {
                   </td>
                   <td className="py-2.5 px-4 text-center">
                     {c.status !== "PAGO" && (
-                      <button onClick={() => registrarPagamento(c.id)} disabled={salvando} className={botaoTexto}>
+                      <button onClick={() => abrirModalPagamento(c)} disabled={salvando} className={botaoTexto}>
                         Registrar pagamento
                       </button>
                     )}
@@ -252,6 +299,67 @@ export default function CobrancasPage() {
           </table>
         </div>
       </main>
+
+      {contaPagamento && (
+        <Modal titulo="Registrar pagamento" onFechar={fecharModalPagamento}>
+          <div className="flex flex-col gap-3 text-sm">
+            <div>
+              <div className={labelStyle}>Cliente</div>
+              <div className="font-medium">{contaPagamento.clienteNome}</div>
+            </div>
+            <div>
+              <div className={labelStyle}>Valor da cobrança</div>
+              <div className="font-medium">R$ {contaPagamento.valorPendente.toFixed(2)}</div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelStyle}>Valor recebido</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={valorRecebidoModal}
+                onChange={(e) => setValorRecebidoModal(e.target.value)}
+                className={inputStyle}
+                autoFocus
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelStyle}>Data do pagamento</label>
+              <input
+                type="date"
+                value={dataPagamentoModal}
+                onChange={(e) => setDataPagamentoModal(e.target.value)}
+                className={inputStyle}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelStyle}>Forma de pagamento</label>
+              <select
+                value={formaPagamentoModal}
+                onChange={(e) => setFormaPagamentoModal(e.target.value)}
+                className={inputStyle}
+              >
+                {FORMAS_PAGAMENTO.map((f) => (
+                  <option key={f.valor} value={f.valor}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {erroModal && <p className="text-sm text-red-600">{erroModal}</p>}
+
+            <div className="flex justify-end gap-2 mt-1">
+              <button onClick={fecharModalPagamento} disabled={salvando} className={botaoSecundario}>
+                Cancelar
+              </button>
+              <button onClick={confirmarPagamento} disabled={salvando} className={botaoPrimario}>
+                {salvando ? "Confirmando..." : "Confirmar pagamento"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

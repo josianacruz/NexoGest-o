@@ -55,6 +55,15 @@ interface ItemSemEstoque {
 
 type PeriodoSemEstoque = "dia" | "semana" | "mes";
 
+const FORMAS_RECEBIMENTO = [
+  { valor: "Pix", label: "PIX" },
+  { valor: "Dinheiro", label: "Dinheiro" },
+  { valor: "CartaoCredito", label: "Cartão de crédito" },
+  { valor: "CartaoDebito", label: "Cartão de débito" },
+  { valor: "TransferenciaBancaria", label: "Transferência bancária" },
+  { valor: "Outros", label: "Outros" },
+];
+
 async function mensagemDeErro(res: Response, padrao: string) {
   const data = await res.json().catch(() => null);
   return data?.mensagem ?? padrao;
@@ -84,9 +93,11 @@ function VendasConteudo() {
   const [valorRecebido, setValorRecebido] = useState("");
   const [parcelas, setParcelas] = useState("1");
   const [dataVencimento, setDataVencimento] = useState("");
+  const [formaPagamentoRecebimento, setFormaPagamentoRecebimento] = useState("Pix");
   const [erro, setErro] = useState<string | null>(null);
   const [avisoEstoque, setAvisoEstoque] = useState<string | null>(null);
   const [valorPagamento, setValorPagamento] = useState<Record<number, string>>({});
+  const [formaPagamentoQuitacao, setFormaPagamentoQuitacao] = useState<Record<number, string>>({});
   const [salvando, setSalvando] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [busca, setBusca] = useState("");
@@ -287,6 +298,7 @@ function VendasConteudo() {
             valorRecebido: formaPagamento === "Dinheiro" || formaPagamento === "Fiado" ? valorPago : null,
             parcelas: formaPagamento === "Crédito" ? Number(parcelas || "1") : null,
             dataVencimento: formaPagamento === "Fiado" ? dataVencimento : null,
+            formaPagamentoRecebimento: formaPagamento === "Fiado" && valorPago > 0 ? formaPagamentoRecebimento : null,
           }
         : {
             formaPagamento,
@@ -294,6 +306,7 @@ function VendasConteudo() {
             valorRecebido: formaPagamento === "Dinheiro" || formaPagamento === "Fiado" ? valorPago : null,
             parcelas: formaPagamento === "Crédito" ? Number(parcelas || "1") : null,
             dataVencimento: formaPagamento === "Fiado" ? dataVencimento : null,
+            formaPagamentoRecebimento: formaPagamento === "Fiado" && valorPago > 0 ? formaPagamentoRecebimento : null,
             itens: carrinho.map((i) => ({
               produtoId: i.produtoId,
               quantidade: i.quantidade,
@@ -379,7 +392,7 @@ function VendasConteudo() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ valor }),
+        body: JSON.stringify({ valor, formaPagamento: formaPagamentoQuitacao[vendaId] ?? "Pix" }),
       });
 
       if (!res.ok) {
@@ -611,6 +624,23 @@ function VendasConteudo() {
               </div>
             )}
 
+            {formaPagamento === "Fiado" && valorPago > 0 && (
+              <div className="flex flex-col gap-1">
+                <label className={labelStyle}>Forma do valor pago agora</label>
+                <select
+                  value={formaPagamentoRecebimento}
+                  onChange={(e) => setFormaPagamentoRecebimento(e.target.value)}
+                  className={inputStyle}
+                >
+                  {FORMAS_RECEBIMENTO.map((f) => (
+                    <option key={f.valor} value={f.valor}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {formaPagamento === "Fiado" && (
               <div className="flex flex-col gap-1">
                 <label className={labelStyle}>Data de vencimento</label>
@@ -798,6 +828,17 @@ function VendasConteudo() {
                           onChange={(e) => setValorPagamento({ ...valorPagamento, [v.id]: e.target.value })}
                           className={`${inputStyle} h-8 w-20`}
                         />
+                        <select
+                          value={formaPagamentoQuitacao[v.id] ?? "Pix"}
+                          onChange={(e) => setFormaPagamentoQuitacao({ ...formaPagamentoQuitacao, [v.id]: e.target.value })}
+                          className={`${inputStyle} h-8 w-36`}
+                        >
+                          {FORMAS_RECEBIMENTO.map((f) => (
+                            <option key={f.valor} value={f.valor}>
+                              {f.label}
+                            </option>
+                          ))}
+                        </select>
                         <button
                           onClick={() => registrarPagamentoFiado(v.id)}
                           disabled={salvando}

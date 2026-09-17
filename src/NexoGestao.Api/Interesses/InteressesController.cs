@@ -12,7 +12,8 @@ public record ConverterInteresseRequest(
     string FormaPagamento,
     decimal? ValorRecebido = null,
     int? Parcelas = null,
-    DateTime? DataVencimento = null);
+    DateTime? DataVencimento = null,
+    FormaPagamentoRecebido? FormaPagamentoRecebimento = null);
 
 [ApiController]
 [Route("api/empresas/{empresaId:int}/interesses")]
@@ -126,7 +127,8 @@ public class InteressesController : TenantControllerBase
             new List<ItemVendaRequest> { new(interesse.ProdutoId, 1) },
             request.ValorRecebido,
             request.Parcelas,
-            request.DataVencimento);
+            request.DataVencimento,
+            request.FormaPagamentoRecebimento);
 
         var resultadoVenda = await vendasController.Criar(empresaId, criarVendaRequest);
 

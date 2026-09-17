@@ -7,9 +7,15 @@ using NexoGestao.Api.Shared;
 
 namespace NexoGestao.Api.ContasReceber;
 
-// Pagamento parcial já é aceito aqui (Valor nulo = quita o restante) — a tela
-// hoje só oferece "pagar tudo", mas o backend já está pronto para parcial.
-public record RegistrarPagamentoContaRequest(decimal? Valor = null);
+// Pagamento parcial já é aceito aqui (Valor nulo = quita o restante).
+// FormaPagamento é obrigatória — vem do modal de confirmação da tela de Cobranças.
+// DataPagamento é opcional (nulo = agora) — permite lançar um recebimento que
+// já aconteceu em outro dia, sem inventar a data de hoje pra ele.
+public record RegistrarPagamentoContaRequest(
+    FormaPagamentoRecebido FormaPagamento,
+    decimal? Valor = null,
+    DateTime? DataPagamento = null,
+    string? Observacao = null);
 
 [ApiController]
 [Route("api/empresas/{empresaId:int}/contas-receber")]
@@ -109,32 +115,34 @@ public class ContasReceberController : TenantControllerBase
         if (empresaAutorizada is null)
             return Forbid();
 
-        var conta = await Context.ContasReceber.FirstOrDefaultAsync(c => c.Id == contaId);
-        if (conta is null || conta.Status == StatusContaReceber.Pago)
+        if (!Enum.IsDefined(request.FormaPagamento))
+            return BadRequest(new { mensagem = "Forma de pagamento inválida." });
+
+        if (request.DataPagamento is not null && request.DataPagamento.Value.Date > DateTime.UtcNow.Date)
+            return BadRequest(new { mensagem = "A data do pagamento não pode ser no futuro." });
+
+        // Transação: a segunda tentativa de um clique duplicado sempre vai
+        // encontrar a conta já com Status = Pago (a primeira já commitou) e
+        // recebe 404 em vez de gerar um segundo Pagamento pro mesmo recebimento.
+        await using var transacao = await Context.Database.BeginTransactionAsync();
+
+        PagamentoUtil.ResultadoPagamento? resultado;
+        try
+        {
+            resultado = await PagamentoUtil.RegistrarPagamentoContaAsync(
+                Context, empresaAutorizada.Value, contaId, request.Valor, request.FormaPagamento, request.DataPagamento, request.Observacao);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return BadRequest(new { mensagem = "Valor de pagamento inválido." });
+        }
+
+        if (resultado is null)
             return NotFound(new { mensagem = "Conta não encontrada ou já paga." });
 
-        var valor = request.Valor ?? conta.ValorPendente;
-        if (valor <= 0 || valor > conta.ValorPendente)
-            return BadRequest(new { mensagem = "Valor de pagamento inválido." });
+        await transacao.CommitAsync();
 
-        conta.ValorPendente -= valor;
-
-        var venda = await Context.Vendas.FirstOrDefaultAsync(v => v.Id == conta.VendaId);
-        if (venda is not null)
-        {
-            venda.ValorRecebido = (venda.ValorRecebido ?? 0) + valor;
-            venda.SaldoDevedor = conta.ValorPendente > 0 ? conta.ValorPendente : null;
-        }
-
-        if (conta.ValorPendente <= 0)
-        {
-            conta.ValorPendente = 0;
-            conta.Status = StatusContaReceber.Pago;
-            conta.DataPagamento = DateTime.UtcNow;
-        }
-
-        await Context.SaveChangesAsync();
-
-        return Ok(new { conta.Id, conta.ValorPendente, conta.Status, conta.DataPagamento });
+        var conta = resultado.Conta;
+        return Ok(new { conta.Id, conta.ValorPendente, conta.Status, conta.DataPagamento, resultado.Pagamento.FormaPagamento });
     }
 }

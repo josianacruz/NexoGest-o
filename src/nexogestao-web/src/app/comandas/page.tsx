@@ -64,6 +64,7 @@ export default function ComandasPage() {
   const [parcelas, setParcelas] = useState("1");
   const [dataVencimento, setDataVencimento] = useState("");
   const [clienteSelecionado, setClienteSelecionado] = useState("");
+  const [formaPagamentoRecebimento, setFormaPagamentoRecebimento] = useState("Pix");
 
   const router = useRouter();
 
@@ -319,6 +320,7 @@ export default function ComandasPage() {
               formaPagamento === "Dinheiro" || formaPagamento === "Fiado" ? valorPago : null,
             parcelas: formaPagamento === "Crédito" ? Number(parcelas || "1") : null,
             dataVencimento: formaPagamento === "Fiado" ? dataVencimento : null,
+            formaPagamentoRecebimento: formaPagamento === "Fiado" && valorPago > 0 ? formaPagamentoRecebimento : null,
           }),
         }
       );
@@ -628,6 +630,24 @@ export default function ComandasPage() {
                       onChange={(e) => setValorRecebido(e.target.value)}
                       className={`${inputStyle} w-24`}
                     />
+                  </div>
+                )}
+
+                {formaPagamento === "Fiado" && valorPago > 0 && (
+                  <div className="flex flex-col gap-1">
+                    <label className={labelStyle}>Forma do valor pago agora</label>
+                    <select
+                      value={formaPagamentoRecebimento}
+                      onChange={(e) => setFormaPagamentoRecebimento(e.target.value)}
+                      className={inputStyle}
+                    >
+                      <option value="Pix">PIX</option>
+                      <option value="Dinheiro">Dinheiro</option>
+                      <option value="CartaoCredito">Cartão de crédito</option>
+                      <option value="CartaoDebito">Cartão de débito</option>
+                      <option value="TransferenciaBancaria">Transferência bancária</option>
+                      <option value="Outros">Outros</option>
+                    </select>
                   </div>
                 )}
 

@@ -15,7 +15,8 @@ public record FecharComandaRequest(
     int? ClienteId = null,
     decimal? ValorRecebido = null,
     int? Parcelas = null,
-    DateTime? DataVencimento = null);
+    DateTime? DataVencimento = null,
+    FormaPagamentoRecebido? FormaPagamentoRecebimento = null);
 
 [ApiController]
 [Route("api/empresas/{empresaId:int}/comandas")]
@@ -209,6 +210,10 @@ public class ComandasController : TenantControllerBase
         if (request.FormaPagamento == "Crédito" && request.Parcelas is not null && request.Parcelas < 1)
             return BadRequest(new { mensagem = "O número de parcelas deve ser maior que zero." });
 
+        if (request.FormaPagamento == "Fiado" && (request.ValorRecebido ?? 0) > 0 &&
+            (request.FormaPagamentoRecebimento is null || !Enum.IsDefined(request.FormaPagamentoRecebimento.Value)))
+            return BadRequest(new { mensagem = "Informe a forma de pagamento do valor recebido agora." });
+
         var venda = new Venda
         {
             EmpresaId = empresaAutorizada.Value,
@@ -294,6 +299,22 @@ public class ComandasController : TenantControllerBase
                 DataVencimento = DateTime.SpecifyKind(request.DataVencimento!.Value, DateTimeKind.Utc),
             };
             Context.ContasReceber.Add(contaReceber);
+        }
+
+        // Mesma regra da Vendas: o que não virou saldo devedor entrou no caixa
+        // agora e alimenta os relatórios de recebimento.
+        var recebidoImediato = total - (venda.SaldoDevedor ?? 0);
+        if (recebidoImediato > 0)
+        {
+            var formaRecebida = PagamentoUtil.ParaFormaRecebida(request.FormaPagamento, request.FormaPagamentoRecebimento)!.Value;
+            Context.Pagamentos.Add(new Pagamento
+            {
+                EmpresaId = empresaAutorizada.Value,
+                ClienteId = request.ClienteId,
+                Venda = venda,
+                Valor = recebidoImediato,
+                FormaPagamento = formaRecebida,
+            });
         }
 
         await Context.SaveChangesAsync();

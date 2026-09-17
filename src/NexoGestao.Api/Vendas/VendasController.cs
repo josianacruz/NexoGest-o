@@ -8,14 +8,19 @@ using NexoGestao.Api.Shared;
 namespace NexoGestao.Api.Vendas;
 
 public record ItemVendaRequest(int ProdutoId, int Quantidade);
-public record RegistrarPagamentoRequest(decimal Valor);
+public record RegistrarPagamentoRequest(
+    decimal Valor,
+    FormaPagamentoRecebido FormaPagamento,
+    DateTime? DataPagamento = null,
+    string? Observacao = null);
 public record CriarVendaRequest(
     int? ClienteId,
     string FormaPagamento,
     List<ItemVendaRequest> Itens,
     decimal? ValorRecebido = null,
     int? Parcelas = null,
-    DateTime? DataVencimento = null);
+    DateTime? DataVencimento = null,
+    FormaPagamentoRecebido? FormaPagamentoRecebimento = null);
 
 [ApiController]
 [Route("api/empresas/{empresaId:int}/vendas")]
@@ -48,6 +53,10 @@ public class VendasController : TenantControllerBase
 
         if (request.FormaPagamento == "Crédito" && request.Parcelas is not null && request.Parcelas < 1)
             return BadRequest(new { mensagem = "O número de parcelas deve ser maior que zero." });
+
+        if (request.FormaPagamento == "Fiado" && (request.ValorRecebido ?? 0) > 0 &&
+            (request.FormaPagamentoRecebimento is null || !Enum.IsDefined(request.FormaPagamentoRecebimento.Value)))
+            return BadRequest(new { mensagem = "Informe a forma de pagamento do valor recebido agora." });
 
         var produtoIds = request.Itens.Select(i => i.ProdutoId).ToList();
         var produtos = await Context.Produtos
@@ -162,6 +171,23 @@ public class VendasController : TenantControllerBase
         if (registrosSemEstoque.Count > 0)
             Context.RegistrosVendaSemEstoque.AddRange(registrosSemEstoque);
 
+        // Tudo que não virou saldo devedor entrou no caixa agora — registra o
+        // recebimento pra alimentar os relatórios (sem isso, uma venda paga na
+        // hora nunca apareceria em "quanto já recebi").
+        var recebidoImediato = total - (venda.SaldoDevedor ?? 0);
+        if (recebidoImediato > 0)
+        {
+            var formaRecebida = PagamentoUtil.ParaFormaRecebida(request.FormaPagamento, request.FormaPagamentoRecebimento)!.Value;
+            Context.Pagamentos.Add(new Pagamento
+            {
+                EmpresaId = empresaAutorizada.Value,
+                ClienteId = request.ClienteId,
+                Venda = venda,
+                Valor = recebidoImediato,
+                FormaPagamento = formaRecebida,
+            });
+        }
+
         await Context.SaveChangesAsync();
 
         foreach (var (produtoId, estoqueFinal) in estoqueFinalPorProduto)
@@ -250,31 +276,38 @@ public class VendasController : TenantControllerBase
         if (empresaAutorizada is null)
             return Forbid();
 
-        var venda = await Context.Vendas.FirstOrDefaultAsync(v => v.Id == vendaId);
-        if (venda is null || venda.SaldoDevedor is null or <= 0)
-            return NotFound(new { mensagem = "Essa venda não tem saldo devedor em aberto." });
+        if (!Enum.IsDefined(request.FormaPagamento))
+            return BadRequest(new { mensagem = "Forma de pagamento inválida." });
 
-        if (request.Valor <= 0 || request.Valor > venda.SaldoDevedor)
+        if (request.Valor <= 0)
             return BadRequest(new { mensagem = "Valor de pagamento inválido." });
 
-        venda.ValorRecebido = (venda.ValorRecebido ?? 0) + request.Valor;
-        var novoSaldo = venda.SaldoDevedor.Value - request.Valor;
-        venda.SaldoDevedor = novoSaldo > 0 ? novoSaldo : null;
-
-        // Mantém a conta a receber vinculada em dia com o pagamento registrado aqui.
         var contaReceber = await Context.ContasReceber.FirstOrDefaultAsync(c => c.VendaId == vendaId);
-        if (contaReceber is not null)
+        if (contaReceber is null || contaReceber.Status == StatusContaReceber.Pago)
+            return NotFound(new { mensagem = "Essa venda não tem saldo devedor em aberto." });
+
+        // Transação: um segundo clique concorrente encontra a conta já Paga e
+        // recebe 404 em vez de gerar um Pagamento duplicado.
+        await using var transacao = await Context.Database.BeginTransactionAsync();
+
+        PagamentoUtil.ResultadoPagamento? resultado;
+        try
         {
-            contaReceber.ValorPendente = Math.Max(0, contaReceber.ValorPendente - request.Valor);
-            if (contaReceber.ValorPendente == 0)
-            {
-                contaReceber.Status = StatusContaReceber.Pago;
-                contaReceber.DataPagamento = DateTime.UtcNow;
-            }
+            resultado = await PagamentoUtil.RegistrarPagamentoContaAsync(
+                Context, empresaAutorizada.Value, contaReceber.Id, request.Valor, request.FormaPagamento,
+                request.DataPagamento, request.Observacao);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return BadRequest(new { mensagem = "Valor de pagamento inválido." });
         }
 
-        await Context.SaveChangesAsync();
+        if (resultado is null)
+            return NotFound(new { mensagem = "Essa venda não tem saldo devedor em aberto." });
 
-        return Ok(new { venda.Id, venda.SaldoDevedor });
+        await transacao.CommitAsync();
+
+        var venda = await Context.Vendas.FirstOrDefaultAsync(v => v.Id == vendaId);
+        return Ok(new { Id = vendaId, venda?.SaldoDevedor });
     }
 }

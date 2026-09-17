@@ -727,6 +727,51 @@ namespace NexoGestao.Api.Migrations
                     b.ToTable("Notificacoes");
                 });
 
+            modelBuilder.Entity("NexoGestao.Api.Domain.Pagamento", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ClienteId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ContaReceberId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("Data")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("FormaPagamento")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Observacao")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Valor")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("VendaId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClienteId");
+
+                    b.HasIndex("ContaReceberId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("VendaId");
+
+                    b.ToTable("Pagamentos");
+                });
+
             modelBuilder.Entity("NexoGestao.Api.Domain.Produto", b =>
                 {
                     b.Property<int>("Id")
@@ -1211,6 +1256,37 @@ namespace NexoGestao.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("NexoGestao.Api.Domain.Pagamento", b =>
+                {
+                    b.HasOne("NexoGestao.Api.Domain.Cliente", "Cliente")
+                        .WithMany()
+                        .HasForeignKey("ClienteId");
+
+                    b.HasOne("NexoGestao.Api.Domain.ContaReceber", "ContaReceber")
+                        .WithMany()
+                        .HasForeignKey("ContaReceberId");
+
+                    b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NexoGestao.Api.Domain.Venda", "Venda")
+                        .WithMany()
+                        .HasForeignKey("VendaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Cliente");
+
+                    b.Navigation("ContaReceber");
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("Venda");
                 });
 
             modelBuilder.Entity("NexoGestao.Api.Domain.Produto", b =>
