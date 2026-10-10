@@ -7,19 +7,27 @@ name: Gerar vídeo de afiliado (prova de conceito)
 #
 # Narração: edge-tts (biblioteca gratuita, sem conta/chave, usa as mesmas
 # vozes neurais do "Ler em voz alta" do navegador Edge). Vídeo: FFmpeg, com
-# zoom lento sobre a foto pública do próprio anúncio + legendas queimadas
-# sincronizadas com a narração. Sem apresentadora virtual — ver relatório.
+# fundo desfocado (a foto do anúncio raramente já é 9:16, então preenchemos
+# as bordas desfocando a própria imagem em vez de cortar o produto) + zoom
+# lento + legendas queimadas, em 3 blocos sincronizados com a narração.
+# Sem apresentadora virtual — ver relatório.
+#
+# Pipeline validado localmente (fora do GitHub) com um produto real antes
+# de ir pro ar: narração 3s, montagem do vídeo 9s, ~750KB/12s de vídeo.
 on:
   workflow_dispatch:
     inputs:
       imagem_url:
         description: "URL pública da foto do produto"
         required: true
-      texto_narracao:
-        description: "Texto a ser narrado (só fatos do próprio anúncio, sem invenção)"
+      texto_narracao_1:
+        description: "Primeira parte da narração (fatos do próprio anúncio)"
+        required: true
+      texto_narracao_2:
+        description: "Segunda parte da narração"
         required: true
       texto_cta:
-        description: "Texto de fechamento (aparece como legenda final)"
+        description: "Texto de fechamento (legenda final)"
         required: true
 
 jobs:
@@ -38,50 +46,55 @@ jobs:
 
       - name: Gerar narração em português (voz neural gratuita)
         env:
-          NARRACAO: ${{ inputs.texto_narracao }}
+          NARRACAO: "${{ inputs.texto_narracao_1 }} ${{ inputs.texto_narracao_2 }}"
         run: python3 -m edge_tts --voice pt-BR-FranciscaNeural --text "$NARRACAO" --write-media narracao.mp3
 
-      - name: Medir duração da narração
-        id: duracao
+      - name: Medir duração e calcular os tempos de cada legenda
+        id: tempos
         run: |
           DUR=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 narracao.mp3)
-          # Vídeo = duração da narração + 1.5s de respiro no fechamento.
-          TOTAL=$(python3 -c "print(round(float('$DUR') + 1.5, 2))")
-          echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
-          echo "Duração da narração: ${DUR}s — vídeo total: ${TOTAL}s"
+          python3 -c "
+          dur = float('$DUR')
+          total = round(dur + 1.5, 2)
+          meio = round(dur / 2, 2)
+          corte_cta = round(dur, 2)
+          print(f'total={total}')
+          print(f'meio={meio}')
+          print(f'corte_cta={corte_cta}')
+          " >> "$GITHUB_OUTPUT"
 
       - name: Preparar arquivos de legenda (texto quebrado em linhas curtas)
         env:
-          NARRACAO: ${{ inputs.texto_narracao }}
-          CTA: ${{ inputs.texto_cta }}
+          LEGENDA_A: ${{ inputs.texto_narracao_1 }}
+          LEGENDA_B: ${{ inputs.texto_narracao_2 }}
+          LEGENDA_C: ${{ inputs.texto_cta }}
         run: |
           python3 - <<'PYEOF'
           import os, textwrap
-          narracao = os.environ["NARRACAO"]
-          cta = os.environ["CTA"]
-          with open("legenda1.txt", "w", encoding="utf-8") as f:
-              f.write("\n".join(textwrap.wrap(narracao, width=26)))
-          with open("legenda2.txt", "w", encoding="utf-8") as f:
-              f.write("\n".join(textwrap.wrap(cta, width=26)))
+          for nome, var in [("legenda_a.txt", "LEGENDA_A"), ("legenda_b.txt", "LEGENDA_B"), ("legenda_c.txt", "LEGENDA_C")]:
+              with open(nome, "w", encoding="utf-8") as f:
+                  f.write("\n".join(textwrap.wrap(os.environ[var], width=28)))
           PYEOF
-          echo "--- legenda1.txt ---"; cat legenda1.txt
-          echo "--- legenda2.txt ---"; cat legenda2.txt
 
-      - name: Montar vídeo vertical (zoom + legendas) e juntar com a narração
+      - name: Montar vídeo vertical (fundo desfocado + zoom + legendas) e juntar narração
         env:
-          TOTAL: ${{ steps.duracao.outputs.total }}
+          TOTAL: ${{ steps.tempos.outputs.total }}
+          MEIO: ${{ steps.tempos.outputs.meio }}
+          CORTE_CTA: ${{ steps.tempos.outputs.corte_cta }}
         run: |
           FONTE=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
-          CORTE=$(python3 -c "print(round(float('$TOTAL') - 2, 2))")
-          ffmpeg -y -loop 1 -i produto.jpg -i narracao.mp3 -t "$TOTAL" -vf "
-            scale=1080:1920:force_original_aspect_ratio=increase,
-            crop=1080:1920,
-            zoompan=z='min(zoom+0.0005,1.1)':d=1:s=1080x1920:fps=25,
-            drawtext=fontfile=${FONTE}:textfile=legenda1.txt:fontcolor=white:fontsize=46:line_spacing=10:borderw=4:bordercolor=black:x=(w-text_w)/2:y=h-520:enable='between(t,0,${CORTE})':box=1:boxcolor=black@0.4:boxborderw=20,
-            drawtext=fontfile=${FONTE}:textfile=legenda2.txt:fontcolor=white:fontsize=52:line_spacing=10:borderw=4:bordercolor=black:x=(w-text_w)/2:y=h-320:enable='gte(t,${CORTE})':box=1:boxcolor=black@0.4:boxborderw=20
-          " -map 0:v -map 1:a -c:v libx264 -pix_fmt yuv420p -r 25 -c:a aac -shortest video-final.mp4
+          ffmpeg -y -loop 1 -i produto.jpg -i narracao.mp3 -filter_complex "
+            [0:v]split=2[bgsrc][fgsrc];
+            [bgsrc]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=25,eq=brightness=-0.08[bg];
+            [fgsrc]scale=1080:1920:force_original_aspect_ratio=decrease[fg];
+            [bg][fg]overlay=(W-w)/2:(H-h)/2[comp];
+            [comp]zoompan=z='min(zoom+0.0005,1.08)':d=1:s=1080x1920:fps=25[zoom];
+            [zoom]drawtext=fontfile=${FONTE}:textfile=legenda_a.txt:fontcolor=white:fontsize=46:line_spacing=10:borderw=4:bordercolor=black:x=(w-text_w)/2:y=h-420:enable='between(t\,0\,${MEIO})':box=1:boxcolor=black@0.45:boxborderw=22[v1];
+            [v1]drawtext=fontfile=${FONTE}:textfile=legenda_b.txt:fontcolor=white:fontsize=46:line_spacing=10:borderw=4:bordercolor=black:x=(w-text_w)/2:y=h-420:enable='between(t\,${MEIO}\,${CORTE_CTA})':box=1:boxcolor=black@0.45:boxborderw=22[v2];
+            [v2]drawtext=fontfile=${FONTE}:textfile=legenda_c.txt:fontcolor=white:fontsize=50:line_spacing=10:borderw=4:bordercolor=black:x=(w-text_w)/2:y=h-420:enable='gte(t\,${CORTE_CTA})':box=1:boxcolor=black@0.45:boxborderw=22[vout]
+          " -map "[vout]" -map 1:a -af "apad" -c:v libx264 -pix_fmt yuv420p -r 25 -c:a aac -t "$TOTAL" video-final.mp4
           ls -la video-final.mp4
-          ffprobe -v error -show_entries format=duration,format=size -of default=noprint_wrappers=1 video-final.mp4
+          ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 video-final.mp4
 
       - name: Enviar vídeo como artefato (expira em 7 dias)
         uses: actions/upload-artifact@v4
