@@ -26,7 +26,6 @@ interface ProdutoAfiliado {
   categoria: string | null;
   imagemUrl: string | null;
   preco: number | null;
-  comissaoPercentual: number | null;
   origem: string;
   ativo: boolean;
   dataCadastro: string;
@@ -60,12 +59,11 @@ const formBusca = {
   precoMax: "",
   quantidadeMaxima: "10",
   prioridade: "Relevancia",
-  comissaoMinima: "",
   gerarVideosAutomaticamente: false,
   limiteVideosAutomaticos: "3",
 };
 
-const formVazio = { linkOriginal: "", linkAfiliado: "", nome: "", categoria: "", imagemUrl: "", preco: "", comissaoPercentual: "" };
+const formVazio = { linkOriginal: "", linkAfiliado: "", nome: "", categoria: "", imagemUrl: "", preco: "" };
 
 async function mensagemDeErro(res: Response, padrao: string) {
   const data = await res.json().catch(() => null);
@@ -222,7 +220,6 @@ export default function AfiliadosPage() {
           precoMax: buscaForm.precoMax ? Number(buscaForm.precoMax) : null,
           quantidadeMaxima: Number(buscaForm.quantidadeMaxima) || 10,
           prioridade: buscaForm.prioridade,
-          comissaoMinima: buscaForm.comissaoMinima ? Number(buscaForm.comissaoMinima) : null,
           gerarVideosAutomaticamente: buscaForm.gerarVideosAutomaticamente,
           limiteVideosAutomaticos: Number(buscaForm.limiteVideosAutomaticos) || 0,
         }),
@@ -343,7 +340,6 @@ export default function AfiliadosPage() {
           categoria: p.categoria,
           imagemUrl: p.imagemUrl,
           preco: p.preco,
-          comissaoPercentual: p.comissaoPercentual,
           ativo: p.ativo,
         }),
       });
@@ -408,7 +404,6 @@ export default function AfiliadosPage() {
           categoria: form.categoria || null,
           imagemUrl: form.imagemUrl || null,
           preco: form.preco ? Number(form.preco) : null,
-          comissaoPercentual: form.comissaoPercentual ? Number(form.comissaoPercentual) : null,
         }),
       });
       if (!res.ok) {
@@ -540,20 +535,8 @@ export default function AfiliadosPage() {
                   onChange={(e) => setBuscaForm({ ...buscaForm, prioridade: e.target.value })}
                 >
                   <option value="Relevancia">Relevância</option>
-                  <option value="ComissaoReais">Maior comissão em reais</option>
-                  <option value="ComissaoPercentual">Maior % de comissão</option>
                   <option value="SinaisVendas">Sinais de vendas</option>
                 </select>
-              </div>
-              <div>
-                <label className={labelStyle}>Comissão mínima % (opcional)</label>
-                <input
-                  className={inputStyle}
-                  type="number"
-                  step="0.01"
-                  value={buscaForm.comissaoMinima}
-                  onChange={(e) => setBuscaForm({ ...buscaForm, comissaoMinima: e.target.value })}
-                />
               </div>
             </div>
 
@@ -606,7 +589,7 @@ export default function AfiliadosPage() {
           <p className="text-sm text-gray-500 mb-3">
             Cole um ou vários links de produto, um por linha. O Nexo busca sozinho o nome, a
             foto e a categoria de cada um (dados públicos da própria página do produto — sem
-            login). Preço e comissão não existem nessa página pública, então ficam em branco
+            login). O preço não existe nessa página pública, então fica em branco
             até você preencher ou vincular a API oficial da Shopee (ver configuração abaixo).
           </p>
           <form onSubmit={cadastrarLote} className="space-y-3">
@@ -716,7 +699,7 @@ export default function AfiliadosPage() {
               <div>
                 <h3 className="font-medium mb-1">Importar CSV</h3>
                 <p className="text-sm text-gray-500 mb-3">
-                  Colunas (com cabeçalho): LinkOriginal, LinkAfiliado, Nome, Categoria, ImagemUrl, Preco, ComissaoPercentual.
+                  Colunas (com cabeçalho): LinkOriginal, LinkAfiliado, Nome, Categoria, ImagemUrl, Preco.
                   As quatro últimas podem ficar vazias.
                 </p>
                 <form onSubmit={importarCsv} className="flex flex-wrap items-center gap-3">
@@ -796,16 +779,6 @@ export default function AfiliadosPage() {
                           onChange={(e) => setForm({ ...form, preco: e.target.value })}
                         />
                       </div>
-                      <div className="flex-1">
-                        <label className={labelStyle}>Comissão % (se souber)</label>
-                        <input
-                          className={inputStyle}
-                          type="number"
-                          step="0.01"
-                          value={form.comissaoPercentual}
-                          onChange={(e) => setForm({ ...form, comissaoPercentual: e.target.value })}
-                        />
-                      </div>
                     </div>
                     <button type="submit" disabled={salvando} className={botaoPrimario}>
                       Cadastrar
@@ -860,12 +833,8 @@ export default function AfiliadosPage() {
                         </p>
                       )}
 
-                      {(p.preco != null || p.comissaoPercentual != null) && (
-                        <p className="text-xs text-gray-600 mt-1">
-                          {p.preco != null && `R$ ${p.preco.toFixed(2)}`}
-                          {p.preco != null && p.comissaoPercentual != null && " · "}
-                          {p.comissaoPercentual != null && `${p.comissaoPercentual}% comissão`}
-                        </p>
+                      {p.preco != null && (
+                        <p className="text-xs text-gray-600 mt-1">R$ {p.preco.toFixed(2)}</p>
                       )}
                     </div>
                     <div className="flex flex-col gap-2 flex-shrink-0">

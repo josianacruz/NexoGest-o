@@ -10,8 +10,12 @@ public enum OrigemProdutoAfiliado
 }
 
 // Representa um produto de afiliada (hoje só Shopee) cadastrado pela empresa.
-// Nunca inventamos Preco/Comissao/LinkAfiliado aqui — ficam nulos até o
-// próprio usuário informar (manual/CSV) ou até a API oficial devolver o dado.
+// Nunca inventamos Preco/LinkAfiliado aqui — ficam nulos até o próprio
+// usuário informar (manual/CSV) ou até a API oficial devolver o dado.
+// Sem campo de comissão: removido porque não existe nenhuma fonte real
+// pra esse dado hoje (nem a página pública do produto, nem a API oficial
+// da Shopee — essa última nunca foi ligada) e mantê-lo gerava a impressão
+// de que a comissão vinha de algum lugar confiável.
 public class ProdutoAfiliado
 {
     public int Id { get; set; }
@@ -24,7 +28,6 @@ public class ProdutoAfiliado
     public string? Categoria { get; set; }
     public string? ImagemUrl { get; set; }
     public decimal? Preco { get; set; }
-    public decimal? ComissaoPercentual { get; set; }
 
     public OrigemProdutoAfiliado Origem { get; set; } = OrigemProdutoAfiliado.Manual;
     public bool Ativo { get; set; } = true;
@@ -37,9 +40,4 @@ public class ProdutoAfiliado
     public string? FonteDescoberta { get; set; }
     public DateTime? DataConsultaFonte { get; set; }
     public string? MotivoSelecao { get; set; }
-
-    // Comissão nunca é "verificada" sem uma fonte válida pra conta do usuário
-    // (API oficial configurada e habilitada). Até lá, fica sempre false — ver
-    // AfiliadosController.Buscar.
-    public bool ComissaoVerificada { get; set; } = false;
 }

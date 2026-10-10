@@ -924,12 +924,6 @@ namespace NexoGestao.Api.Migrations
                     b.Property<string>("Categoria")
                         .HasColumnType("text");
 
-                    b.Property<decimal?>("ComissaoPercentual")
-                        .HasColumnType("numeric");
-
-                    b.Property<bool>("ComissaoVerificada")
-                        .HasColumnType("boolean");
-
                     b.Property<DateTime>("DataCadastro")
                         .HasColumnType("timestamp with time zone");
 

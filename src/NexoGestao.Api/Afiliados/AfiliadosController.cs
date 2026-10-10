@@ -16,8 +16,7 @@ public record CriarProdutoAfiliadoRequest(
     string Nome,
     string? Categoria,
     string? ImagemUrl,
-    decimal? Preco,
-    decimal? ComissaoPercentual);
+    decimal? Preco);
 
 public record AtualizarProdutoAfiliadoRequest(
     string? LinkAfiliado,
@@ -25,13 +24,15 @@ public record AtualizarProdutoAfiliadoRequest(
     string? Categoria,
     string? ImagemUrl,
     decimal? Preco,
-    decimal? ComissaoPercentual,
     bool Ativo);
 
 public record CadastrarLoteRequest(List<string> Links);
 public record ImportarCsvRequest(string ConteudoCsv);
 
-public enum PrioridadeBusca { Relevancia, ComissaoReais, ComissaoPercentual, SinaisVendas }
+// Sem opções de comissão: removidas a pedido — não existe fonte real pra
+// comissão hoje (ver Buscar). SinaisVendas continua existindo mas também
+// cai pra Relevancia na prática, já que não há fonte de vendas pública.
+public enum PrioridadeBusca { Relevancia, SinaisVendas }
 
 public record BuscarProdutosRequest(
     string PalavraChave,
@@ -40,7 +41,6 @@ public record BuscarProdutosRequest(
     decimal? PrecoMax,
     int QuantidadeMaxima,
     PrioridadeBusca Prioridade,
-    decimal? ComissaoMinima,
     bool GerarVideosAutomaticamente = false,
     int LimiteVideosAutomaticos = 0);
 
@@ -182,7 +182,6 @@ public class AfiliadosController : TenantControllerBase
                 p.Categoria,
                 p.ImagemUrl,
                 p.Preco,
-                p.ComissaoPercentual,
                 Origem = p.Origem.ToString(),
                 p.Ativo,
                 p.DataCadastro,
@@ -191,7 +190,6 @@ public class AfiliadosController : TenantControllerBase
                 {
                     p.LinkAfiliado == null ? "link de afiliada" : null,
                     p.Preco == null ? "preço" : null,
-                    p.ComissaoPercentual == null ? "comissão" : null,
                     p.ImagemUrl == null ? "imagem" : null,
                 }.Where(x => x != null),
                 Conteudo = Context.ConteudosAfiliados
@@ -230,8 +228,8 @@ public class AfiliadosController : TenantControllerBase
         if (string.IsNullOrWhiteSpace(request.Nome))
             return BadRequest(new { mensagem = "Informe o nome do produto." });
 
-        if (request.Preco is < 0 || request.ComissaoPercentual is < 0)
-            return BadRequest(new { mensagem = "Preço e comissão não podem ser negativos." });
+        if (request.Preco is < 0)
+            return BadRequest(new { mensagem = "Preço não pode ser negativo." });
 
         var jaExiste = await Context.ProdutosAfiliados
             .AnyAsync(p => p.LinkOriginal == request.LinkOriginal.Trim());
@@ -247,7 +245,6 @@ public class AfiliadosController : TenantControllerBase
             Categoria = request.Categoria?.Trim(),
             ImagemUrl = request.ImagemUrl?.Trim(),
             Preco = request.Preco,
-            ComissaoPercentual = request.ComissaoPercentual,
             Origem = OrigemProdutoAfiliado.Manual,
         };
         Context.ProdutosAfiliados.Add(produto);
@@ -269,8 +266,8 @@ public class AfiliadosController : TenantControllerBase
         if (string.IsNullOrWhiteSpace(request.Nome))
             return BadRequest(new { mensagem = "Informe o nome do produto." });
 
-        if (request.Preco is < 0 || request.ComissaoPercentual is < 0)
-            return BadRequest(new { mensagem = "Preço e comissão não podem ser negativos." });
+        if (request.Preco is < 0)
+            return BadRequest(new { mensagem = "Preço não pode ser negativo." });
 
         var produto = await Context.ProdutosAfiliados.FirstOrDefaultAsync(p => p.Id == produtoId);
         if (produto is null)
@@ -281,7 +278,6 @@ public class AfiliadosController : TenantControllerBase
         produto.Categoria = request.Categoria?.Trim();
         produto.ImagemUrl = request.ImagemUrl?.Trim();
         produto.Preco = request.Preco;
-        produto.ComissaoPercentual = request.ComissaoPercentual;
         produto.Ativo = request.Ativo;
         produto.DataUltimaAtualizacao = DateTime.UtcNow;
 
@@ -443,8 +439,8 @@ public class AfiliadosController : TenantControllerBase
     }
 
     // Importação CSV manual: colunas esperadas (cabeçalho obrigatório, nessa ordem)
-    // LinkOriginal,LinkAfiliado,Nome,Categoria,ImagemUrl,Preco,ComissaoPercentual
-    // LinkAfiliado/ImagemUrl/Preco/ComissaoPercentual podem vir vazios.
+    // LinkOriginal,LinkAfiliado,Nome,Categoria,ImagemUrl,Preco
+    // LinkAfiliado/ImagemUrl/Preco podem vir vazios.
     [HttpPost("produtos/importar-csv")]
     public async Task<IActionResult> ImportarCsv(int empresaId, ImportarCsvRequest request)
     {
@@ -485,7 +481,6 @@ public class AfiliadosController : TenantControllerBase
             var categoria = colunas.Length > 3 && colunas[3].Length > 0 ? colunas[3] : null;
             var imagemUrl = colunas.Length > 4 && colunas[4].Length > 0 ? colunas[4] : null;
             decimal? preco = colunas.Length > 5 && decimal.TryParse(colunas[5], out var p) ? p : null;
-            decimal? comissao = colunas.Length > 6 && decimal.TryParse(colunas[6], out var c) ? c : null;
 
             if (!LinkShopeeValido(linkOriginal))
             {
@@ -514,7 +509,6 @@ public class AfiliadosController : TenantControllerBase
                 Categoria = categoria,
                 ImagemUrl = imagemUrl,
                 Preco = preco,
-                ComissaoPercentual = comissao,
                 Origem = OrigemProdutoAfiliado.Csv,
             });
         }
@@ -574,28 +568,11 @@ public class AfiliadosController : TenantControllerBase
         if (request.PrecoMin is not null || request.PrecoMax is not null)
             limitacoes.Add("Faixa de preço não pôde ser aplicada: a página pública do produto não expõe o preço (só disponível com a API oficial da Shopee, ainda não configurada).");
 
-        // Comissão: idem — sem API oficial habilitada, não existe fonte válida
-        // de comissão pra sua conta. Nunca inventamos valor nem tratamos
-        // "popular" como "paga mais".
-        var config = await Context.ConfiguracoesAfiliados.FirstOrDefaultAsync(c => c.EmpresaId == empresaAutorizada.Value);
-        var temFonteDeComissao = config?.ApiOficialHabilitada ?? false;
-
-        var prioridadeEfetiva = request.Prioridade;
-        if (request.Prioridade != PrioridadeBusca.Relevancia && !temFonteDeComissao)
-        {
-            prioridadeEfetiva = PrioridadeBusca.Relevancia;
-            var motivo = request.Prioridade switch
-            {
-                PrioridadeBusca.ComissaoReais => "maior comissão em reais",
-                PrioridadeBusca.ComissaoPercentual => "maior percentual de comissão",
-                PrioridadeBusca.SinaisVendas => "sinais de vendas",
-                _ => request.Prioridade.ToString(),
-            };
-            limitacoes.Add($"Ordenar por \"{motivo}\" exige uma fonte de dados adicional (API oficial da Shopee, ainda não configurada, ou importação manual de relatório). Os resultados abaixo estão ordenados por relevância da busca, não por comissão nem por vendas — nenhum valor foi inventado.");
-        }
-
-        if (request.ComissaoMinima is not null && !temFonteDeComissao)
-            limitacoes.Add("Comissão mínima não pôde ser aplicada pelo mesmo motivo: não há comissão verificada pra filtrar.");
+        // Sinais de vendas: idem, sem fonte pública real — cai sempre pra
+        // relevância. Nenhum número de vendas é inventado.
+        var prioridadeEfetiva = PrioridadeBusca.Relevancia;
+        if (request.Prioridade == PrioridadeBusca.SinaisVendas)
+            limitacoes.Add("Ordenar por \"sinais de vendas\" exige uma fonte de dados adicional, ainda não disponível. Os resultados abaixo estão ordenados por relevância da busca — nenhum número de vendas foi inventado.");
 
         // Busca mais candidatos do que o pedido pra sobrar depois de remover
         // duplicados — sem isso, pedir 10 e já ter metade cadastrada devolveria poucos.
@@ -652,7 +629,6 @@ public class AfiliadosController : TenantControllerBase
                 FonteDescoberta = candidato.Fonte,
                 DataConsultaFonte = candidato.DataConsulta,
                 MotivoSelecao = $"Encontrado buscando \"{request.PalavraChave}\" — posição {indice + 1} por relevância em {candidato.Fonte}.",
-                ComissaoVerificada = false,
             };
             produtosCriados.Add(produto);
         }
@@ -698,7 +674,6 @@ public class AfiliadosController : TenantControllerBase
                 p.FonteDescoberta,
                 p.DataConsultaFonte,
                 PrecoDisponivel = false,
-                ComissaoStatus = "NaoVerificada",
                 Conteudo = new
                 {
                     conteudosGerados[i].Roteiro,
