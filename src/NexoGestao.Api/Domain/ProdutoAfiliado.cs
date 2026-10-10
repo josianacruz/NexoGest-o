@@ -6,6 +6,7 @@ public enum OrigemProdutoAfiliado
     LoteDeLinks,
     Csv,
     ApiOficial,
+    BuscaAutomatica,
 }
 
 // Representa um produto de afiliada (hoje só Shopee) cadastrado pela empresa.
@@ -29,4 +30,16 @@ public class ProdutoAfiliado
     public bool Ativo { get; set; } = true;
     public DateTime DataCadastro { get; set; } = DateTime.UtcNow;
     public DateTime DataUltimaAtualizacao { get; set; } = DateTime.UtcNow;
+
+    // Preenchidos só quando Origem == BuscaAutomatica — de onde veio o link
+    // e quando foi consultado, pra deixar rastreável (nunca afirmamos que um
+    // dado "é" de uma certa data sem registrar isso).
+    public string? FonteDescoberta { get; set; }
+    public DateTime? DataConsultaFonte { get; set; }
+    public string? MotivoSelecao { get; set; }
+
+    // Comissão nunca é "verificada" sem uma fonte válida pra conta do usuário
+    // (API oficial configurada e habilitada). Até lá, fica sempre false — ver
+    // AfiliadosController.Buscar.
+    public bool ComissaoVerificada { get; set; } = false;
 }

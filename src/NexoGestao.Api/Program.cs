@@ -53,6 +53,10 @@ builder.Services.AddDataProtection();
 // Shopee — nunca login, nunca a API paga/autenticada.
 builder.Services.AddHttpClient<NexoGestao.Api.Shared.ShopeeMetadataFetcher>();
 
+// Descobre links de produtos a partir de palavra-chave via busca pública
+// (DuckDuckGo) — nunca a busca autenticada da própria Shopee.
+builder.Services.AddHttpClient<NexoGestao.Api.Shared.DescobertaShopeeFetcher>();
+
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 var jwtIssuer = builder.Configuration["Jwt:Issuer"]!;
 var jwtAudience = builder.Configuration["Jwt:Audience"]!;

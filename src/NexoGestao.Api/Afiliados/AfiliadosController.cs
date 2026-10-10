@@ -31,6 +31,19 @@ public record AtualizarProdutoAfiliadoRequest(
 public record CadastrarLoteRequest(List<string> Links);
 public record ImportarCsvRequest(string ConteudoCsv);
 
+public enum PrioridadeBusca { Relevancia, ComissaoReais, ComissaoPercentual, SinaisVendas }
+
+public record BuscarProdutosRequest(
+    string PalavraChave,
+    string? Nicho,
+    decimal? PrecoMin,
+    decimal? PrecoMax,
+    int QuantidadeMaxima,
+    PrioridadeBusca Prioridade,
+    decimal? ComissaoMinima,
+    bool GerarVideosAutomaticamente = false,
+    int LimiteVideosAutomaticos = 0);
+
 [ApiController]
 [Route("api/empresas/{empresaId:int}/afiliados")]
 [Authorize]
@@ -50,10 +63,17 @@ public class AfiliadosController : TenantControllerBase
         "shope.ee",
     };
 
-    public AfiliadosController(AppDbContext context, IDataProtectionProvider dataProtection, ShopeeMetadataFetcher metadataFetcher) : base(context)
+    private readonly DescobertaShopeeFetcher _descobertaFetcher;
+
+    public AfiliadosController(
+        AppDbContext context,
+        IDataProtectionProvider dataProtection,
+        ShopeeMetadataFetcher metadataFetcher,
+        DescobertaShopeeFetcher descobertaFetcher) : base(context)
     {
         _dataProtection = dataProtection;
         _metadataFetcher = metadataFetcher;
+        _descobertaFetcher = descobertaFetcher;
     }
 
     private static bool LinkShopeeValido(string? link)
@@ -529,6 +549,162 @@ public class AfiliadosController : TenantControllerBase
             Erros = erros,
         });
     }
+
+    // "Buscar produtos e gerar vídeos": descobre produtos a partir de uma
+    // palavra-chave (busca pública, nunca a busca autenticada da Shopee — ver
+    // observação 2 no final do arquivo), importa os que ainda não existem e já
+    // prepara o conteúdo de texto (roteiro/legenda/hashtags) de cada um.
+    [HttpPost("produtos/buscar")]
+    public async Task<IActionResult> Buscar(int empresaId, BuscarProdutosRequest request)
+    {
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        if (empresaAutorizada is null)
+            return Forbid();
+
+        if (string.IsNullOrWhiteSpace(request.PalavraChave))
+            return BadRequest(new { mensagem = "Informe uma palavra-chave pra buscar." });
+
+        var quantidadeMaxima = Math.Clamp(request.QuantidadeMaxima <= 0 ? 10 : request.QuantidadeMaxima, 1, 20);
+
+        var limitacoes = new List<string>();
+
+        // Preço: a página pública do produto não expõe preço em lugar nenhum
+        // (testado manualmente) — não dá pra filtrar por faixa de preço sem
+        // inventar o dado. Avisamos em vez de fingir que filtramos.
+        if (request.PrecoMin is not null || request.PrecoMax is not null)
+            limitacoes.Add("Faixa de preço não pôde ser aplicada: a página pública do produto não expõe o preço (só disponível com a API oficial da Shopee, ainda não configurada).");
+
+        // Comissão: idem — sem API oficial habilitada, não existe fonte válida
+        // de comissão pra sua conta. Nunca inventamos valor nem tratamos
+        // "popular" como "paga mais".
+        var config = await Context.ConfiguracoesAfiliados.FirstOrDefaultAsync(c => c.EmpresaId == empresaAutorizada.Value);
+        var temFonteDeComissao = config?.ApiOficialHabilitada ?? false;
+
+        var prioridadeEfetiva = request.Prioridade;
+        if (request.Prioridade != PrioridadeBusca.Relevancia && !temFonteDeComissao)
+        {
+            prioridadeEfetiva = PrioridadeBusca.Relevancia;
+            var motivo = request.Prioridade switch
+            {
+                PrioridadeBusca.ComissaoReais => "maior comissão em reais",
+                PrioridadeBusca.ComissaoPercentual => "maior percentual de comissão",
+                PrioridadeBusca.SinaisVendas => "sinais de vendas",
+                _ => request.Prioridade.ToString(),
+            };
+            limitacoes.Add($"Ordenar por \"{motivo}\" exige uma fonte de dados adicional (API oficial da Shopee, ainda não configurada, ou importação manual de relatório). Os resultados abaixo estão ordenados por relevância da busca, não por comissão nem por vendas — nenhum valor foi inventado.");
+        }
+
+        if (request.ComissaoMinima is not null && !temFonteDeComissao)
+            limitacoes.Add("Comissão mínima não pôde ser aplicada pelo mesmo motivo: não há comissão verificada pra filtrar.");
+
+        // Busca mais candidatos do que o pedido pra sobrar depois de remover
+        // duplicados — sem isso, pedir 10 e já ter metade cadastrada devolveria poucos.
+        var candidatosBrutos = await _descobertaFetcher.BuscarAsync(request.PalavraChave, quantidadeMaxima * 3);
+
+        var linksExistentes = await Context.ProdutosAfiliados
+            .Select(p => p.LinkOriginal)
+            .ToListAsync();
+
+        var candidatosNovos = candidatosBrutos
+            .Where(c => !linksExistentes.Contains(c.LinkOriginal))
+            .Take(quantidadeMaxima)
+            .ToList();
+
+        var duplicadosIgnorados = candidatosBrutos.Count - candidatosNovos.Count;
+
+        using var limitador = new SemaphoreSlim(3);
+        var tarefas = candidatosNovos.Select(async (candidato, indice) =>
+        {
+            await limitador.WaitAsync();
+            try
+            {
+                var metadados = await _metadataFetcher.BuscarAsync(candidato.LinkOriginal);
+                return (candidato, metadados, indice);
+            }
+            finally
+            {
+                limitador.Release();
+            }
+        });
+        var resultados = await Task.WhenAll(tarefas);
+
+        var produtosCriados = new List<ProdutoAfiliado>();
+        foreach (var (candidato, metadados, indice) in resultados.OrderBy(r => r.indice))
+        {
+            // Sem nome, ou o link caiu na home/página genérica da Shopee (produto
+            // fora do ar, redirecionado, etc.) em vez da página do produto —
+            // em nenhum dos casos dá pra mostrar um card confiável.
+            if (metadados?.Nome is null || metadados.Nome.Contains("Shopee Brasil"))
+                continue;
+
+            var produto = new ProdutoAfiliado
+            {
+                EmpresaId = empresaAutorizada.Value,
+                LinkOriginal = candidato.LinkOriginal,
+                Nome = metadados.Nome,
+                ImagemUrl = metadados.ImagemUrl,
+                Categoria = metadados.Categoria,
+                Origem = OrigemProdutoAfiliado.BuscaAutomatica,
+                FonteDescoberta = candidato.Fonte,
+                DataConsultaFonte = candidato.DataConsulta,
+                MotivoSelecao = $"Encontrado buscando \"{request.PalavraChave}\" — posição {indice + 1} por relevância em {candidato.Fonte}.",
+                ComissaoVerificada = false,
+            };
+            produtosCriados.Add(produto);
+        }
+
+        Context.ProdutosAfiliados.AddRange(produtosCriados);
+        await Context.SaveChangesAsync();
+
+        // Já deixa o roteiro/legenda/hashtags prontos pra revisão — é rápido e
+        // gratuito (gerador por modelo, sem IA paga). O vídeo em si continua
+        // fora daqui: ver observação 3 no final do arquivo.
+        var conteudosGerados = new List<ConteudoAfiliado>();
+        foreach (var produto in produtosCriados)
+        {
+            var conteudo = ConteudoAfiliadoGerador.Gerar(produto, empresaAutorizada.Value);
+            Context.ConteudosAfiliados.Add(conteudo);
+            conteudosGerados.Add(conteudo);
+        }
+        await Context.SaveChangesAsync();
+
+        if (request.GerarVideosAutomaticamente)
+            limitacoes.Add("Geração automática de vídeo por busca ainda não está ligada ao backend (precisa do FFmpeg rodando em algum lugar — ver conversa sobre isso). Prepare os vídeos um a um pela tela normal por enquanto.");
+
+        if (candidatosBrutos.Count == 0)
+            limitacoes.Add($"A busca por \"{request.PalavraChave}\" não encontrou nenhum link de produto da Shopee indexado publicamente — não significa que não existam produtos, só que não foram encontrados por este meio.");
+
+        return Ok(new
+        {
+            PalavraChave = request.PalavraChave,
+            PrioridadeSolicitada = request.Prioridade.ToString(),
+            PrioridadeAplicada = prioridadeEfetiva.ToString(),
+            Buscados = candidatosBrutos.Count,
+            Importados = produtosCriados.Count,
+            DuplicadosIgnorados = duplicadosIgnorados,
+            Limitacoes = limitacoes,
+            Produtos = produtosCriados.Select((p, i) => new
+            {
+                p.Id,
+                p.LinkOriginal,
+                p.Nome,
+                p.Categoria,
+                p.ImagemUrl,
+                p.MotivoSelecao,
+                p.FonteDescoberta,
+                p.DataConsultaFonte,
+                PrecoDisponivel = false,
+                ComissaoStatus = "NaoVerificada",
+                Conteudo = new
+                {
+                    conteudosGerados[i].Roteiro,
+                    conteudosGerados[i].Legenda,
+                    conteudosGerados[i].ChamadaParaCompra,
+                    conteudosGerados[i].Hashtags,
+                },
+            }),
+        });
+    }
 }
 
 // Observações importantes pra quem for mexer aqui depois:
@@ -541,19 +717,23 @@ public class AfiliadosController : TenantControllerBase
 //    novo serviço (ex.: ShopeeApiClient) chamado só quando
 //    ConfiguracaoAfiliados.ApiOficialHabilitada == true.
 //
-// 2) Busca automática de categoria/"mais vendidos": testada e BLOQUEADA.
-//    A página de busca/categoria da Shopee não entrega a lista de produtos
-//    no HTML público (só o "esqueleto" da página — os itens são carregados
-//    depois, via chamada interna não documentada, que exige sessão). Testei
-//    com curl simulando um bot de preview (mesmo método usado pra link
-//    individual) e a página de categoria retorna sem nenhum item; no
-//    navegador, a própria busca pede login. Não implementei nada que chame
-//    esse endpoint interno (seria contornar uma restrição, não um "meio
-//    permitido"). Por isso o cadastro aqui é só por link colado — que já
-//    cobre "pouco trabalho manual" porque nome/imagem/categoria vêm sozinhos.
+// 2) Busca por palavra-chave dentro do site da Shopee: testada e BLOQUEADA.
+//    A página de busca/categoria da própria Shopee não entrega a lista de
+//    produtos no HTML público (só o "esqueleto" da página — os itens são
+//    carregados depois, via chamada interna não documentada, que exige
+//    sessão); no navegador, a busca pede login. Por isso o endpoint Buscar
+//    (produtos/buscar) usa a busca pública do DuckDuckGo com
+//    "site:shopee.com.br <palavra-chave>" — um mecanismo de busca de
+//    terceiros consultado pelos resultados que ele mesmo já indexa
+//    publicamente, não a Shopee. Cobre só o que esse buscador já indexou
+//    pra aquela palavra-chave: não é garantia de achar todos os produtos do
+//    nicho (ver DescobertaShopeeFetcher).
 //
-// 3) Geração de vídeo: ainda NÃO implementada. Os textos (roteiro, legenda,
-//    CTA, hashtags) já são gerados automaticamente em PrepararConteudo. A
-//    montagem do vídeo em si precisa do FFmpeg, que não está disponível
+// 3) Geração de vídeo: os textos (roteiro, legenda, CTA, hashtags) já são
+//    gerados automaticamente em PrepararConteudo e em Buscar. A montagem do
+//    vídeo em si (FFmpeg) continua fora do backend — não está disponível
 //    neste ambiente (nem local, nem confirmado no plano gratuito do Render
-//    sem Dockerfile customizado) — ver relatório entregue ao usuário.
+//    sem Dockerfile customizado) e não deve rodar dentro do processo da API
+//    que atende os clientes em produção. Por isso Buscar aceita
+//    GerarVideosAutomaticamente mas nunca executa isso — só avisa na
+//    resposta (ver campo Limitacoes).

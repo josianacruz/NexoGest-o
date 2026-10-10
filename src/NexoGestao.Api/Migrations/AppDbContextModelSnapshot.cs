@@ -927,7 +927,13 @@ namespace NexoGestao.Api.Migrations
                     b.Property<decimal?>("ComissaoPercentual")
                         .HasColumnType("numeric");
 
+                    b.Property<bool>("ComissaoVerificada")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime>("DataCadastro")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DataConsultaFonte")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("DataUltimaAtualizacao")
@@ -935,6 +941,9 @@ namespace NexoGestao.Api.Migrations
 
                     b.Property<int>("EmpresaId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("FonteDescoberta")
+                        .HasColumnType("text");
 
                     b.Property<string>("ImagemUrl")
                         .HasColumnType("text");
@@ -944,6 +953,9 @@ namespace NexoGestao.Api.Migrations
 
                     b.Property<string>("LinkOriginal")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("MotivoSelecao")
                         .HasColumnType("text");
 
                     b.Property<string>("Nome")
