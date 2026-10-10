@@ -1,0 +1,49 @@
+name: Gerar vídeo de afiliado (prova de conceito)
+
+# Só acionado manualmente por enquanto (workflow_dispatch) — é a fase de
+# prova de funcionamento. Quando validado, o backend passa a disparar isso
+# sozinho via repository_dispatch, sem precisar de clique manual.
+on:
+  workflow_dispatch:
+    inputs:
+      imagem_url:
+        description: "URL pública da foto do produto (ex.: a imagem que a Shopee já expõe)"
+        required: true
+      texto_gancho:
+        description: "Texto do gancho inicial (aparece nos primeiros segundos)"
+        required: true
+      texto_cta:
+        description: "Texto de fechamento/chamada para compra"
+        required: true
+
+jobs:
+  gerar-video:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar FFmpeg e fonte
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+
+      - name: Baixar imagem do produto
+        # Só a imagem pública do próprio anúncio — nunca material de terceiros sem permissão.
+        run: curl -sL -A "Mozilla/5.0" "${{ inputs.imagem_url }}" -o produto.jpg
+
+      - name: Montar vídeo vertical (zoom lento + texto)
+        env:
+          GANCHO: ${{ inputs.texto_gancho }}
+          CTA: ${{ inputs.texto_cta }}
+        run: |
+          FONTE=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+          ffmpeg -y -loop 1 -i produto.jpg -t 8 -vf "
+            scale=1080:1920:force_original_aspect_ratio=increase,
+            crop=1080:1920,
+            zoompan=z='min(zoom+0.0006,1.12)':d=1:s=1080x1920:fps=25,
+            drawtext=fontfile=${FONTE}:textfile=<(printf '%s' \"$GANCHO\"):fontcolor=white:fontsize=58:borderw=5:bordercolor=black:x=(w-text_w)/2:y=140:enable='between(t,0,3.5)',
+            drawtext=fontfile=${FONTE}:textfile=<(printf '%s' \"$CTA\"):fontcolor=white:fontsize=50:borderw=5:bordercolor=black:x=(w-text_w)/2:y=h-250:enable='between(t,5,8)'
+          " -c:v libx264 -pix_fmt yuv420p -r 25 video.mp4
+
+      - name: Enviar vídeo como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-afiliado
+          path: video.mp4
+          retention-days: 7

@@ -390,6 +390,40 @@ namespace NexoGestao.Api.Migrations
                     b.ToTable("Comandas");
                 });
 
+            modelBuilder.Entity("NexoGestao.Api.Domain.ConfiguracaoAfiliados", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("ApiOficialHabilitada")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("AppIdCriptografado")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AppSecretCriptografado")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("IdAfiliado")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId")
+                        .IsUnique();
+
+                    b.ToTable("ConfiguracoesAfiliados");
+                });
+
             modelBuilder.Entity("NexoGestao.Api.Domain.ConfiguracaoAgenda", b =>
                 {
                     b.Property<int>("Id")
@@ -504,6 +538,58 @@ namespace NexoGestao.Api.Migrations
                     b.HasIndex("VendaId");
 
                     b.ToTable("ContasReceber");
+                });
+
+            modelBuilder.Entity("NexoGestao.Api.Domain.ConteudoAfiliado", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Abordagem")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ChamadaParaCompra")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("DataGeracao")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Hashtags")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Legenda")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("MensagemErro")
+                        .HasColumnType("text");
+
+                    b.Property<int>("ProdutoAfiliadoId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Roteiro")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("ProdutoAfiliadoId")
+                        .IsUnique();
+
+                    b.ToTable("ConteudosAfiliados");
                 });
 
             modelBuilder.Entity("NexoGestao.Api.Domain.Empresa", b =>
@@ -824,6 +910,60 @@ namespace NexoGestao.Api.Migrations
                     b.ToTable("Produtos");
                 });
 
+            modelBuilder.Entity("NexoGestao.Api.Domain.ProdutoAfiliado", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Categoria")
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("ComissaoPercentual")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime>("DataCadastro")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("DataUltimaAtualizacao")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ImagemUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LinkAfiliado")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LinkOriginal")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Origem")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("Preco")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "LinkOriginal")
+                        .IsUnique();
+
+                    b.ToTable("ProdutosAfiliados");
+                });
+
             modelBuilder.Entity("NexoGestao.Api.Domain.RegistroVendaSemEstoque", b =>
                 {
                     b.Property<int>("Id")
@@ -1105,6 +1245,17 @@ namespace NexoGestao.Api.Migrations
                     b.Navigation("Venda");
                 });
 
+            modelBuilder.Entity("NexoGestao.Api.Domain.ConfiguracaoAfiliados", b =>
+                {
+                    b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
             modelBuilder.Entity("NexoGestao.Api.Domain.ConfiguracaoAgenda", b =>
                 {
                     b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
@@ -1152,6 +1303,25 @@ namespace NexoGestao.Api.Migrations
                     b.Navigation("Empresa");
 
                     b.Navigation("Venda");
+                });
+
+            modelBuilder.Entity("NexoGestao.Api.Domain.ConteudoAfiliado", b =>
+                {
+                    b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NexoGestao.Api.Domain.ProdutoAfiliado", "ProdutoAfiliado")
+                        .WithMany()
+                        .HasForeignKey("ProdutoAfiliadoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("ProdutoAfiliado");
                 });
 
             modelBuilder.Entity("NexoGestao.Api.Domain.Interesse", b =>
@@ -1290,6 +1460,17 @@ namespace NexoGestao.Api.Migrations
                 });
 
             modelBuilder.Entity("NexoGestao.Api.Domain.Produto", b =>
+                {
+                    b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("NexoGestao.Api.Domain.ProdutoAfiliado", b =>
                 {
                     b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
                         .WithMany()

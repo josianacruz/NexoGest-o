@@ -11,7 +11,8 @@ public enum Modulo
     Servicos,
     Marketing,
     Financeiro,
-    Interesses
+    Interesses,
+    Afiliados
 }
 
 public enum TipoNegocio

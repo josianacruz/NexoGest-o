@@ -9,6 +9,11 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 
+// Evita um NullReferenceException do próprio .NET ao processar o cabeçalho
+// Alt-Svc que a CDN da Shopee devolve (ShopeeMetadataFetcher) — bug conhecido
+// no parsing de Alt-Svc malformado, independente da versão HTTP pedida.
+AppContext.SetSwitch("System.Net.SocketsHttpHandler.Http3Support", false);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -39,6 +44,14 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>();
+
+// Usada pra criptografar credenciais de API de afiliados (App Id/App Secret)
+// em repouso — nativa do ASP.NET Core, sem serviço externo.
+builder.Services.AddDataProtection();
+
+// Busca só metadados públicos (og:title/og:image) de links de produto da
+// Shopee — nunca login, nunca a API paga/autenticada.
+builder.Services.AddHttpClient<NexoGestao.Api.Shared.ShopeeMetadataFetcher>();
 
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 var jwtIssuer = builder.Configuration["Jwt:Issuer"]!;

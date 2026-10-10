@@ -22,6 +22,7 @@ export const MODULOS_MENU: ModuloMenu[] = [
   { chave: "Cobrancas", label: "Cobranças", href: "/cobrancas" },
   { chave: "Financeiro", label: "📊 Relatórios", href: "/relatorios" },
   { chave: "Marketing", label: "Marketing", href: "/marketing" },
+  { chave: "Afiliados", label: "🎥 Afiliados", href: "/afiliados" },
   { chave: "Clientes", label: "Clientes", href: "/clientes" },
 ];
 

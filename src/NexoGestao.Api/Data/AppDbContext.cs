@@ -33,6 +33,9 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<ConfiguracaoDiaSemana> ConfiguracoesDiaSemana => Set<ConfiguracaoDiaSemana>();
     public DbSet<Interesse> Interesses => Set<Interesse>();
     public DbSet<Pagamento> Pagamentos => Set<Pagamento>();
+    public DbSet<ProdutoAfiliado> ProdutosAfiliados => Set<ProdutoAfiliado>();
+    public DbSet<ConfiguracaoAfiliados> ConfiguracoesAfiliados => Set<ConfiguracaoAfiliados>();
+    public DbSet<ConteudoAfiliado> ConteudosAfiliados => Set<ConteudoAfiliado>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -55,5 +58,14 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         builder.Entity<Interesse>().HasQueryFilter(i => EmpresaAtualId != null && i.EmpresaId == EmpresaAtualId);
         builder.Entity<Pagamento>().HasQueryFilter(p => EmpresaAtualId != null && p.EmpresaId == EmpresaAtualId);
         builder.Entity<Produto>().HasIndex(p => p.LinkStoryToken).IsUnique();
+        builder.Entity<ProdutoAfiliado>().HasQueryFilter(p => EmpresaAtualId != null && p.EmpresaId == EmpresaAtualId);
+        // Mesmo link não pode ser cadastrado duas vezes na mesma empresa (evita
+        // duplicação do item 1 dos requisitos); empresas diferentes podem
+        // divulgar o mesmo produto sem conflito.
+        builder.Entity<ProdutoAfiliado>().HasIndex(p => new { p.EmpresaId, p.LinkOriginal }).IsUnique();
+        builder.Entity<ConfiguracaoAfiliados>().HasQueryFilter(c => EmpresaAtualId != null && c.EmpresaId == EmpresaAtualId);
+        builder.Entity<ConfiguracaoAfiliados>().HasIndex(c => c.EmpresaId).IsUnique();
+        builder.Entity<ConteudoAfiliado>().HasQueryFilter(c => EmpresaAtualId != null && c.EmpresaId == EmpresaAtualId);
+        builder.Entity<ConteudoAfiliado>().HasIndex(c => c.ProdutoAfiliadoId).IsUnique();
     }
 }
