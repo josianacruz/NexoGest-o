@@ -4,6 +4,8 @@ namespace NexoGestao.Api.Shared;
 
 public record CandidatoProduto(string LinkOriginal, string Fonte, DateTime DataConsulta);
 
+public record ResultadoDescoberta(List<CandidatoProduto> Candidatos, bool BloqueadoTemporariamente);
+
 // Descobre links de produtos da Shopee a partir de uma palavra-chave usando
 // a busca pública do DuckDuckGo (site:shopee.com.br <palavra-chave>) — não
 // é a busca da própria Shopee (que exige login, testado e documentado em
@@ -29,9 +31,14 @@ public class DescobertaShopeeFetcher
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36");
         _http.DefaultRequestVersion = new Version(1, 1);
         _http.DefaultVersionPolicy = System.Net.Http.HttpVersionPolicy.RequestVersionExact;
+
+        // Evita o cabeçalho "Expect: 100-continue" que o .NET manda por
+        // padrão em POST — não é a causa confirmada do bloqueio abaixo, mas
+        // é uma prática melhor de qualquer forma (menos uma volta de rede).
+        _http.DefaultRequestHeaders.ExpectContinue = false;
     }
 
-    public async Task<List<CandidatoProduto>> BuscarAsync(string palavraChave, int maxResultados, CancellationToken ct = default)
+    public async Task<ResultadoDescoberta> BuscarAsync(string palavraChave, int maxResultados, CancellationToken ct = default)
     {
         var query = $"site:shopee.com.br {palavraChave}";
         var conteudo = new FormUrlEncodedContent(new[] { new KeyValuePair<string, string>("q", query) });
@@ -40,15 +47,24 @@ public class DescobertaShopeeFetcher
         try
         {
             using var resposta = await _http.PostAsync("https://html.duckduckgo.com/html/", conteudo, ct);
+
+            // O DuckDuckGo responde 202 com uma página de "anomalia" quando
+            // detecta volume alto de requisições automatizadas vindas do
+            // mesmo IP num curto período — não é "sem resultados", é um
+            // bloqueio passageiro (visto na prática: passa em minutos/horas).
+            // Avisamos isso em vez de devolver uma lista vazia sem explicação.
+            if ((int)resposta.StatusCode == 202)
+                return new ResultadoDescoberta(new List<CandidatoProduto>(), BloqueadoTemporariamente: true);
+
             if (!resposta.IsSuccessStatusCode)
-                return new List<CandidatoProduto>();
+                return new ResultadoDescoberta(new List<CandidatoProduto>(), BloqueadoTemporariamente: false);
 
             var bytes = await resposta.Content.ReadAsByteArrayAsync(ct);
             html = System.Text.Encoding.UTF8.GetString(bytes);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            return new List<CandidatoProduto>();
+            return new ResultadoDescoberta(new List<CandidatoProduto>(), BloqueadoTemporariamente: false);
         }
 
         var agora = DateTime.UtcNow;
@@ -71,6 +87,6 @@ public class DescobertaShopeeFetcher
                 break;
         }
 
-        return candidatos;
+        return new ResultadoDescoberta(candidatos, BloqueadoTemporariamente: false);
     }
 }

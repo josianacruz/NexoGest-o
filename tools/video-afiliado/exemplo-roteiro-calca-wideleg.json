@@ -1,0 +1,54 @@
+{
+  "versao": "A - necessidade",
+  "cenas": [
+    {
+      "fala": "Quer uma ideia de look com jeans wide leg?",
+      "legenda": "Quer uma ideia de look com jeans wide leg?",
+      "tom": "pergunta",
+      "shots": [
+        { "imagem": "foto_mdxnurrmat4z2b.jpg", "crop": null, "fracao": 1.0 }
+      ]
+    },
+    {
+      "fala": "Olha esse modelo de cintura alta.",
+      "legenda": "Olha esse modelo de cintura alta.",
+      "tom": "explicacao",
+      "shots": [
+        { "imagem": "foto_mdxnurrbkiypff.jpg", "crop": "341:420:683:280", "fracao": 1.0 }
+      ]
+    },
+    {
+      "fala": "Aqui dá pra ver o corte mais amplo nas pernas e os detalhes da lavagem.",
+      "legenda": "Corte mais amplo nas pernas e detalhes da lavagem.",
+      "tom": "explicacao",
+      "shots": [
+        { "imagem": "foto_mdxnurrbkiypff.jpg", "crop": "341:1024:0:0", "fracao": 0.55 },
+        { "imagem": "foto_mdxnurrbkiypff.jpg", "crop": "342:374:341:650", "fracao": 0.45 }
+      ]
+    },
+    {
+      "fala": "Repara nos bolsos e nas costuras, dá pra ver o acabamento nas fotos do anúncio.",
+      "legenda": "Bolsos e costuras: acabamento visível nas fotos do anúncio.",
+      "tom": "explicacao",
+      "shots": [
+        { "imagem": "foto_mdxnurrbkiypff.jpg", "crop": "342:1024:341:0", "fracao": 1.0 }
+      ]
+    },
+    {
+      "fala": "Antes de escolher, confira a tabela de medidas e os tamanhos disponíveis.",
+      "legenda": "Confira a tabela de medidas e os tamanhos disponíveis.",
+      "tom": "explicacao",
+      "shots": [
+        { "imagem": "foto_mdxnurrmat4z2b.jpg", "crop": null, "fracao": 1.0 }
+      ]
+    },
+    {
+      "fala": "As opções estão no produto marcado.",
+      "legenda": "As opções estão no produto marcado.",
+      "tom": "fechamento",
+      "shots": [
+        { "imagem": "foto_mdxnurrbkiypff.jpg", "crop": "341:1024:0:0", "fracao": 1.0 }
+      ]
+    }
+  ]
+}

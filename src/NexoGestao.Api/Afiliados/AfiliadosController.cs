@@ -599,7 +599,11 @@ public class AfiliadosController : TenantControllerBase
 
         // Busca mais candidatos do que o pedido pra sobrar depois de remover
         // duplicados — sem isso, pedir 10 e já ter metade cadastrada devolveria poucos.
-        var candidatosBrutos = await _descobertaFetcher.BuscarAsync(request.PalavraChave, quantidadeMaxima * 3);
+        var descoberta = await _descobertaFetcher.BuscarAsync(request.PalavraChave, quantidadeMaxima * 3);
+        var candidatosBrutos = descoberta.Candidatos;
+
+        if (descoberta.BloqueadoTemporariamente)
+            limitacoes.Add("A busca pública (DuckDuckGo) está temporariamente limitando as requisições — costuma liberar sozinho em minutos. Tente de novo daqui a pouco, ou cadastre os links direto (opção abaixo) enquanto isso.");
 
         var linksExistentes = await Context.ProdutosAfiliados
             .Select(p => p.LinkOriginal)
@@ -671,7 +675,7 @@ public class AfiliadosController : TenantControllerBase
         if (request.GerarVideosAutomaticamente)
             limitacoes.Add("Geração automática de vídeo por busca ainda não está ligada ao backend (precisa do FFmpeg rodando em algum lugar — ver conversa sobre isso). Prepare os vídeos um a um pela tela normal por enquanto.");
 
-        if (candidatosBrutos.Count == 0)
+        if (candidatosBrutos.Count == 0 && !descoberta.BloqueadoTemporariamente)
             limitacoes.Add($"A busca por \"{request.PalavraChave}\" não encontrou nenhum link de produto da Shopee indexado publicamente — não significa que não existam produtos, só que não foram encontrados por este meio.");
 
         return Ok(new

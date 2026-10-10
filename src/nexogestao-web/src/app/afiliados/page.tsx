@@ -42,6 +42,29 @@ interface Configuracao {
   apiOficialHabilitada: boolean;
 }
 
+interface ResultadoBusca {
+  palavraChave: string;
+  prioridadeSolicitada: string;
+  prioridadeAplicada: string;
+  buscados: number;
+  importados: number;
+  duplicadosIgnorados: number;
+  limitacoes: string[];
+  produtos: ProdutoAfiliado[];
+}
+
+const formBusca = {
+  nicho: "",
+  palavraChave: "",
+  precoMin: "",
+  precoMax: "",
+  quantidadeMaxima: "10",
+  prioridade: "Relevancia",
+  comissaoMinima: "",
+  gerarVideosAutomaticamente: false,
+  limiteVideosAutomaticos: "3",
+};
+
 const formVazio = { linkOriginal: "", linkAfiliado: "", nome: "", categoria: "", imagemUrl: "", preco: "", comissaoPercentual: "" };
 
 async function mensagemDeErro(res: Response, padrao: string) {
@@ -71,6 +94,10 @@ export default function AfiliadosPage() {
   const [appIdForm, setAppIdForm] = useState("");
   const [appSecretForm, setAppSecretForm] = useState("");
   const [mostrarConfig, setMostrarConfig] = useState(false);
+
+  const [buscaForm, setBuscaForm] = useState(formBusca);
+  const [buscando, setBuscando] = useState(false);
+  const [resultadoBusca, setResultadoBusca] = useState<ResultadoBusca | null>(null);
 
   const [linksLote, setLinksLote] = useState("");
   const [csvArquivo, setCsvArquivo] = useState<File | null>(null);
@@ -167,6 +194,48 @@ export default function AfiliadosPage() {
       mostrarAviso("Configuração salva.");
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function buscarProdutos(e: React.FormEvent) {
+    e.preventDefault();
+    if (!empresaId || buscando) return;
+    const token = getToken();
+    if (!token) return;
+
+    if (!buscaForm.palavraChave.trim()) {
+      setErro("Informe uma palavra-chave pra buscar.");
+      return;
+    }
+
+    setBuscando(true);
+    setErro(null);
+    setResultadoBusca(null);
+    try {
+      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/afiliados/produtos/buscar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          palavraChave: buscaForm.palavraChave,
+          nicho: buscaForm.nicho || null,
+          precoMin: buscaForm.precoMin ? Number(buscaForm.precoMin) : null,
+          precoMax: buscaForm.precoMax ? Number(buscaForm.precoMax) : null,
+          quantidadeMaxima: Number(buscaForm.quantidadeMaxima) || 10,
+          prioridade: buscaForm.prioridade,
+          comissaoMinima: buscaForm.comissaoMinima ? Number(buscaForm.comissaoMinima) : null,
+          gerarVideosAutomaticamente: buscaForm.gerarVideosAutomaticamente,
+          limiteVideosAutomaticos: Number(buscaForm.limiteVideosAutomaticos) || 0,
+        }),
+      });
+      if (!res.ok) {
+        setErro(await mensagemDeErro(res, "Não foi possível buscar produtos."));
+        return;
+      }
+      const resultado: ResultadoBusca = await res.json();
+      setResultadoBusca(resultado);
+      await carregarTudo();
+    } finally {
+      setBuscando(false);
     }
   }
 
@@ -402,6 +471,134 @@ export default function AfiliadosPage() {
             {aviso}
           </p>
         )}
+
+        {/* Buscar produtos por palavra-chave */}
+        <section className={cardStyle}>
+          <h2 className="font-semibold mb-1">Buscar produtos e gerar vídeos</h2>
+          <p className="text-sm text-gray-500 mb-3">
+            Digite uma palavra-chave e o Nexo procura produtos da Shopee que combinem com
+            ela (busca pública — a Shopee não deixa buscar direto no site dela sem login),
+            importa os que achar e já prepara roteiro, legenda e hashtags.
+          </p>
+          <form onSubmit={buscarProdutos} className="space-y-3">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className={labelStyle}>Palavra-chave *</label>
+                <input
+                  className={inputStyle}
+                  required
+                  value={buscaForm.palavraChave}
+                  onChange={(e) => setBuscaForm({ ...buscaForm, palavraChave: e.target.value })}
+                  placeholder="Ex.: calça jeans feminina wide leg"
+                />
+              </div>
+              <div>
+                <label className={labelStyle}>Nicho/categoria (opcional)</label>
+                <input
+                  className={inputStyle}
+                  value={buscaForm.nicho}
+                  onChange={(e) => setBuscaForm({ ...buscaForm, nicho: e.target.value })}
+                  placeholder="Ex.: moda feminina"
+                />
+              </div>
+              <div>
+                <label className={labelStyle}>Preço mín. (opcional)</label>
+                <input
+                  className={inputStyle}
+                  type="number"
+                  step="0.01"
+                  value={buscaForm.precoMin}
+                  onChange={(e) => setBuscaForm({ ...buscaForm, precoMin: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className={labelStyle}>Preço máx. (opcional)</label>
+                <input
+                  className={inputStyle}
+                  type="number"
+                  step="0.01"
+                  value={buscaForm.precoMax}
+                  onChange={(e) => setBuscaForm({ ...buscaForm, precoMax: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className={labelStyle}>Quantidade máxima</label>
+                <input
+                  className={inputStyle}
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={buscaForm.quantidadeMaxima}
+                  onChange={(e) => setBuscaForm({ ...buscaForm, quantidadeMaxima: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className={labelStyle}>Prioridade</label>
+                <select
+                  className={inputStyle}
+                  value={buscaForm.prioridade}
+                  onChange={(e) => setBuscaForm({ ...buscaForm, prioridade: e.target.value })}
+                >
+                  <option value="Relevancia">Relevância</option>
+                  <option value="ComissaoReais">Maior comissão em reais</option>
+                  <option value="ComissaoPercentual">Maior % de comissão</option>
+                  <option value="SinaisVendas">Sinais de vendas</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelStyle}>Comissão mínima % (opcional)</label>
+                <input
+                  className={inputStyle}
+                  type="number"
+                  step="0.01"
+                  value={buscaForm.comissaoMinima}
+                  onChange={(e) => setBuscaForm({ ...buscaForm, comissaoMinima: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={buscaForm.gerarVideosAutomaticamente}
+                onChange={(e) => setBuscaForm({ ...buscaForm, gerarVideosAutomaticamente: e.target.checked })}
+              />
+              Gerar automaticamente os vídeos dos primeiros resultados
+              {buscaForm.gerarVideosAutomaticamente && (
+                <input
+                  className={`${inputStyle} w-20`}
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={buscaForm.limiteVideosAutomaticos}
+                  onChange={(e) => setBuscaForm({ ...buscaForm, limiteVideosAutomaticos: e.target.value })}
+                />
+              )}
+            </label>
+
+            <button type="submit" disabled={buscando} className={botaoPrimario}>
+              {buscando ? "Buscando..." : "Buscar"}
+            </button>
+          </form>
+
+          {resultadoBusca && (
+            <div className="mt-4 pt-4 border-t space-y-2">
+              <p className="text-sm">
+                <strong>{resultadoBusca.buscados}</strong> encontrado(s) na busca,{" "}
+                <strong>{resultadoBusca.importados}</strong> importado(s) agora,{" "}
+                {resultadoBusca.duplicadosIgnorados} já estavam cadastrados.
+              </p>
+              {resultadoBusca.prioridadeSolicitada !== resultadoBusca.prioridadeAplicada && (
+                <p className="text-xs text-amber-600">
+                  Prioridade aplicada: {resultadoBusca.prioridadeAplicada} (não {resultadoBusca.prioridadeSolicitada}) — ver aviso abaixo.
+                </p>
+              )}
+              {resultadoBusca.limitacoes.map((l, i) => (
+                <p key={i} className="text-xs text-amber-600">⚠ {l}</p>
+              ))}
+            </div>
+          )}
+        </section>
 
         {/* Passo 1: colar links */}
         <section className={cardStyle}>
