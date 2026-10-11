@@ -57,6 +57,22 @@ builder.Services.AddHttpClient<NexoGestao.Api.Shared.ShopeeMetadataFetcher>();
 // (DuckDuckGo) — nunca a busca autenticada da própria Shopee.
 builder.Services.AddHttpClient<NexoGestao.Api.Shared.DescobertaShopeeFetcher>();
 
+// Fila/worker local de geração de vídeo — DESLIGADO por padrão (ver VideosWorkerOptions).
+builder.Services.Configure<NexoGestao.Api.Videos.VideosWorkerOptions>(builder.Configuration.GetSection("Videos:Worker"));
+builder.Services.AddHostedService<NexoGestao.Api.Videos.FilaVideosService>();
+builder.Services.AddHttpClient("imagens-anuncio", c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(25);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+    c.DefaultRequestVersion = new Version(1, 1);
+    c.DefaultVersionPolicy = System.Net.Http.HttpVersionPolicy.RequestVersionExact;
+});
+
+// Lê só o 1º redirecionamento de links curtos de afiliada (s.shopee.com.br);
+// AllowAutoRedirect desligado de propósito pra nunca seguir além disso.
+builder.Services.AddHttpClient<NexoGestao.Api.Shared.ResolvedorLinkAfiliado>()
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
+
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 var jwtIssuer = builder.Configuration["Jwt:Issuer"]!;
 var jwtAudience = builder.Configuration["Jwt:Audience"]!;

@@ -27,7 +27,7 @@ public record AtualizarProdutoAfiliadoRequest(
     bool Ativo);
 
 public record CadastrarLoteRequest(List<string> Links);
-public record ImportarCsvRequest(string ConteudoCsv);
+public record ImportarRelatorioRequest(string ConteudoCsv, string? NomeArquivo);
 
 // Sem opções de comissão: removidas a pedido — não existe fonte real pra
 // comissão hoje (ver Buscar). SinaisVendas continua existindo mas também
@@ -64,16 +64,19 @@ public class AfiliadosController : TenantControllerBase
     };
 
     private readonly DescobertaShopeeFetcher _descobertaFetcher;
+    private readonly ResolvedorLinkAfiliado _resolvedorLink;
 
     public AfiliadosController(
         AppDbContext context,
         IDataProtectionProvider dataProtection,
         ShopeeMetadataFetcher metadataFetcher,
-        DescobertaShopeeFetcher descobertaFetcher) : base(context)
+        DescobertaShopeeFetcher descobertaFetcher,
+        ResolvedorLinkAfiliado resolvedorLink) : base(context)
     {
         _dataProtection = dataProtection;
         _metadataFetcher = metadataFetcher;
         _descobertaFetcher = descobertaFetcher;
+        _resolvedorLink = resolvedorLink;
     }
 
     private static bool LinkShopeeValido(string? link)
@@ -165,14 +168,61 @@ public class AfiliadosController : TenantControllerBase
     // --- Produtos de afiliada ---
 
     [HttpGet("produtos")]
-    public async Task<IActionResult> Listar(int empresaId)
+    public async Task<IActionResult> Listar(
+        int empresaId,
+        [FromQuery] string? q,
+        [FromQuery] decimal? precoMin,
+        [FromQuery] decimal? precoMax,
+        [FromQuery] int? vendasMin,
+        [FromQuery] int? vendasMax,
+        [FromQuery] decimal? comissaoPercMin,
+        [FromQuery] decimal? comissaoValorMin,
+        [FromQuery] string? ordenar,
+        [FromQuery] string? direcao)
     {
         var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 
-        var produtos = await Context.ProdutosAfiliados
-            .OrderByDescending(p => p.DataCadastro)
+        var consulta = Context.ProdutosAfiliados.AsQueryable();
+
+        // Filtros: produto sem o dado (null) NÃO passa num filtro desse dado —
+        // mas vendas == 0 é um valor real e passa, por exemplo, em "vendas até 0".
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var termo = q.Trim().ToLower();
+            consulta = consulta.Where(p => p.Nome.ToLower().Contains(termo)
+                || (p.NomeLoja != null && p.NomeLoja.ToLower().Contains(termo))
+                || (p.Categoria != null && p.Categoria.ToLower().Contains(termo)));
+        }
+        if (precoMin is not null) consulta = consulta.Where(p => p.Preco != null && p.Preco >= precoMin);
+        if (precoMax is not null) consulta = consulta.Where(p => p.Preco != null && p.Preco <= precoMax);
+        if (vendasMin is not null) consulta = consulta.Where(p => p.Vendas != null && p.Vendas >= vendasMin);
+        if (vendasMax is not null) consulta = consulta.Where(p => p.Vendas != null && p.Vendas <= vendasMax);
+        if (comissaoPercMin is not null) consulta = consulta.Where(p => p.ComissaoPercentual != null && p.ComissaoPercentual >= comissaoPercMin);
+        if (comissaoValorMin is not null) consulta = consulta.Where(p => p.ComissaoValor != null && p.ComissaoValor >= comissaoValorMin);
+
+        var crescente = string.Equals(direcao, "asc", StringComparison.OrdinalIgnoreCase);
+        // Ordenação: quem não tem o dado vai sempre pro fim, nunca "empata" com zero.
+        IOrderedQueryable<ProdutoAfiliado> ordenada = ordenar switch
+        {
+            "comissaoPercentual" => crescente
+                ? consulta.OrderBy(p => p.ComissaoPercentual == null).ThenBy(p => p.ComissaoPercentual)
+                : consulta.OrderBy(p => p.ComissaoPercentual == null).ThenByDescending(p => p.ComissaoPercentual),
+            "comissaoValor" => crescente
+                ? consulta.OrderBy(p => p.ComissaoValor == null).ThenBy(p => p.ComissaoValor)
+                : consulta.OrderBy(p => p.ComissaoValor == null).ThenByDescending(p => p.ComissaoValor),
+            "vendas" => crescente
+                ? consulta.OrderBy(p => p.Vendas == null).ThenBy(p => p.Vendas)
+                : consulta.OrderBy(p => p.Vendas == null).ThenByDescending(p => p.Vendas),
+            "preco" => crescente
+                ? consulta.OrderBy(p => p.Preco == null).ThenBy(p => p.Preco)
+                : consulta.OrderBy(p => p.Preco == null).ThenByDescending(p => p.Preco),
+            _ => consulta.OrderByDescending(p => p.DataCadastro),
+        };
+
+        var produtos = await ordenada
+            .ThenBy(p => p.Id)
             .Select(p => new
             {
                 p.Id,
@@ -182,6 +232,12 @@ public class AfiliadosController : TenantControllerBase
                 p.Categoria,
                 p.ImagemUrl,
                 p.Preco,
+                p.NomeLoja,
+                p.Vendas,
+                p.ComissaoPercentual,
+                p.ComissaoValor,
+                p.OrigemDados,
+                p.DataImportacao,
                 Origem = p.Origem.ToString(),
                 p.Ativo,
                 p.DataCadastro,
@@ -320,37 +376,87 @@ public class AfiliadosController : TenantControllerBase
         if (request.Links.Count > 50)
             return BadRequest(new { mensagem = "Envie no máximo 50 links por vez (cada um é buscado individualmente, com limite de tempo)." });
 
-        var linksNormalizados = request.Links
+        var entradas = request.Links
             .Select(l => l.Trim())
             .Where(l => l.Length > 0)
             .Distinct()
             .ToList();
 
-        var linksInvalidos = linksNormalizados.Where(l => !LinkShopeeValido(l)).ToList();
+        // Cada entrada vira (chave loja.item, link de afiliada se for link curto).
+        // Link curto de afiliada é resolvido lendo só o 1º redirecionamento.
+        var invalidos = new List<string>();
+        var porChave = new Dictionary<string, string?>();
+        using var limitadorResolucao = new SemaphoreSlim(3);
+        var resolucoes = await Task.WhenAll(entradas.Select(async entrada =>
+        {
+            if (LinkShopee.EhLinkCurto(entrada))
+            {
+                await limitadorResolucao.WaitAsync();
+                try
+                {
+                    var r = await _resolvedorLink.ResolverAsync(entrada);
+                    return (entrada, chave: r?.Chave, afiliada: r is null ? null : entrada);
+                }
+                finally { limitadorResolucao.Release(); }
+            }
 
-        var linksExistentes = await Context.ProdutosAfiliados
-            .Where(p => linksNormalizados.Contains(p.LinkOriginal))
-            .Select(p => p.LinkOriginal)
-            .ToListAsync();
+            return LinkShopee.TentarExtrairChave(entrada, out var k)
+                ? (entrada, chave: (string?)k, afiliada: (string?)null)
+                : (entrada, chave: (string?)null, afiliada: (string?)null);
+        }));
 
-        var linksParaCriar = linksNormalizados
-            .Except(linksInvalidos)
-            .Except(linksExistentes)
-            .ToList();
+        foreach (var (entrada, chave, afiliada) in resolucoes)
+        {
+            if (chave is null) { invalidos.Add(entrada); continue; }
+            // O mesmo produto pode vir em vários formatos/links; guarda o 1º link de afiliada visto.
+            if (!porChave.TryGetValue(chave, out var atual) || (atual is null && afiliada is not null))
+                porChave[chave] = afiliada;
+        }
+
+        // Produtos já cadastrados: comparados por loja/item (não pelo texto do link).
+        var existentes = (await Context.ProdutosAfiliados.ToListAsync())
+            .Select(p => (produto: p, ok: LinkShopee.TentarExtrairChave(p.LinkOriginal, out var k), chave: k))
+            .Where(x => x.ok)
+            .ToDictionary(x => x.chave, x => x.produto);
+
+        var atualizados = 0;
+        var chavesNovas = new List<string>();
+        foreach (var (chave, afiliada) in porChave)
+        {
+            if (existentes.TryGetValue(chave, out var existente))
+            {
+                // Já existe — só completa o link de afiliada se ainda não tinha.
+                if (afiliada is not null && existente.LinkAfiliado is null)
+                {
+                    existente.LinkAfiliado = afiliada;
+                    existente.DataUltimaAtualizacao = DateTime.UtcNow;
+                    atualizados++;
+                }
+            }
+            else
+            {
+                chavesNovas.Add(chave);
+            }
+        }
+        var duplicados = porChave.Count - chavesNovas.Count;
 
         // No máximo 3 buscas ao mesmo tempo — não sobrecarrega o backend nem
         // parece um ataque de scraping em massa pro servidor da Shopee.
         using var limitador = new SemaphoreSlim(3);
-        var tarefas = linksParaCriar.Select(async link =>
+        var tarefas = chavesNovas.Select(async chave =>
         {
             await limitador.WaitAsync();
             try
             {
-                var metadados = await _metadataFetcher.BuscarAsync(link);
+                var canonico = LinkShopee.Canonico(chave);
+                var metadados = await _metadataFetcher.BuscarAsync(canonico);
                 return new ProdutoAfiliado
                 {
                     EmpresaId = empresaAutorizada.Value,
-                    LinkOriginal = link,
+                    LinkOriginal = canonico,
+                    ShopId = LinkShopee.Ids(chave).shopId,
+                    ItemId = LinkShopee.Ids(chave).itemId,
+                    LinkAfiliado = porChave[chave],
                     Nome = metadados?.Nome ?? "(não foi possível obter o nome automaticamente)",
                     ImagemUrl = metadados?.ImagemUrl,
                     Categoria = metadados?.Categoria,
@@ -374,8 +480,10 @@ public class AfiliadosController : TenantControllerBase
             Criados = novos.Count,
             ComDadosAutomaticos = comDadosCompletos,
             SemDadosAutomaticos = novos.Count - comDadosCompletos,
-            Duplicados = linksExistentes.Count,
-            Invalidos = linksInvalidos,
+            ComLinkDeAfiliada = novos.Count(n => n.LinkAfiliado is not null),
+            Atualizados = atualizados,
+            Duplicados = duplicados,
+            Invalidos = invalidos,
         });
     }
 
@@ -438,109 +546,143 @@ public class AfiliadosController : TenantControllerBase
         return Ok(new { Preparados = pendentes.Count });
     }
 
-    // Importação CSV manual: colunas esperadas (cabeçalho obrigatório, nessa ordem)
-    // LinkOriginal,LinkAfiliado,Nome,Categoria,ImagemUrl,Preco
-    // LinkAfiliado/ImagemUrl/Preco podem vir vazios.
-    [HttpPost("produtos/importar-csv")]
-    public async Task<IActionResult> ImportarCsv(int empresaId, ImportarCsvRequest request)
+    // Importa o CSV exportado do gerador de links em lote do painel de afiliados
+    // (formato real, ver RelatorioShopeeCsv). Os dois links ficam EXATAMENTE como
+    // vieram; o mesmo anúncio nunca entra duas vezes (chave loja+item, mesmo que o
+    // link venha em outro formato); preço/vendas/comissão são guardados como
+    // informação do arquivo, com nome do arquivo e data da importação.
+    [HttpPost("produtos/importar-relatorio")]
+    public async Task<IActionResult> ImportarRelatorio(int empresaId, ImportarRelatorioRequest request)
     {
         var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 
         if (string.IsNullOrWhiteSpace(request.ConteudoCsv))
-            return BadRequest(new { mensagem = "Envie o conteúdo do CSV." });
+            return BadRequest(new { mensagem = "Envie o conteúdo do arquivo." });
 
-        var linhas = request.ConteudoCsv
-            .Split('\n')
-            .Select(l => l.TrimEnd('\r'))
-            .Where(l => l.Length > 0)
-            .ToList();
+        if (request.ConteudoCsv.Length > 2_000_000)
+            return BadRequest(new { mensagem = "Arquivo grande demais (limite de 2 MB)." });
 
-        if (linhas.Count < 2)
-            return BadRequest(new { mensagem = "O CSV precisa ter cabeçalho e ao menos uma linha de dados." });
+        var leitura = RelatorioShopeeCsv.Ler(request.ConteudoCsv, 500);
+        if (leitura.ErroGeral is not null)
+            return BadRequest(new { mensagem = leitura.ErroGeral });
 
-        if (linhas.Count > 501)
-            return BadRequest(new { mensagem = "Envie no máximo 500 linhas por importação." });
+        var erros = new List<string>(leitura.Erros);
+        var nomeArquivo = string.IsNullOrWhiteSpace(request.NomeArquivo) ? null : Path.GetFileName(request.NomeArquivo.Trim());
+        var origemDados = nomeArquivo is null
+            ? "Relatório exportado do painel de afiliados da Shopee"
+            : $"Relatório exportado do painel de afiliados da Shopee ({nomeArquivo})";
+        var agora = DateTime.UtcNow;
 
-        var erros = new List<string>();
-        var candidatos = new List<ProdutoAfiliado>();
-
-        for (var i = 1; i < linhas.Count; i++)
+        var validas = new List<(LinhaRelatorioShopee Linha, string Chave)>();
+        foreach (var l in leitura.Linhas)
         {
-            var colunas = linhas[i].Split(',').Select(c => c.Trim().Trim('"')).ToArray();
-            if (colunas.Length < 3)
+            if (!LinkShopee.TentarExtrairChave(l.LinkProduto, out var chave))
             {
-                erros.Add($"Linha {i + 1}: faltam colunas (precisa de LinkOriginal, LinkAfiliado, Nome no mínimo).");
+                erros.Add($"Linha {l.NumeroLinha}: o Product Link não é um link de produto da Shopee reconhecido.");
                 continue;
             }
 
-            var linkOriginal = colunas[0];
-            var linkAfiliado = colunas.Length > 1 && colunas[1].Length > 0 ? colunas[1] : null;
-            var nome = colunas.Length > 2 ? colunas[2] : "";
-            var categoria = colunas.Length > 3 && colunas[3].Length > 0 ? colunas[3] : null;
-            var imagemUrl = colunas.Length > 4 && colunas[4].Length > 0 ? colunas[4] : null;
-            decimal? preco = colunas.Length > 5 && decimal.TryParse(colunas[5], out var p) ? p : null;
-
-            if (!LinkShopeeValido(linkOriginal))
+            var (_, itemDoLink) = LinkShopee.Ids(chave);
+            if (itemDoLink?.ToString() != l.ItemId)
             {
-                erros.Add($"Linha {i + 1}: link original inválido ou fora do domínio da Shopee.");
+                erros.Add($"Linha {l.NumeroLinha}: o Item Id ({l.ItemId}) não bate com o do Product Link ({itemDoLink}).");
                 continue;
             }
 
-            if (linkAfiliado is not null && !LinkShopeeValido(linkAfiliado))
+            if (!LinkShopeeValido(l.LinkOferta))
             {
-                erros.Add($"Linha {i + 1}: link de afiliada inválido ou fora do domínio da Shopee.");
+                erros.Add($"Linha {l.NumeroLinha}: o Offer Link não é um link da Shopee.");
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(nome))
+            validas.Add((l, chave));
+        }
+
+        // Mesmo anúncio repetido no arquivo: vale a primeira linha.
+        var vistas = new Dictionary<string, LinhaRelatorioShopee>();
+        var duplicadosNoArquivo = 0;
+        var linksDeOfertaDiferentes = 0;
+        foreach (var (linha, chave) in validas)
+        {
+            if (vistas.TryGetValue(chave, out var primeira))
             {
-                erros.Add($"Linha {i + 1}: nome do produto vazio.");
+                duplicadosNoArquivo++;
+                if (primeira.LinkOferta != linha.LinkOferta) linksDeOfertaDiferentes++;
+                continue;
+            }
+            vistas[chave] = linha;
+        }
+
+        var existentes = new Dictionary<string, ProdutoAfiliado>();
+        foreach (var p in await Context.ProdutosAfiliados.ToListAsync())
+        {
+            var chaveExistente = p.ShopId is not null && p.ItemId is not null
+                ? $"{p.ShopId}.{p.ItemId}"
+                : LinkShopee.TentarExtrairChave(p.LinkOriginal, out var k) ? k : null;
+            if (chaveExistente is not null)
+                existentes[chaveExistente] = p;
+        }
+
+        var criados = 0;
+        var atualizados = 0;
+        foreach (var (chave, l) in vistas)
+        {
+            var (shopId, itemId) = LinkShopee.Ids(chave);
+
+            if (existentes.TryGetValue(chave, out var existente))
+            {
+                // Já existe: os links NÃO são tocados (só preenchidos se estavam vazios).
+                // Números do arquivo mais novo substituem os antigos — cada um com a data da importação.
+                if (existente.LinkAfiliado is null) existente.LinkAfiliado = l.LinkOferta;
+                else if (existente.LinkAfiliado != l.LinkOferta) linksDeOfertaDiferentes++;
+
+                existente.ShopId ??= shopId;
+                existente.ItemId ??= itemId;
+                if (l.Preco is not null) existente.Preco = l.Preco;
+                if (l.Vendas is not null) existente.Vendas = l.Vendas;
+                if (l.NomeLoja is not null) existente.NomeLoja = l.NomeLoja;
+                if (l.ComissaoPercentual is not null) existente.ComissaoPercentual = l.ComissaoPercentual;
+                if (l.ComissaoValor is not null) existente.ComissaoValor = l.ComissaoValor;
+                existente.OrigemDados = origemDados;
+                existente.DataImportacao = agora;
+                existente.DataUltimaAtualizacao = agora;
+                atualizados++;
                 continue;
             }
 
-            candidatos.Add(new ProdutoAfiliado
+            Context.ProdutosAfiliados.Add(new ProdutoAfiliado
             {
                 EmpresaId = empresaAutorizada.Value,
-                LinkOriginal = linkOriginal,
-                LinkAfiliado = linkAfiliado,
-                Nome = nome,
-                Categoria = categoria,
-                ImagemUrl = imagemUrl,
-                Preco = preco,
-                Origem = OrigemProdutoAfiliado.Csv,
+                LinkOriginal = l.LinkProduto,
+                LinkAfiliado = l.LinkOferta,
+                Nome = l.Nome,
+                ShopId = shopId,
+                ItemId = itemId,
+                Preco = l.Preco,
+                Vendas = l.Vendas,
+                NomeLoja = l.NomeLoja,
+                ComissaoPercentual = l.ComissaoPercentual,
+                ComissaoValor = l.ComissaoValor,
+                OrigemDados = origemDados,
+                DataImportacao = agora,
+                Origem = OrigemProdutoAfiliado.RelatorioShopee,
             });
+            criados++;
         }
 
-        var linksCandidatos = candidatos.Select(c => c.LinkOriginal).ToList();
-        var linksExistentes = await Context.ProdutosAfiliados
-            .Where(p => linksCandidatos.Contains(p.LinkOriginal))
-            .Select(p => p.LinkOriginal)
-            .ToListAsync();
-
-        // Também evita duplicar dentro do próprio arquivo CSV enviado.
-        var vistos = new HashSet<string>();
-        var paraCriar = new List<ProdutoAfiliado>();
-        var duplicados = 0;
-        foreach (var candidato in candidatos)
-        {
-            if (linksExistentes.Contains(candidato.LinkOriginal) || !vistos.Add(candidato.LinkOriginal))
-            {
-                duplicados++;
-                continue;
-            }
-            paraCriar.Add(candidato);
-        }
-
-        Context.ProdutosAfiliados.AddRange(paraCriar);
         await Context.SaveChangesAsync();
 
         return Ok(new
         {
-            Criados = paraCriar.Count,
-            Duplicados = duplicados,
+            Criados = criados,
+            Atualizados = atualizados,
+            DuplicadosNoArquivo = duplicadosNoArquivo,
+            LinksDeOfertaDiferentes = linksDeOfertaDiferentes,
             Erros = erros,
+            OrigemDados = origemDados,
+            DataImportacao = agora,
         });
     }
 
@@ -582,12 +724,20 @@ public class AfiliadosController : TenantControllerBase
         if (descoberta.BloqueadoTemporariamente)
             limitacoes.Add("A busca pública (DuckDuckGo) está temporariamente limitando as requisições — costuma liberar sozinho em minutos. Tente de novo daqui a pouco, ou cadastre os links direto (opção abaixo) enquanto isso.");
 
-        var linksExistentes = await Context.ProdutosAfiliados
-            .Select(p => p.LinkOriginal)
-            .ToListAsync();
+        // Comparação por loja/item, não pelo texto do link (o mesmo produto vem
+        // em formatos diferentes) — e o link guardado é sempre o canônico.
+        var chavesExistentes = (await Context.ProdutosAfiliados.Select(p => p.LinkOriginal).ToListAsync())
+            .Select(l => LinkShopee.TentarExtrairChave(l, out var k) ? k : null)
+            .Where(k => k is not null)
+            .ToHashSet();
 
         var candidatosNovos = candidatosBrutos
-            .Where(c => !linksExistentes.Contains(c.LinkOriginal))
+            .Where(c => LinkShopee.TentarExtrairChave(c.LinkOriginal, out var k) && !chavesExistentes.Contains(k))
+            .Select(c =>
+            {
+                LinkShopee.TentarExtrairChave(c.LinkOriginal, out var k);
+                return c with { LinkOriginal = LinkShopee.Canonico(k) };
+            })
             .Take(quantidadeMaxima)
             .ToList();
 
@@ -622,6 +772,8 @@ public class AfiliadosController : TenantControllerBase
             {
                 EmpresaId = empresaAutorizada.Value,
                 LinkOriginal = candidato.LinkOriginal,
+                ShopId = LinkShopee.TentarExtrairChave(candidato.LinkOriginal, out var chaveBusca) ? LinkShopee.Ids(chaveBusca).shopId : null,
+                ItemId = LinkShopee.TentarExtrairChave(candidato.LinkOriginal, out var chaveBusca2) ? LinkShopee.Ids(chaveBusca2).itemId : null,
                 Nome = metadados.Nome,
                 ImagemUrl = metadados.ImagemUrl,
                 Categoria = metadados.Categoria,

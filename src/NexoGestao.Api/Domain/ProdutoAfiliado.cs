@@ -7,15 +7,17 @@ public enum OrigemProdutoAfiliado
     Csv,
     ApiOficial,
     BuscaAutomatica,
+    RelatorioShopee,
 }
 
 // Representa um produto de afiliada (hoje só Shopee) cadastrado pela empresa.
 // Nunca inventamos Preco/LinkAfiliado aqui — ficam nulos até o próprio
 // usuário informar (manual/CSV) ou até a API oficial devolver o dado.
-// Sem campo de comissão: removido porque não existe nenhuma fonte real
-// pra esse dado hoje (nem a página pública do produto, nem a API oficial
-// da Shopee — essa última nunca foi ligada) e mantê-lo gerava a impressão
-// de que a comissão vinha de algum lugar confiável.
+// Comissão, preço, vendas e loja SÓ existem quando vieram de um relatório
+// exportado do painel de afiliados da Shopee (Origem == RelatorioShopee):
+// são informação do arquivo, na data da importação, sujeita às condições da
+// Shopee — nunca calculados nem inferidos pelo Nexo. Vendas == 0 é um valor
+// real (produto sem vendas); null significa "o arquivo não trouxe".
 public class ProdutoAfiliado
 {
     public int Id { get; set; }
@@ -28,6 +30,20 @@ public class ProdutoAfiliado
     public string? Categoria { get; set; }
     public string? ImagemUrl { get; set; }
     public decimal? Preco { get; set; }
+
+    // Identificador do anúncio na Shopee (par loja/item) — chave de
+    // deduplicação dentro da empresa, independente do formato do link.
+    public long? ShopId { get; set; }
+    public long? ItemId { get; set; }
+
+    public string? NomeLoja { get; set; }
+    public int? Vendas { get; set; }
+    public decimal? ComissaoPercentual { get; set; }
+    public decimal? ComissaoValor { get; set; }
+
+    // De onde vieram preço/vendas/comissão e quando (nome do arquivo + data).
+    public string? OrigemDados { get; set; }
+    public DateTime? DataImportacao { get; set; }
 
     public OrigemProdutoAfiliado Origem { get; set; } = OrigemProdutoAfiliado.Manual;
     public bool Ativo { get; set; } = true;

@@ -924,10 +924,19 @@ namespace NexoGestao.Api.Migrations
                     b.Property<string>("Categoria")
                         .HasColumnType("text");
 
+                    b.Property<decimal?>("ComissaoPercentual")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("ComissaoValor")
+                        .HasColumnType("numeric");
+
                     b.Property<DateTime>("DataCadastro")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("DataConsultaFonte")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DataImportacao")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("DataUltimaAtualizacao")
@@ -941,6 +950,9 @@ namespace NexoGestao.Api.Migrations
 
                     b.Property<string>("ImagemUrl")
                         .HasColumnType("text");
+
+                    b.Property<long?>("ItemId")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("LinkAfiliado")
                         .HasColumnType("text");
@@ -956,16 +968,32 @@ namespace NexoGestao.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("NomeLoja")
+                        .HasColumnType("text");
+
                     b.Property<int>("Origem")
                         .HasColumnType("integer");
 
+                    b.Property<string>("OrigemDados")
+                        .HasColumnType("text");
+
                     b.Property<decimal?>("Preco")
                         .HasColumnType("numeric");
+
+                    b.Property<long?>("ShopId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("Vendas")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
                     b.HasIndex("EmpresaId", "LinkOriginal")
                         .IsUnique();
+
+                    b.HasIndex("EmpresaId", "ShopId", "ItemId")
+                        .IsUnique()
+                        .HasFilter("\"ItemId\" IS NOT NULL");
 
                     b.ToTable("ProdutosAfiliados");
                 });
@@ -1118,6 +1146,77 @@ namespace NexoGestao.Api.Migrations
                     b.HasIndex("EmpresaId");
 
                     b.ToTable("Vendas");
+                });
+
+            modelBuilder.Entity("NexoGestao.Api.Domain.VideoAfiliado", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ArquivoRelativo")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("DuracaoSegundos")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Hashtags")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Legenda")
+                        .HasColumnType("text");
+
+                    b.Property<string>("MateriaisJson")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("MateriaisLidosEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Mensagem")
+                        .HasColumnType("text");
+
+                    b.Property<string>("MusicaCredito")
+                        .HasColumnType("text");
+
+                    b.Property<int>("ProdutoAfiliadoId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RoteiroJson")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("TamanhoBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<double?>("TempoProcessamentoSegundos")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Tentativas")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("VersaoRoteiro")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProdutoAfiliadoId");
+
+                    b.HasIndex("EmpresaId", "Status");
+
+                    b.ToTable("VideosAfiliados");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -1551,6 +1650,25 @@ namespace NexoGestao.Api.Migrations
                     b.Navigation("Cliente");
 
                     b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("NexoGestao.Api.Domain.VideoAfiliado", b =>
+                {
+                    b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NexoGestao.Api.Domain.ProdutoAfiliado", "ProdutoAfiliado")
+                        .WithMany()
+                        .HasForeignKey("ProdutoAfiliadoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("ProdutoAfiliado");
                 });
 
             modelBuilder.Entity("NexoGestao.Api.Domain.Comanda", b =>

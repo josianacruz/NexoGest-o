@@ -36,6 +36,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<ProdutoAfiliado> ProdutosAfiliados => Set<ProdutoAfiliado>();
     public DbSet<ConfiguracaoAfiliados> ConfiguracoesAfiliados => Set<ConfiguracaoAfiliados>();
     public DbSet<ConteudoAfiliado> ConteudosAfiliados => Set<ConteudoAfiliado>();
+    public DbSet<VideoAfiliado> VideosAfiliados => Set<VideoAfiliado>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -63,9 +64,16 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         // duplicação do item 1 dos requisitos); empresas diferentes podem
         // divulgar o mesmo produto sem conflito.
         builder.Entity<ProdutoAfiliado>().HasIndex(p => new { p.EmpresaId, p.LinkOriginal }).IsUnique();
+        // Mesmo anúncio (loja+item) nunca duas vezes na mesma empresa, mesmo que o link venha em formatos diferentes.
+        builder.Entity<ProdutoAfiliado>()
+            .HasIndex(p => new { p.EmpresaId, p.ShopId, p.ItemId })
+            .IsUnique()
+            .HasFilter("\"ItemId\" IS NOT NULL");
         builder.Entity<ConfiguracaoAfiliados>().HasQueryFilter(c => EmpresaAtualId != null && c.EmpresaId == EmpresaAtualId);
         builder.Entity<ConfiguracaoAfiliados>().HasIndex(c => c.EmpresaId).IsUnique();
         builder.Entity<ConteudoAfiliado>().HasQueryFilter(c => EmpresaAtualId != null && c.EmpresaId == EmpresaAtualId);
         builder.Entity<ConteudoAfiliado>().HasIndex(c => c.ProdutoAfiliadoId).IsUnique();
+        builder.Entity<VideoAfiliado>().HasQueryFilter(v => EmpresaAtualId != null && v.EmpresaId == EmpresaAtualId);
+        builder.Entity<VideoAfiliado>().HasIndex(v => new { v.EmpresaId, v.Status });
     }
 }

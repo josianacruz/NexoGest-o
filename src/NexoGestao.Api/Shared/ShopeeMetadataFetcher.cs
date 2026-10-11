@@ -4,6 +4,8 @@ namespace NexoGestao.Api.Shared;
 
 public record MetadadosShopee(string? Nome, string? ImagemUrl, string? Categoria);
 
+public record MateriaisShopee(string Titulo, List<string> Imagens, DateTime LidoEm);
+
 // Busca só metadados PÚBLICOS que a própria Shopee expõe no HTML pra gerar
 // preview de link (og:title/og:image) — o mesmo mecanismo que WhatsApp/
 // Facebook usam. Sem login, sem JavaScript, sem CAPTCHA, sem contornar nada:
@@ -92,6 +94,52 @@ public class ShopeeMetadataFetcher
                 return null;
 
             return new MetadadosShopee(nome, imagem, categoria);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return null;
+        }
+    }
+
+    private static readonly Regex IdImagem = new(@"susercontent\.com/file/([A-Za-z0-9_-]+)", RegexOptions.Compiled);
+
+    // Título completo e fotos da galeria do PRÓPRIO anúncio (bloco "product-carousel"
+    // da página pública) — nunca fotos de produtos relacionados, que aparecem em
+    // outros trechos da página. Sem o bloco, só a imagem de preview (og:image).
+    public async Task<MateriaisShopee?> LerMateriaisAsync(string linkProduto, int maxImagens = 9, CancellationToken ct = default)
+    {
+        try
+        {
+            using var resposta = await _http.GetAsync(linkProduto, ct);
+            if (!resposta.IsSuccessStatusCode)
+                return null;
+
+            var html = System.Text.Encoding.UTF8.GetString(await resposta.Content.ReadAsByteArrayAsync(ct));
+
+            var tituloBruto = ExtrairConteudoDaTag(OgTitleTag, html);
+            var titulo = tituloBruto is null
+                ? null
+                : System.Net.WebUtility.HtmlDecode(tituloBruto).Split(" | Shopee")[0].Trim();
+            if (string.IsNullOrWhiteSpace(titulo) || titulo.Contains("Shopee Brasil"))
+                return null;
+
+            var imagens = new List<string>();
+            var inicio = html.IndexOf("class=\"product-carousel\"", StringComparison.Ordinal);
+            if (inicio >= 0)
+            {
+                var bloco = html.Substring(inicio, Math.Min(40000, html.Length - inicio));
+                foreach (Match m in IdImagem.Matches(bloco))
+                {
+                    var url = "https://down-br.img.susercontent.com/file/" + m.Groups[1].Value;
+                    if (!imagens.Contains(url)) imagens.Add(url);
+                    if (imagens.Count >= maxImagens) break;
+                }
+            }
+
+            if (imagens.Count == 0 && ExtrairConteudoDaTag(OgImageTag, html) is { Length: > 0 } og)
+                imagens.Add(og);
+
+            return new MateriaisShopee(titulo, imagens, DateTime.UtcNow);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {

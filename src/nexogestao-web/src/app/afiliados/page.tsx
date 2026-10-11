@@ -269,7 +269,9 @@ export default function AfiliadosPage() {
       mostrarAviso(
         `${resultado.criados} produto(s) adicionado(s) — ${resultado.comDadosAutomaticos} com nome/foto/categoria encontrados automaticamente` +
           (resultado.semDadosAutomaticos > 0 ? `, ${resultado.semDadosAutomaticos} ficaram pendentes (não deu pra buscar os dados)` : "") +
-          `. ${resultado.duplicados} já existiam.` +
+          (resultado.comLinkDeAfiliada > 0 ? ` ${resultado.comLinkDeAfiliada} já com o seu link de afiliada.` : "") +
+          (resultado.atualizados > 0 ? ` ${resultado.atualizados} existente(s) ganhou(aram) o link de afiliada.` : "") +
+          ` ${resultado.duplicados} já existiam (mesmo produto, mesmo que o link venha em outro formato).` +
           (resultado.invalidos.length > 0 ? ` ${resultado.invalidos.length} link(s) fora do domínio da Shopee foram ignorados.` : "")
       );
       await carregarTudo();
