@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# vídeos gerados pelo worker local (nunca versionar)
+src/NexoGestao.Api/storage/

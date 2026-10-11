@@ -29,6 +29,8 @@ public record AtualizarProdutoAfiliadoRequest(
 public record CadastrarLoteRequest(List<string> Links);
 public record ImportarRelatorioRequest(string ConteudoCsv, string? NomeArquivo);
 
+public record GerarVideosRequest(List<int> ProdutoIds, Dictionary<int, string>? ObservacoesRevisao);
+
 // Sem opções de comissão: removidas a pedido — não existe fonte real pra
 // comissão hoje (ver Buscar). SinaisVendas continua existindo mas também
 // cai pra Relevancia na prática, já que não há fonte de vendas pública.
@@ -65,14 +67,20 @@ public class AfiliadosController : TenantControllerBase
 
     private readonly DescobertaShopeeFetcher _descobertaFetcher;
     private readonly ResolvedorLinkAfiliado _resolvedorLink;
+    private readonly NexoGestao.Api.Videos.VideosWorkerOptions _opcoesVideo;
+    private readonly IHostEnvironment _ambiente;
 
     public AfiliadosController(
         AppDbContext context,
         IDataProtectionProvider dataProtection,
         ShopeeMetadataFetcher metadataFetcher,
         DescobertaShopeeFetcher descobertaFetcher,
-        ResolvedorLinkAfiliado resolvedorLink) : base(context)
+        ResolvedorLinkAfiliado resolvedorLink,
+        Microsoft.Extensions.Options.IOptions<NexoGestao.Api.Videos.VideosWorkerOptions> opcoesVideo,
+        IHostEnvironment ambiente) : base(context)
     {
+        _opcoesVideo = opcoesVideo.Value;
+        _ambiente = ambiente;
         _dataProtection = dataProtection;
         _metadataFetcher = metadataFetcher;
         _descobertaFetcher = descobertaFetcher;
@@ -684,6 +692,153 @@ public class AfiliadosController : TenantControllerBase
             OrigemDados = origemDados,
             DataImportacao = agora,
         });
+    }
+
+    // --- Fila de vídeos (o processamento acontece no worker local, nunca nesta requisição) ---
+
+    [HttpPost("videos/gerar")]
+    public async Task<IActionResult> GerarVideos(int empresaId, GerarVideosRequest request)
+    {
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        if (empresaAutorizada is null)
+            return Forbid();
+
+        var ids = (request.ProdutoIds ?? new()).Distinct().ToList();
+        if (ids.Count == 0)
+            return BadRequest(new { mensagem = "Selecione ao menos um produto." });
+        if (ids.Count > 20)
+            return BadRequest(new { mensagem = "Gere no máximo 20 vídeos por vez (cada um leva cerca de 1 minuto de processamento)." });
+
+        var produtos = await Context.ProdutosAfiliados.Where(p => ids.Contains(p.Id)).Select(p => p.Id).ToListAsync();
+        var jaTem = await Context.VideosAfiliados
+            .Where(v => ids.Contains(v.ProdutoAfiliadoId) &&
+                        (v.Status == StatusVideoAfiliado.Pendente || v.Status == StatusVideoAfiliado.Processando || v.Status == StatusVideoAfiliado.Pronto))
+            .Select(v => v.ProdutoAfiliadoId).ToListAsync();
+
+        var ignorados = new List<object>();
+        var criados = 0;
+        foreach (var id in ids)
+        {
+            if (!produtos.Contains(id)) { ignorados.Add(new { produtoId = id, motivo = "Produto não encontrado nesta empresa." }); continue; }
+            if (jaTem.Contains(id)) { ignorados.Add(new { produtoId = id, motivo = "Já tem vídeo pronto ou na fila." }); continue; }
+
+            string? obs = null;
+            request.ObservacoesRevisao?.TryGetValue(id, out obs);
+            Context.VideosAfiliados.Add(new VideoAfiliado
+            {
+                EmpresaId = empresaAutorizada.Value,
+                ProdutoAfiliadoId = id,
+                ObservacaoRevisao = string.IsNullOrWhiteSpace(obs) ? null : obs.Trim()[..Math.Min(200, obs.Trim().Length)],
+            });
+            criados++;
+        }
+        await Context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            Criadas = criados,
+            Ignorados = ignorados,
+            WorkerAtivo = _opcoesVideo.Habilitado,
+            Aviso = _opcoesVideo.Habilitado
+                ? null
+                : "O processamento de vídeo está desligado neste ambiente (precisa do worker local com FFmpeg). As tarefas ficam pendentes até ele ser ligado.",
+            ModoUsado = "FotosEdicaoDinamica",
+            ModoIA = new
+            {
+                Disponivel = false,
+                Motivo = "Vídeo com modelo/apresentadora animada por IA não está disponível: exige GPU potente (esta máquina só tem placa integrada, e o GitHub Actions gratuito não tem GPU) e nenhuma ferramenta gratuita avaliada garante fidelidade exata do produto sem revisão manual. Os vídeos são montagens de fotos reais do anúncio, e não animação de pessoa.",
+            },
+        });
+    }
+
+    [HttpGet("videos")]
+    public async Task<IActionResult> ListarVideos(int empresaId)
+    {
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        if (empresaAutorizada is null)
+            return Forbid();
+
+        var videos = await Context.VideosAfiliados
+            .OrderByDescending(v => v.Id)
+            .Select(v => new
+            {
+                v.Id,
+                v.ProdutoAfiliadoId,
+                Produto = new
+                {
+                    v.ProdutoAfiliado.Nome,
+                    v.ProdutoAfiliado.ImagemUrl,
+                    v.ProdutoAfiliado.LinkOriginal,
+                    v.ProdutoAfiliado.LinkAfiliado,
+                    v.ProdutoAfiliado.Preco,
+                    v.ProdutoAfiliado.Vendas,
+                    v.ProdutoAfiliado.NomeLoja,
+                    v.ProdutoAfiliado.ComissaoPercentual,
+                    v.ProdutoAfiliado.ComissaoValor,
+                    v.ProdutoAfiliado.OrigemDados,
+                    v.ProdutoAfiliado.DataImportacao,
+                },
+                Status = v.Status.ToString(),
+                v.Mensagem,
+                v.Modo,
+                v.CategoriaDetectada,
+                v.ObservacaoRevisao,
+                v.VersaoRoteiro,
+                v.Legenda,
+                v.Hashtags,
+                v.MusicaCredito,
+                v.MateriaisLidosEm,
+                v.DuracaoSegundos,
+                v.TamanhoBytes,
+                v.TempoProcessamentoSegundos,
+                TemArquivo = v.ArquivoRelativo != null,
+                v.CriadoEm,
+                v.AtualizadoEm,
+            })
+            .ToListAsync();
+
+        return Ok(videos);
+    }
+
+    [HttpGet("videos/{videoId:int}/arquivo")]
+    public async Task<IActionResult> BaixarVideo(int empresaId, int videoId)
+    {
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        if (empresaAutorizada is null)
+            return Forbid();
+
+        var video = await Context.VideosAfiliados.FirstOrDefaultAsync(v => v.Id == videoId);
+        if (video?.ArquivoRelativo is null)
+            return NotFound(new { mensagem = "Vídeo ainda não está pronto." });
+
+        // O arquivo mora em disco na máquina do worker; garante que o caminho não escapa da pasta de vídeos.
+        var baseDir = Path.GetFullPath(NexoGestao.Api.Videos.FilaVideosService.PastaSaida(_opcoesVideo, _ambiente));
+        var arquivo = Path.GetFullPath(Path.Combine(baseDir, video.ArquivoRelativo));
+        if (!arquivo.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || !System.IO.File.Exists(arquivo))
+            return NotFound(new { mensagem = "O arquivo do vídeo não está mais disponível nesta máquina." });
+
+        return PhysicalFile(arquivo, "video/mp4", $"video-{videoId}.mp4", enableRangeProcessing: true);
+    }
+
+    [HttpPost("videos/{videoId:int}/tentar-de-novo")]
+    public async Task<IActionResult> TentarDeNovo(int empresaId, int videoId)
+    {
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        if (empresaAutorizada is null)
+            return Forbid();
+
+        var video = await Context.VideosAfiliados.FirstOrDefaultAsync(v => v.Id == videoId);
+        if (video is null)
+            return NotFound(new { mensagem = "Vídeo não encontrado." });
+        if (video.Status is not (StatusVideoAfiliado.Erro or StatusVideoAfiliado.SemMateriais))
+            return BadRequest(new { mensagem = "Só dá pra tentar de novo um vídeo com erro ou sem materiais." });
+
+        video.Status = StatusVideoAfiliado.Pendente;
+        video.Tentativas = 0;
+        video.Mensagem = null;
+        video.AtualizadoEm = DateTime.UtcNow;
+        await Context.SaveChangesAsync();
+        return Ok(new { video.Id, Status = video.Status.ToString() });
     }
 
     // "Buscar produtos e gerar vídeos": descobre produtos a partir de uma

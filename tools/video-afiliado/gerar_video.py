@@ -33,9 +33,13 @@ MUSICA = os.environ.get("MUSICA_FUNDO", "musica_fundo.wav")
 W, H = 1080, 1920
 JANELA_Y, JANELA_H = 90, 1270          # foto: y 90..1360
 LEGENDA_Y = 1410                       # faixa da legenda: abaixo da foto, acima da zona dos botões
-FONTE_TAM = 66
-CHARS_POR_LINHA = 22                   # ~860 px de largura útil com fonte 66 negrito
+FONTE_TAM = 62
+CHARS_POR_LINHA = 24                   # ~820 px de largura útil com fonte 62 negrito
 MAX_LINHAS = 2
+MARGEM_DIREITA = 100                   # reserva à direita pros botões do app (legenda desloca metade disso pra esquerda)
+MIN_FRAGMENTO = 14                     # bloco de legenda menor que isso é fragmento: junta com o vizinho
+MAX_AUMENTO = 2.0                      # nunca amplia a foto mais que 2x (acima disso perde nitidez)
+PERDA_MAX_GRANDE = 0.08                # modo "grande" só se cortar até 8% da foto (evita cortar texto/detalhe da própria foto); senão mostra inteira
 
 # Ritmo/tom por tipo de fala: pergunta um pouco mais viva, explicação neutra,
 # fechamento mais pausado.
@@ -78,33 +82,150 @@ def _proteger_unidades(texto):
     return re.sub(r"(\d) (ml|mL|l|g|kg|cm|mm|m|W|V|GB|MB|%)(?![A-Za-zÀ-ú])", "\\1\u00a0\\2", texto)
 
 
-def dividir_em_blocos(legenda):
-    """Quebra a legenda em blocos de no máximo MAX_LINHAS linhas curtas.
+def _cabe_em_linhas(texto):
+    """Quebra `texto` em até MAX_LINHAS linhas equilibradas; None se não couber."""
+    if len(texto) <= CHARS_POR_LINHA:
+        return [texto]
+    primeira_que_cabe = None
+    for largura in range(max(8, -(-len(texto) // MAX_LINHAS)), CHARS_POR_LINHA + 1):
+        tentativa = textwrap.wrap(texto, width=largura, break_long_words=False)
+        if len(tentativa) <= MAX_LINHAS:
+            primeira_que_cabe = primeira_que_cabe or tentativa
+            # Evita linha terminando em conectivo/"a" ("Voyage 2016 a" / "2023"): prefere outra largura.
+            if len(tentativa) == 1 or tentativa[0].split()[-1].lower() not in _PENDENTES:
+                return tentativa
+    return primeira_que_cabe
 
-    `legenda` pode ser texto único (quebrado automaticamente em blocos) ou uma
-    lista de blocos já definidos (cada um ainda é verificado). Nunca corta
-    palavra nem descarta texto: se não cabe, vira mais um bloco."""
-    partes = legenda if isinstance(legenda, list) else [legenda]
-    blocos = []
-    for parte in partes:
-        texto = _proteger_unidades(parte)
-        # Linhas equilibradas: procura a menor largura que ainda cabe em MAX_LINHAS.
-        linhas = None
-        if len(texto) <= CHARS_POR_LINHA:
-            linhas = [texto]
-        for largura in ([] if linhas else range(max(8, -(-len(texto) // MAX_LINHAS)), CHARS_POR_LINHA + 1)):
-            tentativa = textwrap.wrap(texto, width=largura, break_long_words=False)
-            if len(tentativa) <= MAX_LINHAS:
-                linhas = tentativa
+
+_CONECTIVOS = {"e", "ou", "com", "sem", "pra", "pro", "para", "de", "da", "do", "em", "no", "na", "que", "se"}
+_PENDENTES = _CONECTIVOS | {"a", "o", "os", "as", "um", "uma", "uns", "umas", "mais", "menos", "muito", "bem", "tão", "por", "ao", "aos", "à", "às", "pelo", "pela", "sobre", "entre"}
+
+
+def _quebrar_por_sentido(texto):
+    """Se o texto não cabe em 2 linhas, parte no ponto mais natural perto do meio
+    (depois de pontuação ou antes de conectivo) em vez de deixar uma palavra sozinha."""
+    if _cabe_em_linhas(texto):
+        return [texto]
+    palavras = texto.split()
+    if len(palavras) < 2:
+        return [texto]
+    melhor, melhor_nota = 1, None
+    for k in range(1, len(palavras)):
+        esq, dir_ = " ".join(palavras[:k]), " ".join(palavras[k:])
+        nota = abs(len(esq) - len(dir_))
+        if esq[-1] in ",;:.?!": nota -= 6
+        if palavras[k].lower() in _CONECTIVOS: nota -= 4
+        if palavras[k - 1].lower() in _PENDENTES: nota += 12
+        if melhor_nota is None or nota < melhor_nota:
+            melhor, melhor_nota = k, nota
+    return _quebrar_por_sentido(" ".join(palavras[:melhor])) + _quebrar_por_sentido(" ".join(palavras[melhor:]))
+
+
+def _clausulas(texto):
+    # Frases e orações: quebra depois de . ! ? : ; e vírgula — nunca no meio de uma ideia.
+    return [c for c in re.split(r"(?<=[.!?:;,])\s+", texto.strip()) if c]
+
+
+def dividir_em_blocos(legenda):
+    """Agrupa a fala em blocos de SENTIDO, cada um com no máximo MAX_LINHAS linhas.
+
+    `legenda` pode ser texto único ou lista de blocos sugeridos. Regras:
+      - junta orações curtas no mesmo bloco enquanto couberem em 2 linhas;
+      - fragmentos (< MIN_FRAGMENTO caracteres, ex.: "e Gol 1.0") são colados
+        ao bloco vizinho, nunca ficam sozinhos na tela;
+      - nunca corta palavra nem descarta texto: o que não cabe vira mais um bloco."""
+    capacidade = CHARS_POR_LINHA * MAX_LINHAS
+    candidatos = []
+    for parte in (legenda if isinstance(legenda, list) else [legenda]):
+        texto = _proteger_unidades(parte).strip()
+        if len(texto) <= capacidade and isinstance(legenda, list):
+            candidatos.append(texto)
+            continue
+        atual = ""
+        for clausula in _clausulas(texto):
+            junto = f"{atual} {clausula}".strip()
+            if atual and len(junto) > capacidade:
+                candidatos.append(atual)
+                atual = clausula
+            else:
+                atual = junto
+        if atual:
+            candidatos.append(atual)
+
+    # Fragmento (ex.: "olha só.") nunca fica sozinho: junta com o vizinho; se juntos não cabem
+    # em um bloco, refaz a divisão dos dois pelo ponto de corte mais natural, em partes equilibradas.
+    mudou, voltas = True, 0
+    while mudou and len(candidatos) > 1 and voltas < 12:
+        mudou, voltas = False, voltas + 1
+        for i, c in enumerate(candidatos):
+            if len(c) >= MIN_FRAGMENTO:
+                continue
+            for j in (i - 1, i + 1):
+                if 0 <= j < len(candidatos):
+                    a, b = (candidatos[j], c) if j < i else (c, candidatos[j])
+                    junto = f"{a} {b}"
+                    if len(junto) <= capacidade:
+                        novos = [junto]
+                    else:
+                        novos = _quebrar_por_sentido(junto)
+                        if any(len(x) < MIN_FRAGMENTO for x in novos):
+                            continue
+                    candidatos[min(i, j):max(i, j) + 1] = novos
+                    mudou = True
+                    break
+            if mudou:
                 break
-        if linhas is None:
-            linhas = textwrap.wrap(texto, width=CHARS_POR_LINHA, break_long_words=False)
-        for i in range(0, len(linhas), MAX_LINHAS):
-            blocos.append("\n".join(linhas[i:i + MAX_LINHAS]).replace("\u00a0", " "))
+
+    blocos = []
+    for c in candidatos:
+        for pedaco in _quebrar_por_sentido(c):
+            linhas = _cabe_em_linhas(pedaco) or textwrap.wrap(pedaco, width=CHARS_POR_LINHA, break_long_words=False)
+            blocos.append("\n".join(linhas).replace(" ", " "))
     return [b for b in blocos if b.strip()]
 
 
-def montar_shot_silencioso(imagem, crop, duracao_s, saida, modo="grande", foco=0.5, entrar=True, zoom=0.06):
+def dimensoes(imagem):
+    r = run([FFPROBE, "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
+             "-of", "csv=p=0", imagem])
+    w, h = r.stdout.strip().split(",")[:2]
+    return int(w), int(h)
+
+
+def ajustar_crop(crop, iw, ih):
+    """Garante que um recorte de detalhe não seja ampliado além de MAX_AUMENTO (perderia nitidez).
+
+    Se for pequeno demais, abre o recorte em volta do mesmo centro até o limite, respeitando a foto."""
+    cw, ch, cx, cy = (int(v) for v in crop.split(":"))
+    escala = min(W / cw, JANELA_H / ch)
+    if escala <= MAX_AUMENTO:
+        return crop, False
+    f = escala / MAX_AUMENTO
+    ncw, nch = min(iw, round(cw * f)), min(ih, round(ch * f))
+    ncx = min(max(0, round(cx + cw / 2 - ncw / 2)), iw - ncw)
+    ncy = min(max(0, round(cy + ch / 2 - nch / 2)), ih - nch)
+    return f"{ncw}:{nch}:{ncx}:{ncy}", True
+
+
+def escolher_modo(cw, ch, pedido=None):
+    """'grande' preenche a janela (corta o excedente do lado maior); 'inteiro' mostra a foto toda.
+
+    Sem pedido explícito: 'grande' só se cortar até PERDA_MAX_GRANDE da foto e sem ampliar além do limite —
+    senão mostra inteira, preservando o produto."""
+    if pedido in ("grande", "inteiro"):
+        return pedido
+    alvo = W / JANELA_H
+    ar = cw / ch
+    perda = 1 - min(ar, alvo) / max(ar, alvo)
+    largura_exibida = min(cw, ch * alvo)
+    if perda <= PERDA_MAX_GRANDE and W / largura_exibida <= MAX_AUMENTO:
+        return "grande"
+    return "inteiro"
+
+
+MOVIMENTOS = ["entrar", "deslocar", "sair", "deslocar_inv"]
+
+
+def montar_shot_silencioso(imagem, crop, duracao_s, saida, modo="grande", foco=0.5, movimento="entrar", zoom=0.05):
     """Um recorte, sem áudio, já no layout final (foto grande na janela, fundo escuro suave)."""
     crop_filter = f"crop={crop}," if crop else ""
     if modo == "inteiro":
@@ -114,18 +235,23 @@ def montar_shot_silencioso(imagem, crop, duracao_s, saida, modo="grande", foco=0
         fg = (f"crop='min(iw,ih*{W}/{JANELA_H})':'min(ih,iw*{JANELA_H}/{W})':"
               f"x='(iw-ow)*{foco}':y='(ih-oh)*{foco}',scale={W}:{JANELA_H}")
 
-    passo = zoom / max(1, int(duracao_s * 25))
-    if entrar:
-        z = f"min(zoom+{passo:.6f},{1 + zoom})"
-    else:
-        z = f"if(eq(on,1),{1 + zoom},max(1.0,zoom-{passo:.6f}))"
+    n = max(2, int(duracao_s * 25))
+    suave = "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+    if movimento == "entrar":
+        zp = f"z='min(zoom+{zoom / n:.6f},{1 + zoom})':{suave}"
+    elif movimento == "sair":
+        zp = f"z='if(eq(on,1),{1 + zoom},max(1.0,zoom-{zoom / n:.6f}))':{suave}"
+    elif movimento == "deslocar":      # câmera desliza da esquerda pra direita, sem mudar o zoom
+        zp = f"z={1 + zoom}:x='(iw-iw/zoom)*on/{n}':y='ih/2-(ih/zoom/2)'"
+    else:                              # deslocar_inv: da direita pra esquerda
+        zp = f"z={1 + zoom}:x='(iw-iw/zoom)*(1-on/{n})':y='ih/2-(ih/zoom/2)'"
 
     vf = (
         f"[0:v]{crop_filter}split=2[bgsrc][fgsrc];"
         f"[bgsrc]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},gblur=sigma=40,eq=brightness=-0.22[bg];"
         f"[fgsrc]{fg}[fg];"
         f"[bg][fg]overlay=(W-w)/2:{JANELA_Y}+({JANELA_H}-h)/2[comp];"
-        f"[comp]zoompan=z='{z}':d=1:s={W}x{H}:fps=25[vout]"
+        f"[comp]zoompan={zp}:d=1:s={W}x{H}:fps=25[vout]"
     )
     run([FFMPEG, "-y", "-loop", "1", "-i", imagem, "-t", f"{duracao_s:.3f}",
          "-filter_complex", vf, "-map", "[vout]", "-r", "25", "-pix_fmt", "yuv420p",
@@ -147,14 +273,15 @@ def montar_cena_com_legenda(shots_video, blocos, prefixo, saida_concat, saida_fi
     filtros, entrada, t0 = [], "[0:v]", 0.0
     for i, (bloco, peso) in enumerate(zip(blocos, pesos)):
         arq = f"{prefixo}_bloco_{i}.txt"
-        with open(arq, "w", encoding="utf-8") as f:
+        # newline="": no Windows o Python gravaria "\r\n" e o drawtext desenharia uma linha em branco entre as linhas.
+        with open(arq, "w", encoding="utf-8", newline="") as f:
             f.write(bloco)
         t1 = total if i == len(blocos) - 1 else t0 + total * peso / soma
         saida = f"[l{i}]"
         filtros.append(
             f"{entrada}drawtext=fontfile={FONTE}:textfile={arq}:fontcolor=white:fontsize={FONTE_TAM}:"
-            f"line_spacing=14:borderw=5:bordercolor=black:x=(w-text_w)/2-50:y={LEGENDA_Y}:"
-            f"box=1:boxcolor=black@0.6:boxborderw=26:enable='between(t\\,{t0:.3f}\\,{t1:.3f})'{saida}"
+            f"line_spacing=6:borderw=4:bordercolor=black:x=(w-text_w)/2-{MARGEM_DIREITA // 2}:y={LEGENDA_Y}:"
+            f"box=1:boxcolor=black@0.62:boxborderw=24:enable='between(t\\,{t0:.3f}\\,{t1:.3f})'{saida}"
         )
         entrada, t0 = saida, t1
     run([FFMPEG, "-y", "-i", saida_concat, "-filter_complex", ";".join(filtros), "-map", entrada,
@@ -210,9 +337,20 @@ def main(roteiro_path, saida_nome):
             fracao = shot.get("fracao", 1.0 / n_shots)
             shot_dur = max(0.8, dur * fracao) + (0.3 if j == n_shots - 1 else 0)
             shot_path = f"{saida_nome}_shot_{i}_{j}.mp4"
-            montar_shot_silencioso(shot["imagem"], shot.get("crop"), shot_dur, shot_path,
-                                   modo=shot.get("modo", "grande"), foco=shot.get("foco", 0.5),
-                                   entrar=(indice_shot % 2 == 0))
+
+            # Enquadramento decidido pela foto real: detalhe nunca ampliado além do limite de nitidez;
+            # foto inteira quando preencher a janela cortaria demais.
+            iw, ih = dimensoes(shot["imagem"])
+            crop, crop_aberto = (None, False) if not shot.get("crop") else ajustar_crop(shot["crop"], iw, ih)
+            cw, ch = (int(v) for v in crop.split(":")[:2]) if crop else (iw, ih)
+            modo = escolher_modo(cw, ch, shot.get("modo"))
+            if crop_aberto:
+                print(f"  aviso: recorte de detalhe da cena {i} aberto para não perder nitidez ({shot['crop']} -> {crop})")
+            if min(W / cw, JANELA_H / ch) > MAX_AUMENTO:
+                print(f"  aviso: foto {shot['imagem']} é pequena ({cw}x{ch}); será ampliada acima do ideal")
+
+            montar_shot_silencioso(shot["imagem"], crop, shot_dur, shot_path, modo=modo,
+                                   foco=shot.get("foco", 0.5), movimento=MOVIMENTOS[indice_shot % len(MOVIMENTOS)])
             indice_shot += 1
             shots_video.append(shot_path)
 

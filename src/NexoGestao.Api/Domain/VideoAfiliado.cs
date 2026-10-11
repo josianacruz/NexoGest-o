@@ -21,6 +21,14 @@ public class VideoAfiliado
     public int ProdutoAfiliadoId { get; set; }
     public ProdutoAfiliado ProdutoAfiliado { get; set; } = null!;
 
+    // "FotosEdicaoDinamica": montagem de fotos reais do anúncio (NÃO é animação de pessoa).
+    // "VideoComIA" ainda não existe: sem GPU, sem ferramenta gratuita que preserve o produto.
+    public string Modo { get; set; } = "FotosEdicaoDinamica";
+
+    // Fato observado por quem revisou (ex.: "As fotos mostram marcas de uso") que entra no roteiro.
+    public string? ObservacaoRevisao { get; set; }
+    public string? CategoriaDetectada { get; set; }
+
     public StatusVideoAfiliado Status { get; set; } = StatusVideoAfiliado.Pendente;
     public string? Mensagem { get; set; }
     public int Tentativas { get; set; }

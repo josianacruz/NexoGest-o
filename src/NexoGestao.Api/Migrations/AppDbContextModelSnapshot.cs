@@ -1162,6 +1162,9 @@ namespace NexoGestao.Api.Migrations
                     b.Property<DateTime>("AtualizadoEm")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("CategoriaDetectada")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("timestamp with time zone");
 
@@ -1186,7 +1189,14 @@ namespace NexoGestao.Api.Migrations
                     b.Property<string>("Mensagem")
                         .HasColumnType("text");
 
+                    b.Property<string>("Modo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("MusicaCredito")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ObservacaoRevisao")
                         .HasColumnType("text");
 
                     b.Property<int>("ProdutoAfiliadoId")

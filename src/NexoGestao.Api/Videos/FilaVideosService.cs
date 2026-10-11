@@ -158,6 +158,7 @@ public class FilaVideosService : BackgroundService
 
         // 2) Baixa as fotos com validação (host fixo, tamanho, tipo).
         var locais = new List<string>();
+        var hashes = new HashSet<string>();
         var http = _httpFactory.CreateClient("imagens-anuncio");
         for (var i = 0; i < materiais.Imagens.Count; i++)
         {
@@ -175,6 +176,10 @@ public class FilaVideosService : BackgroundService
             if (bytes.Length is 0 or > (int)MaxBytesImagem)
                 continue;
 
+            // Mesma foto repetida na galeria com IDs diferentes: usa uma vez só (não conta como foto nova).
+            if (!hashes.Add(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes))))
+                continue;
+
             var nome = $"img_{locais.Count}.jpg";
             await File.WriteAllBytesAsync(Path.Combine(pasta, nome), bytes, ct);
             locais.Add(nome);
@@ -188,9 +193,12 @@ public class FilaVideosService : BackgroundService
         if (materiais.Titulo.Length > nomeCsv.Length && materiais.Titulo.StartsWith(nomeCsv, StringComparison.OrdinalIgnoreCase))
             produto.Nome = materiais.Titulo;
         produto.ImagemUrl ??= materiais.Imagens[0];
+        if (produto.Categoria is null && materiais.Categorias.Count > 0)
+            produto.Categoria = materiais.Categorias[^1];
 
-        // 3) Roteiro automático (só título + fotos) e arquivos de apoio.
-        var roteiro = RoteiroAutomatico.Gerar(materiais.Titulo, produto.ItemId ?? video.Id, locais, produto.Categoria);
+        // 3) Roteiro automático por categoria (título + categoria da página + fotos + observação de revisão).
+        var roteiro = RoteiroAutomatico.Gerar(materiais.Titulo, produto.ItemId ?? video.Id, locais, materiais.Categorias, video.ObservacaoRevisao);
+        video.CategoriaDetectada = roteiro.Categoria.ToString();
         await File.WriteAllTextAsync(Path.Combine(pasta, "roteiro.json"), roteiro.RoteiroJson, new UTF8Encoding(false), ct);
         File.Copy(_opcoes.Fonte!, Path.Combine(pasta, "fonte.ttf"), true);
 
@@ -257,6 +265,8 @@ public class FilaVideosService : BackgroundService
         video.MateriaisLidosEm = materiais.LidoEm;
         video.MusicaCredito = _opcoes.MusicaCredito;
         video.Status = StatusVideoAfiliado.Pronto;
-        video.Mensagem = null;
+        video.Mensagem = materiais.FotosIgnoradasDeOutrasVersoes > 0
+            ? $"Aviso: {materiais.FotosIgnoradasDeOutrasVersoes} foto(s) da galeria foram ignoradas por parecerem de outra versão do anúncio (outro lote de upload). Só entraram fotos enviadas junto com a capa."
+            : null;
     }
 }

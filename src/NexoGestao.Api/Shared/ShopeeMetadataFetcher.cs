@@ -4,7 +4,7 @@ namespace NexoGestao.Api.Shared;
 
 public record MetadadosShopee(string? Nome, string? ImagemUrl, string? Categoria);
 
-public record MateriaisShopee(string Titulo, List<string> Imagens, DateTime LidoEm);
+public record MateriaisShopee(string Titulo, List<string> Imagens, DateTime LidoEm, List<string> Categorias, int FotosIgnoradasDeOutrasVersoes);
 
 // Busca só metadados PÚBLICOS que a própria Shopee expõe no HTML pra gerar
 // preview de link (og:title/og:image) — o mesmo mecanismo que WhatsApp/
@@ -123,23 +123,61 @@ public class ShopeeMetadataFetcher
             if (string.IsNullOrWhiteSpace(titulo) || titulo.Contains("Shopee Brasil"))
                 return null;
 
+            // Capa (og:image) primeiro, depois os slides do carrossel da galeria na ordem da página.
+            // O HTML varia por anúncio: às vezes há o bloco "product-carousel", às vezes só os
+            // itens "stardust-carousel__item" — aceita os dois. Fotos idênticas com IDs diferentes
+            // são descartadas depois, pelo conteúdo (ver FilaVideosService).
             var imagens = new List<string>();
-            var inicio = html.IndexOf("class=\"product-carousel\"", StringComparison.Ordinal);
-            if (inicio >= 0)
+            var vistos = new HashSet<string>();
+            void Adiciona(string id)
             {
-                var bloco = html.Substring(inicio, Math.Min(40000, html.Length - inicio));
-                foreach (Match m in IdImagem.Matches(bloco))
-                {
-                    var url = "https://down-br.img.susercontent.com/file/" + m.Groups[1].Value;
-                    if (!imagens.Contains(url)) imagens.Add(url);
-                    if (imagens.Count >= maxImagens) break;
-                }
+                if (imagens.Count < maxImagens * 3 && vistos.Add(id))
+                    imagens.Add("https://down-br.img.susercontent.com/file/" + id);
             }
 
-            if (imagens.Count == 0 && ExtrairConteudoDaTag(OgImageTag, html) is { Length: > 0 } og)
-                imagens.Add(og);
+            if (ExtrairConteudoDaTag(OgImageTag, html) is { Length: > 0 } og && IdImagem.Match(og) is { Success: true } mog)
+                Adiciona(mog.Groups[1].Value);
 
-            return new MateriaisShopee(titulo, imagens, DateTime.UtcNow);
+            var inicio = html.IndexOf("class=\"product-carousel\"", StringComparison.Ordinal);
+            if (inicio < 0)
+                inicio = html.IndexOf("stardust-carousel__item\"", StringComparison.Ordinal);
+            if (inicio >= 0)
+            {
+                var bloco = html.Substring(inicio, Math.Min(60000, html.Length - inicio));
+                foreach (Match m in IdImagem.Matches(bloco))
+                    Adiciona(m.Groups[1].Value);
+            }
+
+            // Categorias da página (breadcrumb, sem "Shopee" e sem o último item, que é o próprio produto).
+            var categorias = new List<string>();
+            var bc = Regex.Match(html, @"""@type"":""BreadcrumbList"".*?\](?=\}|,""@)", RegexOptions.Singleline);
+            if (bc.Success)
+            {
+                var nomes = Regex.Matches(bc.Value, @"""name"":""([^""]+)""")
+                    .Select(m => System.Net.WebUtility.HtmlDecode(m.Groups[1].Value))
+                    .Where(n => n != "Shopee").ToList();
+                if (nomes.Count >= 2) categorias = nomes.Take(nomes.Count - 1).ToList();
+            }
+
+            // FIDELIDADE: o carrossel também traz fotos de OUTRAS versões do anúncio (outra lavagem,
+            // outra embalagem). Fotos enviadas junto com a capa compartilham o prefixo do lote no ID
+            // (ex.: "…-mdxnurrbkiypff" e "…-mdxnurrlzklf75"); só essas entram. As demais são
+            // ignoradas e contadas — melhor menos fotos do que mostrar um produto diferente.
+            static string Lote(string url)
+            {
+                var token = url[(url.LastIndexOf('-') + 1)..];
+                return token.Length >= 5 ? token[..5] : token;
+            }
+            var ignoradas = 0;
+            if (imagens.Count > 0)
+            {
+                var loteCapa = Lote(imagens[0]);
+                var doMesmoLote = imagens.Where(u => Lote(u) == loteCapa).ToList();
+                ignoradas = imagens.Count - doMesmoLote.Count;
+                imagens = doMesmoLote.Take(maxImagens).ToList();
+            }
+
+            return new MateriaisShopee(titulo, imagens, DateTime.UtcNow, categorias, ignoradas);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
