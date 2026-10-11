@@ -305,15 +305,16 @@ def concatenar_audio(audios, saida):
     run([FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", lista, "-c:a", "libmp3lame", saida])
 
 
-def mixar_com_musica(video_sem_audio, narracao, musica, saida, volume_musica=0.16):
+def mixar_com_musica(video_sem_audio, narracao, musica, saida, volume_musica=0.42):
     dur_v = duracao(video_sem_audio)
     fade_out_inicio = max(0, dur_v - 1.5)
-    # Sidechain: a música baixa automaticamente enquanto a narração toca.
+    # Música bem presente (estilo vídeo curto): alta nas pausas e abre espaço para a voz
+    # com um sidechain suave (ratio baixo, volta rápido), em vez de sumir sob a narração.
     filtro = (
         f"[2:a]volume={volume_musica},atrim=0:{dur_v},"
-        f"afade=t=in:st=0:d=1,afade=t=out:st={fade_out_inicio}:d=1.5[musica_fade];"
-        f"[musica_fade][1:a]sidechaincompress=threshold=0.04:ratio=10:attack=25:release=400[musica_duck];"
-        f"[1:a][musica_duck]amix=inputs=2:duration=first:weights=1.6 1[audio_final]"
+        f"afade=t=in:st=0:d=0.6,afade=t=out:st={fade_out_inicio}:d=1.5[musica_fade];"
+        f"[musica_fade][1:a]sidechaincompress=threshold=0.05:ratio=3:attack=20:release=300[musica_duck];"
+        f"[1:a][musica_duck]amix=inputs=2:duration=first:weights=1.5 1,alimiter=limit=0.97[audio_final]"
     )
     run([FFMPEG, "-y", "-i", video_sem_audio, "-i", narracao, "-i", musica,
          "-filter_complex", filtro, "-map", "0:v", "-map", "[audio_final]",
