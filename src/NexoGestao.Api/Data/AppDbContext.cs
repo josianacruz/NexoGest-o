@@ -37,6 +37,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<ConfiguracaoAfiliados> ConfiguracoesAfiliados => Set<ConfiguracaoAfiliados>();
     public DbSet<ConteudoAfiliado> ConteudosAfiliados => Set<ConteudoAfiliado>();
     public DbSet<VideoAfiliado> VideosAfiliados => Set<VideoAfiliado>();
+    public DbSet<WorkerCredencial> WorkerCredenciais => Set<WorkerCredencial>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -75,5 +76,8 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         builder.Entity<ConteudoAfiliado>().HasIndex(c => c.ProdutoAfiliadoId).IsUnique();
         builder.Entity<VideoAfiliado>().HasQueryFilter(v => EmpresaAtualId != null && v.EmpresaId == EmpresaAtualId);
         builder.Entity<VideoAfiliado>().HasIndex(v => new { v.EmpresaId, v.Status });
+        // Filtro por empresa nas telas; a autenticação do worker (pelo token) usa IgnoreQueryFilters só para achar a credencial.
+        builder.Entity<WorkerCredencial>().HasQueryFilter(c => EmpresaAtualId != null && c.EmpresaId == EmpresaAtualId);
+        builder.Entity<WorkerCredencial>().HasIndex(c => c.TokenHash).IsUnique();
     }
 }

@@ -10,7 +10,7 @@ public enum StatusVideoAfiliado
 }
 
 // Tarefa de geração de vídeo de um produto. O MP4 NUNCA fica no banco: fica em
-// disco na máquina do worker (ver FilaVideosService); aqui só os dados da
+// disco na máquina do worker (ver src/NexoGestao.Worker); aqui só os dados da
 // tarefa, do roteiro e dos materiais usados (com fonte e data).
 public class VideoAfiliado
 {
@@ -47,6 +47,11 @@ public class VideoAfiliado
     public long? TamanhoBytes { get; set; }
     public double? TempoProcessamentoSegundos { get; set; }
     public string? ArquivoRelativo { get; set; }
+    // Caminho completo informado pelo worker (só para mostrar ao usuário onde o MP4 está).
+    public string? ArquivoLocal { get; set; }
+    // O worker "aluga" a tarefa por alguns minutos e renova a cada batimento; se parar de
+    // renovar (PC desligou, processo morreu), a tarefa volta para a fila.
+    public DateTime? LeaseAte { get; set; }
 
     public DateTime CriadoEm { get; set; } = DateTime.UtcNow;
     public DateTime AtualizadoEm { get; set; } = DateTime.UtcNow;

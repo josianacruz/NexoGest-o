@@ -68,7 +68,6 @@ public class AfiliadosController : TenantControllerBase
     private readonly DescobertaShopeeFetcher _descobertaFetcher;
     private readonly ResolvedorLinkAfiliado _resolvedorLink;
     private readonly NexoGestao.Api.Videos.VideosWorkerOptions _opcoesVideo;
-    private readonly IHostEnvironment _ambiente;
 
     public AfiliadosController(
         AppDbContext context,
@@ -76,11 +75,9 @@ public class AfiliadosController : TenantControllerBase
         ShopeeMetadataFetcher metadataFetcher,
         DescobertaShopeeFetcher descobertaFetcher,
         ResolvedorLinkAfiliado resolvedorLink,
-        Microsoft.Extensions.Options.IOptions<NexoGestao.Api.Videos.VideosWorkerOptions> opcoesVideo,
-        IHostEnvironment ambiente) : base(context)
+        Microsoft.Extensions.Options.IOptions<NexoGestao.Api.Videos.VideosWorkerOptions> opcoesVideo) : base(context)
     {
         _opcoesVideo = opcoesVideo.Value;
-        _ambiente = ambiente;
         _dataProtection = dataProtection;
         _metadataFetcher = metadataFetcher;
         _descobertaFetcher = descobertaFetcher;
@@ -107,7 +104,7 @@ public class AfiliadosController : TenantControllerBase
     [HttpGet("configuracao")]
     public async Task<IActionResult> ObterConfiguracao(int empresaId)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        var empresaAutorizada = await ObterEmpresaDonoAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -126,7 +123,7 @@ public class AfiliadosController : TenantControllerBase
     [HttpPut("configuracao")]
     public async Task<IActionResult> SalvarConfiguracao(int empresaId, SalvarConfiguracaoRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        var empresaAutorizada = await ObterEmpresaDonoAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -188,7 +185,7 @@ public class AfiliadosController : TenantControllerBase
         [FromQuery] string? ordenar,
         [FromQuery] string? direcao)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        var empresaAutorizada = await ObterEmpresaDonoAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -279,7 +276,7 @@ public class AfiliadosController : TenantControllerBase
     [HttpPost("produtos")]
     public async Task<IActionResult> Criar(int empresaId, CriarProdutoAfiliadoRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        var empresaAutorizada = await ObterEmpresaDonoAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -320,7 +317,7 @@ public class AfiliadosController : TenantControllerBase
     [HttpPut("produtos/{produtoId:int}")]
     public async Task<IActionResult> Atualizar(int empresaId, int produtoId, AtualizarProdutoAfiliadoRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        var empresaAutorizada = await ObterEmpresaDonoAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -352,7 +349,7 @@ public class AfiliadosController : TenantControllerBase
     [HttpDelete("produtos/{produtoId:int}")]
     public async Task<IActionResult> Remover(int empresaId, int produtoId)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        var empresaAutorizada = await ObterEmpresaDonoAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -374,7 +371,7 @@ public class AfiliadosController : TenantControllerBase
     [HttpPost("produtos/lote")]
     public async Task<IActionResult> CadastrarLote(int empresaId, CadastrarLoteRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        var empresaAutorizada = await ObterEmpresaDonoAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -502,7 +499,7 @@ public class AfiliadosController : TenantControllerBase
     [HttpPost("produtos/{produtoId:int}/preparar-conteudo")]
     public async Task<IActionResult> PrepararConteudo(int empresaId, int produtoId)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        var empresaAutorizada = await ObterEmpresaDonoAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -538,7 +535,7 @@ public class AfiliadosController : TenantControllerBase
     [HttpPost("produtos/preparar-conteudo-pendentes")]
     public async Task<IActionResult> PrepararConteudoPendentes(int empresaId)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        var empresaAutorizada = await ObterEmpresaDonoAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -562,7 +559,7 @@ public class AfiliadosController : TenantControllerBase
     [HttpPost("produtos/importar-relatorio")]
     public async Task<IActionResult> ImportarRelatorio(int empresaId, ImportarRelatorioRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        var empresaAutorizada = await ObterEmpresaDonoAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -699,7 +696,7 @@ public class AfiliadosController : TenantControllerBase
     [HttpPost("videos/gerar")]
     public async Task<IActionResult> GerarVideos(int empresaId, GerarVideosRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        var empresaAutorizada = await ObterEmpresaDonoAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -734,14 +731,17 @@ public class AfiliadosController : TenantControllerBase
         }
         await Context.SaveChangesAsync();
 
+        var limiteContato = DateTime.UtcNow.AddMinutes(-2);
+        var workerOnline = await Context.WorkerCredenciais.AnyAsync(c => c.RevogadaEm == null && c.UltimoContato >= limiteContato);
+
         return Ok(new
         {
             Criadas = criados,
             Ignorados = ignorados,
-            WorkerAtivo = _opcoesVideo.Habilitado,
-            Aviso = _opcoesVideo.Habilitado
+            WorkerAtivo = workerOnline,
+            Aviso = workerOnline
                 ? null
-                : "O processamento de vídeo está desligado neste ambiente (precisa do worker local com FFmpeg). As tarefas ficam pendentes até ele ser ligado.",
+                : "Nenhum worker de vídeo está conectado agora. Ligue o worker no seu computador (veja a seção Worker): os vídeos ficam na fila e são gerados assim que ele conectar.",
             ModoUsado = "FotosEdicaoDinamica",
             ModoIA = new
             {
@@ -754,10 +754,11 @@ public class AfiliadosController : TenantControllerBase
     [HttpGet("videos")]
     public async Task<IActionResult> ListarVideos(int empresaId)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        var empresaAutorizada = await ObterEmpresaDonoAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 
+        var pastaApiConfigurada = _opcoesVideo.PastaLocal is not null;
         var videos = await Context.VideosAfiliados
             .OrderByDescending(v => v.Id)
             .Select(v => new
@@ -792,6 +793,9 @@ public class AfiliadosController : TenantControllerBase
                 v.TamanhoBytes,
                 v.TempoProcessamentoSegundos,
                 TemArquivo = v.ArquivoRelativo != null,
+                v.ArquivoLocal,
+                // A API só entrega o MP4 se roda no mesmo PC do worker (pasta configurada); online mostra só o caminho.
+                ArquivoNaApi = pastaApiConfigurada && v.ArquivoRelativo != null,
                 v.CriadoEm,
                 v.AtualizadoEm,
             })
@@ -803,7 +807,7 @@ public class AfiliadosController : TenantControllerBase
     [HttpGet("videos/{videoId:int}/arquivo")]
     public async Task<IActionResult> BaixarVideo(int empresaId, int videoId)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        var empresaAutorizada = await ObterEmpresaDonoAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -812,7 +816,9 @@ public class AfiliadosController : TenantControllerBase
             return NotFound(new { mensagem = "Vídeo ainda não está pronto." });
 
         // O arquivo mora em disco na máquina do worker; garante que o caminho não escapa da pasta de vídeos.
-        var baseDir = Path.GetFullPath(NexoGestao.Api.Videos.FilaVideosService.PastaSaida(_opcoesVideo, _ambiente));
+        var baseDir = _opcoesVideo.PastaLocal;
+        if (baseDir is null)
+            return NotFound(new { mensagem = "O vídeo está no computador do worker (veja o caminho no cartão do vídeo). Este servidor não guarda os vídeos." });
         var arquivo = Path.GetFullPath(Path.Combine(baseDir, video.ArquivoRelativo));
         if (!arquivo.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || !System.IO.File.Exists(arquivo))
             return NotFound(new { mensagem = "O arquivo do vídeo não está mais disponível nesta máquina." });
@@ -823,7 +829,7 @@ public class AfiliadosController : TenantControllerBase
     [HttpPost("videos/{videoId:int}/tentar-de-novo")]
     public async Task<IActionResult> TentarDeNovo(int empresaId, int videoId)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        var empresaAutorizada = await ObterEmpresaDonoAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 
@@ -848,7 +854,7 @@ public class AfiliadosController : TenantControllerBase
     [HttpPost("produtos/buscar")]
     public async Task<IActionResult> Buscar(int empresaId, BuscarProdutosRequest request)
     {
-        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Afiliados);
+        var empresaAutorizada = await ObterEmpresaDonoAsync(empresaId, Modulo.Afiliados);
         if (empresaAutorizada is null)
             return Forbid();
 

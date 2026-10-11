@@ -22,6 +22,21 @@ public abstract class TenantControllerBase : ControllerBase
         ?? throw new InvalidOperationException("Usuário não autenticado.");
 
     /// <summary>
+    /// Igual a <see cref="ObterEmpresaAutorizadaAsync"/>, mas só para quem é Dono da empresa.
+    /// Usado em áreas sensíveis (ex.: Afiliados: links, comissões e credencial do worker),
+    /// já que os papéis Gerente/Atendente ainda não têm permissões próprias.
+    /// </summary>
+    protected async Task<int?> ObterEmpresaDonoAsync(int empresaIdSolicitada, Modulo? moduloRequerido = null)
+    {
+        var ehDono = await Context.MembrosEmpresa.AnyAsync(m =>
+            m.UsuarioId == UsuarioId && m.EmpresaId == empresaIdSolicitada && m.Papel == PapelUsuario.Dono);
+        if (!ehDono)
+            return null;
+
+        return await ObterEmpresaAutorizadaAsync(empresaIdSolicitada, moduloRequerido);
+    }
+
+    /// <summary>
     /// Confirma que o usuário pertence à empresa e, quando <paramref name="moduloRequerido"/>
     /// é informado, que o módulo está habilitado para ela — bloqueando tanto o acesso pela
     /// API quanto (indiretamente) qualquer tela que dependa desses endpoints. Empresas sem

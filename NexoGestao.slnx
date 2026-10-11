@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/NexoGestao.Api/NexoGestao.Api.csproj" />
+    <Project Path="src/NexoGestao.Worker/NexoGestao.Worker.csproj" />
   </Folder>
 </Solution>

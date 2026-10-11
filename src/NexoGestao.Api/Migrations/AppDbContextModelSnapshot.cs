@@ -1156,6 +1156,9 @@ namespace NexoGestao.Api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ArquivoLocal")
+                        .HasColumnType("text");
+
                     b.Property<string>("ArquivoRelativo")
                         .HasColumnType("text");
 
@@ -1176,6 +1179,9 @@ namespace NexoGestao.Api.Migrations
 
                     b.Property<string>("Hashtags")
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("LeaseAte")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Legenda")
                         .HasColumnType("text");
@@ -1227,6 +1233,63 @@ namespace NexoGestao.Api.Migrations
                     b.HasIndex("EmpresaId", "Status");
 
                     b.ToTable("VideosAfiliados");
+                });
+
+            modelBuilder.Entity("NexoGestao.Api.Domain.WorkerCredencial", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CriadaEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("EspacoLivreBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("EspacoUsadoBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Maquina")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Pasta")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Prefixo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("RevogadaEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UltimoContato")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Versao")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.ToTable("WorkerCredenciais");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -1679,6 +1742,17 @@ namespace NexoGestao.Api.Migrations
                     b.Navigation("Empresa");
 
                     b.Navigation("ProdutoAfiliado");
+                });
+
+            modelBuilder.Entity("NexoGestao.Api.Domain.WorkerCredencial", b =>
+                {
+                    b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
                 });
 
             modelBuilder.Entity("NexoGestao.Api.Domain.Comanda", b =>
