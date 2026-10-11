@@ -58,6 +58,8 @@ public static class RoteiroAutomatico
       "city", "hilux", "corolla", "ranger", "ka", "focus", "ecosport", "montana", "agile", "meriva", "vectra", "astra", "zafira", "hb20", "creta", "tucson", "i30", "discovery",
       "kombi", "tiguan", "amarok", "argo", "mobi", "cronos", "toro", "renegade", "compass", "sandero", "logan", "duster", "clio", "kwid", "captur", "fusion", "s10", "l200", "parati", "santana" };
 
+    private const double TempoAlvoSegundos = 20.5;
+
     public static RoteiroGerado Gerar(string tituloCompleto, long itemId, IReadOnlyList<string> imagens,
         IReadOnlyList<string>? categoriasPagina, string? observacaoRevisao)
     {
@@ -102,7 +104,9 @@ public static class RoteiroAutomatico
                 "explicacao", Fotos());
         }
 
-        // 3) Evidência visual / o que observar.
+        // 3) Evidência visual / o que observar. É a única cena "de enchimento": se o vídeo passar
+        // do tempo alvo, ela é a primeira a sair (as demais carregam fato, estado ou chamada).
+        var indiceEvidencia = cenas.Count;
         Add(categoria switch
         {
             CategoriaProduto.Autopeca => variante == 1 ? "Compare o código da peça com o do seu veículo." : "Confere o código da peça com o do seu carro.",
@@ -127,7 +131,13 @@ public static class RoteiroAutomatico
         Add(variante switch { 0 => "Veja as opções no produto marcado.", 1 => "As informações estão no produto marcado.", _ => "Confira tudo no produto marcado." },
             "fechamento", (imagens[Math.Min(1, n - 1)], 1.0, "inteiro"));
 
-        var versao = $"auto-v2-{categoria.ToString().ToLowerInvariant()}-{(char)('A' + variante)}";
+        // Tempo alvo de ~20 s: estimativa pela fala (≈ 12 caracteres/s medidos nos vídeos de teste, já com a pausa entre cenas).
+        static double Estimativa(IEnumerable<(string fala, string legenda, string tom, List<(string img, double fracao, string? modo)> shots)> cs) =>
+            cs.Sum(c => c.fala.Length / 12.0 + 0.5);
+        if (Estimativa(cenas) > TempoAlvoSegundos)
+            cenas.RemoveAt(indiceEvidencia);
+
+        var versao = $"auto-v3-{categoria.ToString().ToLowerInvariant()}-{(char)('A' + variante)}";
         var json = JsonSerializer.Serialize(new
         {
             versao,
