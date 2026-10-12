@@ -23,9 +23,16 @@ function Ler-Conexao([string]$nomeVariavel, [string]$descricao) {
         $segura = Read-Host "Cole a connection string da branch '$descricao' e aperte Enter" -AsSecureString
         $bruta = [Runtime.InteropServices.Marshal]::PtrToStringUni([Runtime.InteropServices.Marshal]::SecureStringToBSTR($segura))
     }
-    $bruta = $bruta.Trim().Trim("'").Trim('"')
+    $colado = $bruta
+    # Aceita a string pura ou embrulhada (psql '...', DATABASE_URL="...", com aspas, espaços ou quebra de linha).
+    $achou = [regex]::Match($bruta, 'postgres(?:ql)?://[^\s''"`]+')
+    $bruta = if ($achou.Success) { $achou.Value } else { $bruta.Trim() }
+    if ($bruta -match '://[^@/]*:(\*+|•+|x+)@') {
+        throw "A senha veio escondida (asteriscos). No Neon, ative 'Show password' (mostrar senha) em Connection details e copie de novo."
+    }
     if ($bruta -notmatch '^postgres(ql)?://[^/\s]+@[^/\s]+/[^/\s?]+') {
-        throw "O texto colado não parece uma connection string completa. Ela começa com postgresql://, tem usuário, senha, @, o endereço do servidor e o nome do banco. Copie de novo, inteira, no botão de copiar do Neon (Connection details)."
+        $inicio = $colado.Trim().Substring(0, [Math]::Min(12, $colado.Trim().Length))
+        throw "O texto colado não parece uma connection string completa (recebi $($colado.Trim().Length) caracteres, começando com '$inicio'). Ela deve começar com postgresql:// e ter usuário, senha, @, o servidor e o nome do banco. Copie de novo pelo botão de copiar do Neon (Connection details)."
     }
     try { $u = [System.Uri]$bruta } catch { throw "Não consegui ler o endereço dessa connection string. Copie de novo, inteira, no botão de copiar do Neon." }
     $p = $u.UserInfo.Split(':', 2)
@@ -68,6 +75,8 @@ Write-Host "Backup:   $($bkp.Host) / $($bkp.Banco)"
 $sqlEstrutura = "SELECT table_name||'.'||column_name||':'||data_type||':'||is_nullable FROM information_schema.columns WHERE table_schema='public' ORDER BY 1"
 $estP = Consulta $prod $sqlEstrutura
 $estB = Consulta $bkp $sqlEstrutura
+if ($estP.Count -eq 0) { throw "O banco de PRODUÇÃO não tem nenhuma tabela: confira se a string é da branch production e do banco certo." }
+if ($estB.Count -eq 0) { throw "O banco do BACKUP não tem nenhuma tabela (vazio ou banco errado): confira se a string é da branch backup-antes-afiliados." }
 $dif = Compare-Object $estP $estB
 Write-Host ""
 if ($dif) { Write-Host "ESTRUTURA: DIFERENTE ($(@($dif).Count) diferença(s))" -ForegroundColor Red; $dif | Select-Object -First 10 | ForEach-Object { Write-Host "   $($_.SideIndicator) $($_.InputObject)" } }
