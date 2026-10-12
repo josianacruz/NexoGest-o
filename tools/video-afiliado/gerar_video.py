@@ -44,7 +44,7 @@ PERDA_MAX_GRANDE = 0.08                # modo "grande" só se cortar até 8% da 
 # Ritmo/tom por tipo de fala: pergunta um pouco mais viva, explicação neutra,
 # fechamento mais pausado.
 TOM = {
-    "pergunta": {"rate": "+4%", "pitch": "+15Hz"},
+    "pergunta": {"rate": "+0%", "pitch": "+15Hz"},
     "explicacao": {"rate": "+0%", "pitch": "+0Hz"},
     "fechamento": {"rate": "-6%", "pitch": "-10Hz"},
 }

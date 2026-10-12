@@ -9,18 +9,17 @@ public enum CategoriaProduto { Roupa, Acessorio, Casa, Autopeca, Outros }
 
 public record RoteiroGerado(string Versao, CategoriaProduto Categoria, string RoteiroJson, string Legenda, string Hashtags);
 
-// Modelos de roteiro compartilhados por TODOS os vídeos. A categoria é detectada
-// pela categoria da página + título; cada família pergunta o que o comprador
-// daquele tipo de produto precisa conferir. Só entram fatos que estão no título,
-// na categoria da página ou fornecidos por quem revisou (observação de revisão):
-// nada de conforto, qualidade, estado deduzido, desempenho, experiência pessoal,
-// popularidade, desconto ou urgência.
+// Roteiros falados, compartilhados por TODOS os vídeos. A ideia é soar como uma pessoa apresentando o produto:
+//   "Tá procurando [produto]? Olha esse [produto]. Ele tem [característica confirmada]."
+// Fala sobre o que o produto é, pra que serve (só quando o título diz) e um ou dois detalhes. Não explica a
+// pesquisa nem o que aparece na edição, e não lê título ou ficha técnica como lista.
 //
-// Limitação honesta: como parte só de título/categoria/fotos, o texto é mais
-// genérico que um roteiro escrito à mão com todos os detalhes do produto —
-// por isso deve ser revisado antes de publicar. Quando não há fato suficiente
-// pra uma cena (ex.: nenhum atributo reconhecido no título), a cena é omitida
-// em vez de ler o título do anúncio.
+// Só entram fatos que estão no título, na categoria da página ou na observação de quem revisou. Nada de
+// qualidade, conforto, experiência pessoal, desconto, urgência, estado deduzido ou benefício inventado.
+// Quando faltam informações, o roteiro fica MAIS CURTO em vez de ser preenchido com frases genéricas.
+//
+// Voz e legenda são escritas separadas: na voz os números saem por extenso ("quinhentos mililitros",
+// "cinco flanelas", "dois mil e dezesseis"); na legenda ficam como "500 ml", "5 flanelas".
 public static class RoteiroAutomatico
 {
     private static readonly HashSet<string> Palavrinhas = new(StringComparer.OrdinalIgnoreCase)
@@ -38,123 +37,458 @@ public static class RoteiroAutomatico
     private static readonly string[] PalavrasCasa =
     { "casa e decoracao", "casa", "cozinha", "organizador", "utensilio", "decoracao", "toalha", "lencol", "panela", "copo", "garrafa", "tapete", "cortina", "ferramenta", "pote", "prateleira", "banheiro", "almofada" };
 
-    private static readonly Dictionary<CategoriaProduto, string[]> Atributos = new()
-    {
-        [CategoriaProduto.Roupa] = new[] { "cintura alta", "cintura baixa", "cintura média", "wide leg", "pantalona", "flare", "skinny", "reta", "slim", "mom", "oversized", "cropped",
-            "manga longa", "manga curta", "sem manga", "gola alta", "decote v", "estampado", "liso", "jeans", "algodão", "viscose", "linho", "moletom", "plus size", "com elastano", "marmorizada" },
-        [CategoriaProduto.Acessorio] = new[] { "dourado", "dourada", "prateado", "prateada", "prata", "aço inox", "inox", "couro", "sintético", "ajustável", "regulável", "folheado", "folheada",
-            "banhado", "zircônia", "pérola", "resina", "unissex", "feminino", "masculino" },
-        [CategoriaProduto.Casa] = new[] { "inox", "plástico", "vidro", "madeira", "bambu", "silicone", "algodão", "porcelana", "cerâmica", "alumínio", "antiaderente", "com tampa", "empilhável",
-            "dobrável", "lavável", "organizador" },
-        [CategoriaProduto.Outros] = new[] { "sem álcool", "sem fio", "recarregável", "portátil", "à prova d'água" },
-    };
-
-    private static readonly Regex Medidas = new(
-        @"\b\d+(?:[.,]\d+)?\s?(?:ml|l|litros?|cm|mm|kg|g|peças?|unidades?|pçs?|flanelas?|pares?|metros?|gb|mb|w|v)\b",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
     private static readonly HashSet<string> Veiculos = new(StringComparer.OrdinalIgnoreCase)
     { "gol", "voyage", "fiesta", "corsa", "celta", "prisma", "onix", "palio", "uno", "siena", "strada", "idea", "fox", "polo", "up", "saveiro", "golf", "jetta", "civic", "fit",
       "city", "hilux", "corolla", "ranger", "ka", "focus", "ecosport", "montana", "agile", "meriva", "vectra", "astra", "zafira", "hb20", "creta", "tucson", "i30", "discovery",
       "kombi", "tiguan", "amarok", "argo", "mobi", "cronos", "toro", "renegade", "compass", "sandero", "logan", "duster", "clio", "kwid", "captur", "fusion", "s10", "l200", "parati", "santana" };
 
-    private const double TempoAlvoSegundos = 20.5;
+    private static readonly HashSet<string> Marcas = new(StringComparer.OrdinalIgnoreCase)
+    { "honda", "hyundai", "gm", "chevrolet", "fiat", "ford", "vw", "volkswagen", "toyota", "renault", "peugeot", "citroen", "nissan", "jeep", "mitsubishi", "kia", "land", "rover" };
 
+    // Gênero das palavras mais comuns; o resto usa a terminação e, se ainda houver dúvida, a frase evita artigo/pronome.
+    private static readonly Dictionary<string, bool> Genero = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // masculino (false)
+        ["kit"] = false, ["motor"] = false, ["radiador"] = false, ["retrovisor"] = false, ["condensador"] = false, ["defletor"] = false, ["reservatório"] = false,
+        ["servo"] = false, ["amortecedor"] = false, ["farol"] = false, ["alternador"] = false, ["par"] = false, ["conjunto"] = false, ["vestido"] = false,
+        ["short"] = false, ["tênis"] = false, ["casaco"] = false, ["moletom"] = false, ["cropped"] = false, ["colar"] = false, ["brinco"] = false, ["anel"] = false,
+        ["relógio"] = false, ["cinto"] = false, ["boné"] = false, ["chapéu"] = false, ["lenço"] = false, ["organizador"] = false, ["pote"] = false, ["copo"] = false,
+        ["tapete"] = false, ["jogo"] = false, ["suporte"] = false, ["carregador"] = false, ["fone"] = false, ["cabo"] = false, ["óculos"] = false, ["processador"] = false,
+        ["liquidificador"] = false, ["ventilador"] = false, ["aspirador"] = false, ["secador"] = false, ["fogão"] = false, ["espelho"] = false, ["pacote"] = false,
+        // feminino (true)
+        ["calça"] = true, ["camiseta"] = true, ["blusa"] = true, ["saia"] = true, ["bermuda"] = true, ["jaqueta"] = true, ["legging"] = true, ["bolsa"] = true,
+        ["pulseira"] = true, ["tiara"] = true, ["mochila"] = true, ["garrafa"] = true, ["panela"] = true, ["toalha"] = true, ["cortina"] = true, ["almofada"] = true,
+        ["prateleira"] = true, ["mangueira"] = true, ["moldura"] = true, ["ventoinha"] = true, ["bomba"] = true, ["correia"] = true, ["lanterna"] = true,
+        ["embreagem"] = true, ["pastilha"] = true, ["tampa"] = true, ["válvula"] = true, ["capa"] = true, ["luminária"] = true, ["caixa"] = true, ["sandália"] = true,
+        ["camisa"] = true, ["regata"] = true, ["jarra"] = true, ["escova"] = true, ["luva"] = true, ["necessaire"] = true, ["carteira"] = true, ["tábua"] = true,
+    };
+
+    private static readonly HashSet<string> Adjetivos = new(StringComparer.OrdinalIgnoreCase) { "mini", "super", "micro", "maxi", "novo", "nova" };
+
+    private static readonly Dictionary<string, string> Usos = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["celular"] = "celular", ["celulares"] = "celular", ["smartphone"] = "celular", ["monitor"] = "monitor", ["monitores"] = "monitor",
+        ["tv"] = "tevê", ["tvs"] = "tevê", ["televisão"] = "tevê", ["notebook"] = "notebook", ["notebooks"] = "notebook", ["laptop"] = "notebook",
+        ["tablet"] = "tablet", ["tablets"] = "tablet", ["óculos"] = "óculos", ["câmera"] = "câmera", ["câmeras"] = "câmera",
+        ["geladeira"] = "geladeira", ["fogão"] = "fogão", ["banheiro"] = "banheiro", ["cozinha"] = "cozinha",
+    };
+
+    private static readonly Regex MedidaComUnidade = new(
+        @"^(\d+(?:[.,]\d+)?)\s?(ml|l|litros?|cm|mm|m|kg|g|w|v|gb|mb)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    // ====================================================================================================
     public static RoteiroGerado Gerar(string tituloCompleto, long itemId, IReadOnlyList<string> imagens,
         IReadOnlyList<string>? categoriasPagina, string? observacaoRevisao)
     {
-        var titulo = Regex.Replace(tituloCompleto, @"\s+", " ").Trim().TrimEnd('-', '–', '.', ',', ' ');
+        var titulo = LimpaTitulo(tituloCompleto);
         var categoria = Detectar(titulo, categoriasPagina);
         var variante = (int)(itemId % 3);
+        var p = Entender(titulo, categoria);
+        var obs = string.IsNullOrWhiteSpace(observacaoRevisao) ? null : Frase(observacaoRevisao.Trim().TrimEnd('.'));
+
+        var art = p.Feminino is null ? "" : p.Feminino.Value ? "uma " : "um ";
+        var esse = p.Feminino is null ? null : p.Feminino.Value ? "essa" : "esse";
+
+        var cenas = new List<(string frase, string tom)>();
+        var autopeca = categoria == CategoriaProduto.Autopeca;
+
+        // 1) Pergunta de abertura sobre o que a pessoa procura.
+        var sufixo = autopeca ? " pro seu carro" : "";
+        cenas.Add((variante switch
+        {
+            0 => $"Tá procurando {art}{p.Nome}{sufixo}?",
+            1 => $"Precisa de {art}{p.Nome}{sufixo}?",
+            _ => $"Tá atrás de {art}{p.Nome}{sufixo}?",
+        }, "pergunta"));
+
+        // 2) Apresenta o produto com um ou dois detalhes confirmados (ou fica só "Olha esse").
+        string apresenta;
+        if (autopeca)
+        {
+            var peca = esse is null ? "Dá uma olhada." : $"Olha {esse} {p.Nome}.";
+            apresenta = p.Aplicacao is null ? peca : $"{peca} O vendedor indica pra {p.Aplicacao}.";
+        }
+        else
+        {
+            // Detalhe sem sujeito ("vem com…", "é wide leg e tem cintura alta"); "ele/ela" só quando o gênero é certo.
+            string? baseDetalhe = p.Itens is not null ? $"vem com {p.Itens}"
+                : p.Clausulas.Count > 0 ? JuntarClausulas(p.Clausulas.Take(2).ToList()) : null;
+            if (baseDetalhe is not null && p.Feminino is not null &&
+                (baseDetalhe.StartsWith("é ") || baseDetalhe.StartsWith("tem ") || baseDetalhe.StartsWith("mede ")))
+                baseDetalhe = (p.Feminino.Value ? "ela " : "ele ") + baseDetalhe;
+
+            apresenta = (esse, baseDetalhe, variante) switch
+            {
+                (null, null, _) => "Dá uma olhada.",
+                (not null, null, _) => $"Olha {esse} aqui.",
+                (null, not null, 2) => $"Olha só: {p.Nome}. {Frase(baseDetalhe!)}",
+                (null, not null, _) => $"Olha só: {baseDetalhe}.",
+                (not null, not null, 0) => $"Olha {esse}: {baseDetalhe}.",
+                (not null, not null, 1) => $"Olha {esse} {p.Nome}. {Frase(baseDetalhe!)}",
+                (not null, not null, _) => $"Dá uma olhada {(p.Feminino!.Value ? "nessa" : "nesse")} {p.Nome}. {Frase(baseDetalhe!)}",
+            };
+        }
+        cenas.Add((apresenta, "explicacao"));
+
+        // 3) Pra que serve (só quando o título cita usos reconhecidos) e observação de quem revisou.
+        var extra = new List<string>();
+        if (!autopeca && p.Usos is not null) extra.Add($"Serve pra {p.Usos}.");
+        if (obs is not null) extra.Add(obs);
+
+        if (autopeca)
+        {
+            // Compatibilidade nunca é garantida só pelo título: um aviso curto, dito como uma pessoa diria.
+            extra.Add(variante == 1 ? "Confere se é o do seu carro antes de comprar." : "Vale conferir se serve no seu carro.");
+            cenas.Add((string.Join(" ", extra), "fechamento"));
+        }
+        else
+        {
+            if (extra.Count > 0) cenas.Add((string.Join(" ", extra), "explicacao"));
+
+            // 4) Encerramento curto e variado, só em alguns vídeos (nunca forçado).
+            var fecho = (int)(itemId % 4) switch
+            {
+                0 => "Dá uma olhada nos detalhes.",
+                2 => "Vale ver os detalhes.",
+                3 => "Os detalhes estão no produto.",
+                _ => null,
+            };
+            if (fecho is not null) cenas.Add((fecho, "fechamento"));
+        }
+
+        // Fotos: sequência sem repetir enquanto houver foto nova; nunca inventa ângulo nem estica poucas fotos.
         var n = imagens.Count;
-        // Fotos em sequência, sem repetir enquanto houver foto nova; com poucas fotos (< 5),
-        // cada cena usa uma só (nunca inventa ângulo nem estica pouca foto em muitos cortes).
         var cursor = 0;
         string Prox() => imagens[cursor++ % n];
-        var porCena = n >= 5 ? 2 : 1;
-        (string, double, string?)[] Fotos(string? modo = null) =>
-            porCena == 2 ? new[] { (Prox(), 0.5, modo), (Prox(), 0.5, modo) } : new[] { (Prox(), 1.0, modo) };
+        var meio = Math.Max(1, cenas.Count - 2);
+        var porCena = n >= 7 && meio <= 2 ? 3 : n >= 5 ? 2 : 1;
 
-        var cenas = new List<(string fala, string legenda, string tom, List<(string img, double fracao, string? modo)> shots)>();
-        void Add(string frase, string tom, params (string img, double fracao, string? modo)[] shots) =>
-            cenas.Add((Fala(frase), Legenda(frase), tom, shots.ToList()));
-
-        var (curto, aplicacao) = categoria == CategoriaProduto.Autopeca ? SepararPecaEAplicacao(titulo) : (NomeCurto(titulo), "");
-        curto = NomeNatural(curto);
-        var attrs = categoria == CategoriaProduto.Autopeca ? new List<string>() : Extrair(titulo, categoria);
-
-        // 1) Abre mostrando o produto inteiro (a capa), com interesse específico.
-        Add(variante switch
+        var montadas = new List<object>();
+        for (var i = 0; i < cenas.Count; i++)
         {
-            0 => categoria == CategoriaProduto.Autopeca ? $"Procurando {curto} pro seu carro?" : $"Procurando {curto}?",
-            1 => categoria == CategoriaProduto.Autopeca ? $"Precisa de {curto}? Olha só." : $"Se você precisa de {curto}, olha só.",
-            _ => $"Uma dica pra quem busca {curto}.",
-        }, "pergunta", (Prox(), 1.0, "inteiro"));
-
-        // 2) Fatos confirmados no título/aplicação — se não houver, a cena não existe.
-        if (categoria == CategoriaProduto.Autopeca)
-        {
-            if (aplicacao.Length > 0)
-                Add($"Aplicação informada: {aplicacao}.", "explicacao", Fotos());
-        }
-        else if (attrs.Count > 0)
-        {
-            var lista = Unir(attrs.Take(4).ToList());
-            Add(variante switch { 0 => $"O anúncio cita {lista}.", 1 => $"No anúncio aparece: {lista}.", _ => $"Segundo o anúncio: {lista}." },
-                "explicacao", Fotos());
+            var (frase, tom) = cenas[i];
+            var primeira = i == 0;
+            var ultima = i == cenas.Count - 1 && cenas.Count > 2 && tom == "fechamento";
+            object[] shots = primeira || ultima
+                ? new object[] { new { imagem = primeira ? Prox() : imagens[Math.Min(1, n - 1)], fracao = 1.0, modo = (string?)"inteiro" } }
+                : Enumerable.Range(0, porCena).Select(_ => (object)new { imagem = Prox(), fracao = Math.Round(1.0 / porCena, 4), modo = (string?)null }).ToArray();
+            montadas.Add(new { fala = Fala(frase), legenda = Legenda(frase), tom, shots });
         }
 
-        // 3) Evidência visual / o que observar. É a única cena "de enchimento": se o vídeo passar
-        // do tempo alvo, ela é a primeira a sair (as demais carregam fato, estado ou chamada).
-        var indiceEvidencia = cenas.Count;
-        Add(categoria switch
-        {
-            CategoriaProduto.Autopeca => variante == 1 ? "Compare o código da peça com o do seu veículo." : "Confere o código da peça com o do seu carro.",
-            CategoriaProduto.Roupa => "Veja o corte e os detalhes nas fotos.",
-            CategoriaProduto.Acessorio => "Olha o acabamento e os detalhes nas fotos.",
-            CategoriaProduto.Casa => "Veja o produto de perto nas fotos.",
-            _ => "Dá pra ver o produto por mais de um ângulo nas fotos.",
-        }, "explicacao", Fotos());
-
-        // 4) Dúvida de compra da categoria (+ observação de quem revisou, se houver).
-        var obs = string.IsNullOrWhiteSpace(observacaoRevisao) ? "" : observacaoRevisao.Trim().TrimEnd('.') + ". ";
-        Add(categoria switch
-        {
-            CategoriaProduto.Autopeca => obs + "Confirme o estado e a compatibilidade com o vendedor.",
-            CategoriaProduto.Roupa => obs + "Antes de escolher, confira a tabela de medidas e os tamanhos disponíveis.",
-            CategoriaProduto.Acessorio => obs + "Confira no anúncio as dimensões, o acabamento e como usar.",
-            CategoriaProduto.Casa => obs + "Confira medidas, material e cuidados de uso no anúncio.",
-            _ => obs + "Confira no anúncio as medidas, o que vem junto e as opções.",
-        }, "explicacao", Fotos());
-
-        // 5) Uma única chamada final, com o produto inteiro na tela.
-        Add(variante switch { 0 => "Veja as opções no produto marcado.", 1 => "As informações estão no produto marcado.", _ => "Confira tudo no produto marcado." },
-            "fechamento", (imagens[Math.Min(1, n - 1)], 1.0, "inteiro"));
-
-        // Tempo alvo de ~20 s: estimativa pela fala (≈ 12 caracteres/s medidos nos vídeos de teste, já com a pausa entre cenas).
-        static double Estimativa(IEnumerable<(string fala, string legenda, string tom, List<(string img, double fracao, string? modo)> shots)> cs) =>
-            cs.Sum(c => c.fala.Length / 12.0 + 0.5);
-        if (Estimativa(cenas) > TempoAlvoSegundos)
-            cenas.RemoveAt(indiceEvidencia);
-
-        var versao = $"auto-v3-{categoria.ToString().ToLowerInvariant()}-{(char)('A' + variante)}";
-        var json = JsonSerializer.Serialize(new
-        {
-            versao,
-            cenas = cenas.Select(c => new
+        var versao = $"auto-v4-{categoria.ToString().ToLowerInvariant()}-{(char)('A' + variante)}";
+        var json = JsonSerializer.Serialize(new { versao, cenas = montadas },
+            new JsonSerializerOptions
             {
-                fala = c.fala,
-                legenda = c.legenda,
-                tom = c.tom,
-                shots = c.shots.Select(s => new { imagem = s.img, fracao = s.fracao, modo = s.modo }).ToArray(),
-            }).ToArray(),
-        }, new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+                WriteIndented = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            });
 
-        var legendaPost = $"{Reduz(curto, 60)} — veja as fotos e as opções no produto marcado.";
-        return new RoteiroGerado(versao, categoria, json, legendaPost, Hashtags(titulo, categoriasPagina, categoria));
+        return new RoteiroGerado(versao, categoria, json, LegendaDoPost(p), Hashtags(titulo, categoriasPagina, categoria));
     }
 
-    // ---------- classificação ----------
+    // Texto da legenda da publicação (não é a fala): o que é o produto e um detalhe, sem apelo de compra forçado.
+    private static string LegendaDoPost(Produto p)
+    {
+        var baseTxt = Maiuscula(Legenda(p.Nome));
+        if (p.Itens is not null) return Reduz($"{baseTxt}: vem com {Legenda(p.Itens)}.", 200);
+        if (p.Aplicacao is not null) return Reduz($"{baseTxt}. Indicado pelo vendedor pra {Legenda(p.Aplicacao)}.", 200);
+        if (p.Clausulas.Count > 0) return Reduz($"{baseTxt}: {Legenda(JuntarClausulas(p.Clausulas.Take(2).ToList()))}.", 200);
+        return Reduz(baseTxt + ".", 200);
+    }
+
+    // ====================================================================================================
+    // Entendimento do título: só extrai o que está escrito nele.
+    private sealed record Produto(string Nome, bool? Feminino, List<string> Clausulas, string? Itens, string? Usos, string? Aplicacao);
+
+    private static string LimpaTitulo(string t)
+    {
+        t = Regex.Replace(t, @"[^\p{L}\p{N}\s\-–—+,.()/%'’&|]", " ");
+        return Regex.Replace(t, @"\s+", " ").Trim().TrimEnd('-', '–', '—', '.', ',', ' ');
+    }
+
+    private static Produto Entender(string titulo, CategoriaProduto categoria)
+    {
+        // Parte principal e "cauda" (palavras-chave depois de um traço ou barra), que o vendedor usa pra listar usos.
+        var partes = Regex.Split(titulo, @"\s[-–—|]\s", RegexOptions.None);
+        var nucleo = partes[0].Trim();
+        var cauda = partes.Length > 1 ? string.Join(" ", partes.Skip(1)) : "";
+        var tokens = nucleo.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+
+        if (categoria == CategoriaProduto.Autopeca)
+        {
+            var (peca, aplic) = SepararPecaEAplicacao(tokens);
+            var nomeAuto = NomeNatural(peca);
+            return new Produto(nomeAuto, GeneroDe(nomeAuto), new List<string>(), null, null, aplic);
+        }
+
+        var nome = NomeProduto(tokens, categoria);
+        string? itens = null;
+        var itensSemContagem = new List<string>();
+        if (nome.StartsWith("kit", StringComparison.OrdinalIgnoreCase) || nucleo.Contains('+'))
+            itens = MontaItens(nucleo, nome, itensSemContagem);
+
+        // "kit" sozinho não diz nada: usa o primeiro item pra dizer o que é o kit.
+        if (nome.Equals("kit", StringComparison.OrdinalIgnoreCase) && itensSemContagem.Count > 0)
+            nome = "kit de " + itensSemContagem[0];
+
+        var nomeNat = NomeNatural(nome);
+        var palavrasDoNome = Normaliza(nomeNat).Split(' ', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
+        var clausulas = itens is null ? Clausulas(nucleo + " " + cauda, categoria) : new List<string>();
+        // Não repete o que o nome já disse ("garrafa térmica inox" + "é de inox").
+        clausulas = clausulas.Where(c =>
+            !Normaliza(c).Split(' ', StringSplitOptions.RemoveEmptyEntries).Any(w => w.Length >= 4 && palavrasDoNome.Contains(w))).ToList();
+
+        // Usos: só palavras de uma lista reconhecida (celular, monitor, tevê...), em ordem, no máximo quatro.
+        string? usos = null;
+        if (categoria is CategoriaProduto.Outros or CategoriaProduto.Casa)
+        {
+            var achados = Regex.Matches(titulo, @"[\p{L}]+").Select(m => m.Value)
+                .Where(w => Usos.ContainsKey(w)).Select(w => Usos[w]).Distinct().Take(4).ToList();
+            if (achados.Count >= 2) usos = Juntar(achados);
+        }
+
+        return new Produto(nomeNat, GeneroDe(nomeNat), clausulas, itens, usos, null);
+    }
+
+    // Nome do produto: as primeiras palavras do título, até aparecer número, "com", medida, atributo ou veículo.
+    private static string NomeProduto(List<string> tokens, CategoriaProduto categoria)
+    {
+        var paradas = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "com", "c/", "para", "p/", "+", "cor", "tamanho", "modelo" };
+        var marcadoresDeGenero = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "feminina", "feminino", "masculina", "masculino", "infantil", "unissex" };
+        var inicioDeAtributo = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        { "wide", "pantalona", "flare", "skinny", "slim", "mom", "oversized", "cintura", "manga", "gola", "decote", "elétrico", "elétrica", "portátil", "recarregável" };
+
+        var nome = new List<string>();
+        foreach (var t in tokens)
+        {
+            var limpo = t.Trim('(', ')', ',');
+            if (nome.Count >= 1)
+            {
+                if (limpo.Any(char.IsDigit) || limpo.StartsWith('(') || t.StartsWith('(') || paradas.Contains(limpo) || inicioDeAtributo.Contains(limpo)) break;
+                if (marcadoresDeGenero.Contains(limpo) && categoria is not (CategoriaProduto.Roupa or CategoriaProduto.Acessorio)) break;
+            }
+            nome.Add(limpo);
+            if (nome.Count >= 4) break;
+        }
+        while (nome.Count > 1 && Palavrinhas.Contains(nome[^1])) nome.RemoveAt(nome.Count - 1);
+        return string.Join(' ', nome);
+    }
+
+    // "Limpa Telas 500ml + 5 Flanelas" -> "limpa telas de 500 ml e 5 flanelas". Só junta o que está escrito.
+    private static string? MontaItens(string nucleo, string nome, List<string> substantivos)
+    {
+        var resto = Regex.Replace(nucleo, @"^kit\s+", "", RegexOptions.IgnoreCase).Trim();
+        if (resto.Length == 0) return null;
+        var segmentos = resto.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Take(3).ToList();
+        var itens = new List<string>();
+        foreach (var seg in segmentos)
+        {
+            var toks = seg.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+            string? contagem = null, medida = null;
+            if (toks.Count > 0 && Regex.IsMatch(toks[0], @"^\d+$")) { contagem = toks[0]; toks.RemoveAt(0); }
+            var m = toks.FindIndex(x => MedidaComUnidade.IsMatch(Regex.Replace(x, @"(\d)([A-Za-z])", "$1 $2").Replace(" ", "")));
+            if (m >= 0) { medida = Regex.Replace(toks[m], @"(\d)([A-Za-z])", "$1 $2").ToLowerInvariant(); toks.RemoveAt(m); }
+            // Para no primeiro token que parece ruído de título (número solto, "com", etc.).
+            var corte = toks.FindIndex(x => x.Any(char.IsDigit) || x.Equals("com", StringComparison.OrdinalIgnoreCase));
+            if (corte >= 0) toks = toks.Take(corte).ToList();
+            var substantivo = string.Join(' ', toks.Take(3)).ToLowerInvariant().Trim();
+            if (substantivo.Length == 0 && medida is null && contagem is null) continue;
+            if (substantivo.Length > 0) substantivos.Add(substantivo);
+
+            itens.Add((contagem, medida, substantivo.Length) switch
+            {
+                (not null, _, > 0) => $"{contagem} {substantivo}",
+                (null, not null, > 0) => $"{substantivo} de {medida}",
+                (null, null, > 0) => substantivo,
+                (_, not null, 0) => medida!,
+                _ => contagem!,
+            });
+        }
+        return itens.Count == 0 ? null : Juntar(itens);
+    }
+
+    // Detalhes confirmados no título, na forma como se fala ("é wide leg", "tem cintura alta"). No máximo 2 são usados.
+    private static List<string> Clausulas(string texto, CategoriaProduto categoria)
+    {
+        var norm = Normaliza(texto);
+        var achados = new List<(int pos, string frase)>();
+
+        // primeiraApenas: sinônimos (ex.: modelagens) contam uma vez só; senão todos os que aparecem entram.
+        void Procura(string[] padroes, Func<Match, string?> frase, bool primeiraApenas = false)
+        {
+            foreach (var padrao in padroes)
+            {
+                var m = Regex.Match(norm, $@"\b{padrao}\b");
+                if (!m.Success) continue;
+                var f = frase(m);
+                if (f is not null && !achados.Any(a => a.frase == f)) { achados.Add((m.Index, f)); if (primeiraApenas) break; }
+            }
+        }
+
+        if (categoria == CategoriaProduto.Roupa)
+        {
+            Procura(new[] { @"wide leg", "pantalona", "flare", "skinny", "slim", "mom", "oversized", "cropped", "reta" }, m => $"é {m.Value}", primeiraApenas: true);
+            Procura(new[] { @"cintura (alta|baixa|media)" }, m => "tem " + m.Value.Replace("media", "média"), primeiraApenas: true);
+            Procura(new[] { @"manga (longa|curta)", @"gola alta", @"decote v" }, m => "tem " + (m.Value == "decote v" ? "decote em V" : m.Value));
+            Procura(new[] { @"sem manga" }, _ => "é sem manga");
+            Procura(new[] { "algodao", "viscose", "linho", "moletom" }, m => $"é de {Acentua(m.Value)}", primeiraApenas: true);
+            Procura(new[] { @"com elastano" }, _ => "tem elastano");
+            Procura(new[] { "marmorizada", @"plus size" }, m => $"é {m.Value}");
+        }
+        else if (categoria == CategoriaProduto.Acessorio)
+        {
+            Procura(new[] { @"aco inox", "inox", "couro", "resina" }, m => $"é de {(m.Value == "aco inox" ? "aço inox" : m.Value)}", primeiraApenas: true);
+            Procura(new[] { "dourado", "dourada", "prateado", "prateada", "folheado", "folheada", "banhado", "banhada", "sintetico", "ajustavel", "regulavel", "unissex" },
+                m => $"é {Acentua(m.Value)}", primeiraApenas: true);
+            Procura(new[] { "zirconia", "perola" }, m => $"tem {Acentua(m.Value)}");
+        }
+        else if (categoria == CategoriaProduto.Casa)
+        {
+            Procura(new[] { "inox", "plastico", "vidro", "madeira", "bambu", "silicone", "algodao", "porcelana", "ceramica", "aluminio" }, m => $"é de {Acentua(m.Value)}", primeiraApenas: true);
+            Procura(new[] { @"com tampa" }, _ => "vem com tampa");
+            Procura(new[] { "antiaderente", "empilhavel", "dobravel", "lavavel" }, m => $"é {Acentua(m.Value)}");
+        }
+        else
+        {
+            Procura(new[] { @"sem alcool", @"sem fio", "recarregavel", "portatil", "bivolt", "eletrico", "eletrica", "automatico", "automatica" }, m => $"é {Acentua(m.Value)}");
+            Procura(new[] { @"a prova d.agua" }, _ => "é à prova d'água");
+        }
+
+        // Medidas do título (fora de kits): "mede 30 cm", "tem 500 ml", "vem com 12 peças".
+        foreach (Match m in Regex.Matches(texto, @"\b(\d+(?:[.,]\d+)?)\s?(ml|l|litros?|cm|mm|kg|g|w|v|gb|mb|peças?|pçs?|unidades?|pares?)\b", RegexOptions.IgnoreCase))
+        {
+            var valor = m.Groups[1].Value;
+            var un = m.Groups[2].Value.ToLowerInvariant();
+            var frase = un switch
+            {
+                "cm" or "mm" => $"mede {valor} {un}",
+                var u when u.StartsWith("peç") || u.StartsWith("pç") || u.StartsWith("unid") || u.StartsWith("par") => $"vem com {valor} {(u.StartsWith("pç") ? "peças" : u)}",
+                _ => $"tem {valor} {un}",
+            };
+            achados.Add((m.Index - 1000, frase)); // medidas primeiro: costumam ser o dado mais útil
+        }
+
+        return achados.OrderBy(a => a.pos).Select(a => a.frase).Distinct().ToList();
+    }
+
+    private static string Acentua(string s) => s switch
+    {
+        "algodao" => "algodão", "plastico" => "plástico", "ceramica" => "cerâmica", "aluminio" => "alumínio", "sintetico" => "sintético",
+        "ajustavel" => "ajustável", "regulavel" => "regulável", "zirconia" => "zircônia", "perola" => "pérola", "empilhavel" => "empilhável",
+        "dobravel" => "dobrável", "lavavel" => "lavável", "recarregavel" => "recarregável", "portatil" => "portátil", "eletrico" => "elétrico",
+        "eletrica" => "elétrica", "automatico" => "automático", "automatica" => "automática", "sem alcool" => "sem álcool", _ => s,
+    };
+
+    // ====================================================================================================
+    // Autopeças: nome da peça e aplicação informada pelo vendedor ("Voyage de 2016 a 2023 e Gol 1.0").
+    private static (string peca, string? aplicacao) SepararPecaEAplicacao(List<string> palavras)
+    {
+        bool EhVeiculoOuAno(string p) => Veiculos.Contains(p.Trim('(', ')', ',')) || Regex.IsMatch(p, @"^(19|20)\d{2}");
+        var idx = palavras.FindIndex(EhVeiculoOuAno);
+        if (idx <= 0) return (string.Join(' ', palavras.Take(4)), null);
+        var inicio = idx;
+        if (inicio > 0 && Marcas.Contains(palavras[inicio - 1].Trim(','))) inicio--;
+        var peca = string.Join(' ', palavras.Take(Math.Min(inicio, 4)));
+
+        var grupos = new List<(string nome, string? anos, string? motor)>();
+        foreach (var bruto in palavras.Skip(inicio).Take(14))
+        {
+            var p = bruto.Trim('(', ')', ',');
+            if (p.Length == 0 || p.Contains('/') || Regex.IsMatch(p, @"^\d+cc$", RegexOptions.IgnoreCase) || p.Equals("nac.", StringComparison.OrdinalIgnoreCase)) continue;
+            var anos = Regex.Match(p, @"^(\d{2,4})-(\d{2,4})$");
+            if (anos.Success && grupos.Count > 0)
+            {
+                var g = grupos[^1];
+                grupos[^1] = (g.nome, $"{Ano(anos.Groups[1].Value)} a {Ano(anos.Groups[2].Value)}", g.motor);
+            }
+            else if (Regex.IsMatch(p, @"^\d\.\d$") && grupos.Count > 0)
+            {
+                var g = grupos[^1];
+                grupos[^1] = (g.nome, g.anos, p);
+            }
+            else if (Regex.IsMatch(p, @"^(19|20)\d{2}$") && grupos.Count > 0)
+            {
+                var g = grupos[^1];
+                grupos[^1] = (g.nome, Ano(p), g.motor);
+            }
+            else if (Veiculos.Contains(p) || Marcas.Contains(p))
+            {
+                // Marca seguida do modelo vira "Honda Fit"; modelo sozinho abre um novo grupo.
+                if (Marcas.Contains(p)) grupos.Add((p, null, null));
+                else if (grupos.Count > 0 && Marcas.Contains(grupos[^1].nome.Split(' ')[^1]) && grupos[^1].anos is null && grupos[^1].motor is null)
+                    grupos[^1] = (grupos[^1].nome + " " + p, null, null);
+                else grupos.Add((p, null, null));
+            }
+        }
+
+        var textos = grupos.Take(3).Select(g =>
+            g.nome + (g.motor is not null ? " " + g.motor : "") + (g.anos is not null ? (g.anos.Contains(" a ") ? " de " : " ") + g.anos : "")).ToList();
+        return (peca, textos.Count == 0 ? null : Juntar(textos));
+    }
+
+    private static string Ano(string a) => a.Length == 4 ? a : (int.Parse(a) <= 30 ? "20" + a : "19" + a);
+
+    // "motor arranque partida" -> "motor de arranque" (como se fala).
+    private static readonly (string de, string para)[] NomesComuns =
+    {
+        ("motor arranque partida", "motor de arranque"), ("motor arranque", "motor de arranque"),
+        ("motor partida", "motor de partida"), ("bomba agua", "bomba d'água"), ("reser servo freio", "reservatório do servo de freio"),
+    };
+
+    private static string NomeNatural(string nome)
+    {
+        var s = nome.Trim().ToLowerInvariant();
+        foreach (var (de, para) in NomesComuns)
+            if (s.StartsWith(de, StringComparison.Ordinal)) return para + s[de.Length..];
+        if (Regex.IsMatch(s, @"^kit [^\d]") && !s.StartsWith("kit de ") && !s.StartsWith("kit com ")) s = "kit de " + s[4..];
+        s = Regex.Replace(s, @"(?<!\bde )\bar condicionado\b", "de ar condicionado");
+        return s;
+    }
+
+    // ====================================================================================================
+    // Gênero: dicionário, depois terminação; se ainda houver dúvida devolve null e a frase evita artigo/pronome.
+    private static bool? GeneroDe(string nome)
+    {
+        var palavras = nome.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var alvo = palavras.FirstOrDefault(p => !Adjetivos.Contains(p)) ?? palavras.FirstOrDefault();
+        if (alvo is null) return null;
+        return GeneroPalavra(alvo);
+    }
+
+    private static bool? GeneroPalavra(string w)
+    {
+        if (Genero.TryGetValue(w, out var g)) return g;
+        var s = w.ToLowerInvariant();
+        if (s.EndsWith("ção") || s.EndsWith("são") || s.EndsWith("dade")) return true;
+        if (s.EndsWith("ão") || s.EndsWith("or")) return false;
+        if (s.EndsWith("as")) return true;
+        if (s.EndsWith("os")) return false;
+        if (s.EndsWith('a')) return true;
+        if (s.EndsWith('o')) return false;
+        return null;
+    }
+
+    private static string Juntar(List<string> itens) =>
+        itens.Count == 1 ? itens[0] : string.Join(", ", itens.Take(itens.Count - 1)) + " e " + itens[^1];
+
+    // "é elétrico" + "é portátil" -> "é elétrico e portátil"; "tem A" + "tem B" -> "tem A e B"; verbos diferentes ficam como estão.
+    private static string JuntarClausulas(List<string> clausulas)
+    {
+        foreach (var verbo in new[] { "é ", "tem " })
+        {
+            if (clausulas.Count == 2 && clausulas.All(c => c.StartsWith(verbo)))
+                return $"{clausulas[0]} e {clausulas[1][verbo.Length..]}";
+        }
+        return Juntar(clausulas);
+    }
+
+    private static string Frase(string s) => s.Length == 0 ? s : char.ToUpper(s[0]) + s[1..] + (s.EndsWith('.') || s.EndsWith('?') ? "" : ".");
+    private static string Maiuscula(string s) => s.Length == 0 ? s : char.ToUpper(s[0]) + s[1..];
+    private static string Minuscula(string s) => s.Length == 0 ? s : char.ToLower(s[0]) + s[1..];
+
+    // ====================================================================================================
+    // Classificação
     public static CategoriaProduto Detectar(string titulo, IReadOnlyList<string>? categoriasPagina)
     {
         var texto = Normaliza(titulo + " " + string.Join(' ', categoriasPagina ?? Array.Empty<string>()));
@@ -180,76 +514,92 @@ public static class RoteiroAutomatico
         return sb.ToString();
     }
 
-    // ---------- extração de fatos do título ----------
-    private static List<string> Extrair(string titulo, CategoriaProduto categoria)
+    // ====================================================================================================
+    // Texto da voz e da legenda
+    private static readonly string[] Unidades =
+    { "zero", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove" };
+    private static readonly string[] Dezenas = { "", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa" };
+    private static readonly string[] Centenas = { "", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos" };
+
+    private static string Ate999(int n, bool fem)
     {
-        var achados = new List<(int pos, string texto)>();
-        var norm = Normaliza(titulo);
-        foreach (var a in Atributos.GetValueOrDefault(categoria, Array.Empty<string>()))
+        if (n == 0) return "";
+        if (n == 100) return "cem";
+        var partes = new List<string>();
+        var c = n / 100;
+        var r = n % 100;
+        if (c > 0) partes.Add(fem ? Centenas[c].Replace("entos", "entas") : Centenas[c]);
+        if (r > 0)
         {
-            var i = norm.IndexOf(Normaliza(a), StringComparison.Ordinal);
-            if (i >= 0 && !achados.Any(x => x.texto.Contains(a, StringComparison.OrdinalIgnoreCase) || a.Contains(x.texto, StringComparison.OrdinalIgnoreCase)))
-                achados.Add((i, a));
+            if (r < 20) partes.Add(Gen(Unidades[r], fem));
+            else partes.Add(Dezenas[r / 10] + (r % 10 > 0 ? " e " + Gen(Unidades[r % 10], fem) : ""));
         }
-        foreach (Match m in Medidas.Matches(titulo))
-            achados.Add((m.Index, Regex.Replace(m.Value, @"(\d)([A-Za-z])", "$1 $2").ToLowerInvariant()));
-        return achados.OrderBy(x => x.pos).Select(x => x.texto).Distinct().ToList();
+        return string.Join(" e ", partes);
     }
 
-    private static (string peca, string aplicacao) SepararPecaEAplicacao(string titulo)
+    private static string Gen(string palavra, bool fem) => fem ? palavra switch { "um" => "uma", "dois" => "duas", _ => palavra } : palavra;
+
+    // Número por extenso em português do Brasil (0 a 999.999). Fora disso, devolve os dígitos.
+    public static string PorExtenso(long n, bool fem = false)
     {
-        var palavras = titulo.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
-        var idx = palavras.FindIndex(p => Veiculos.Contains(p.Trim('(', ')', ',')) || Regex.IsMatch(p, @"^(19|20)\d{2}"));
-        if (idx <= 0) return (NomeCurto(titulo, 4), "");
-        var peca = string.Join(' ', palavras.Take(Math.Min(idx, 4)));
-        var aplic = string.Join(' ', palavras.Skip(idx).Take(8).Where(p => !Regex.IsMatch(p, @"^\d+cc$", RegexOptions.IgnoreCase)));
-        return (peca, aplic);
+        if (n < 0 || n > 999_999) return n.ToString(CultureInfo.InvariantCulture);
+        if (n == 0) return "zero";
+        if (n < 1000) return Ate999((int)n, fem);
+        var mil = (int)(n / 1000);
+        var resto = (int)(n % 1000);
+        var milTexto = mil == 1 ? "mil" : Ate999(mil, fem) + " mil";
+        if (resto == 0) return milTexto;
+        return (resto < 100 || resto % 100 == 0) ? $"{milTexto} e {Ate999(resto, fem)}" : $"{milTexto} {Ate999(resto, fem)}";
     }
 
-    // Nome pra usar no meio da frase: minúsculas e a forma como se fala ("motor arranque partida" -> "motor de arranque").
-    private static readonly (string de, string para)[] NomesComuns =
+    private static readonly Dictionary<string, (string singular, string plural, bool fem)> UnidadesFala = new(StringComparer.OrdinalIgnoreCase)
     {
-        ("motor arranque partida", "motor de arranque"), ("motor arranque", "motor de arranque"),
-        ("motor partida", "motor de partida"), ("bomba agua", "bomba d'água"), ("kit limpa telas", "kit de limpa telas"),
+        ["ml"] = ("mililitro", "mililitros", false), ["l"] = ("litro", "litros", false), ["litro"] = ("litro", "litros", false), ["litros"] = ("litro", "litros", false),
+        ["cm"] = ("centímetro", "centímetros", false), ["mm"] = ("milímetro", "milímetros", false), ["m"] = ("metro", "metros", false),
+        ["kg"] = ("quilo", "quilos", false), ["g"] = ("grama", "gramas", true), ["w"] = ("watt", "watts", false), ["v"] = ("volt", "volts", false),
+        ["gb"] = ("gigabyte", "gigabytes", false), ["mb"] = ("megabyte", "megabytes", false),
     };
 
-    private static string NomeNatural(string nome)
+    // Voz: tudo por extenso e sem símbolos. "500 ml" -> "quinhentos mililitros"; "5 flanelas" -> "cinco flanelas";
+    // "2016 a 2023" -> "dois mil e dezesseis a dois mil e vinte e três"; "1.0" -> "um ponto zero"; "TV" -> "tevê".
+    public static string Fala(string s)
     {
-        var s = nome.Trim().ToLowerInvariant();
-        foreach (var (de, para) in NomesComuns)
-            if (s.StartsWith(de, StringComparison.Ordinal)) return para + s[de.Length..];
-        return s;
-    }
-
-    private static string NomeCurto(string titulo, int max = 3)
-    {
-        var palavras = titulo.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
-        var q = Math.Min(max, palavras.Count);
-        while (q > 1 && Palavrinhas.Contains(palavras[q - 1])) q--;
-        return string.Join(' ', palavras.Take(q));
-    }
-
-    // ---------- texto pra voz e pra legenda ----------
-    private static string Unir(List<string> itens) =>
-        itens.Count == 1 ? itens[0] : string.Join(", ", itens.Take(itens.Count - 1)) + " e " + itens[^1];
-
-    // Voz: anos "2016-2023" -> "2016 a 2023", "1.0" -> "1 ponto 0", "500ml" -> "500 ml", MAIÚSCULAS -> minúsculas.
-    private static string Fala(string s)
-    {
-        s = Regex.Replace(s, @"(\d{4})\s*-\s*(\d{4})", "$1 a $2");
-        s = Regex.Replace(s, @"\b(\d)\.(\d)\b", "$1 ponto $2");
-        s = Regex.Replace(s, @"(\d)(ml|cm|mm|kg|g|l)\b", "$1 $2", RegexOptions.IgnoreCase);
+        s = Regex.Replace(s, @"[()\[\]{}|•–—+/]", " ");
         s = Regex.Replace(s, @"\bTV\b", "tevê");
         s = Regex.Replace(s, @"\b[A-ZÀ-Ý]{4,}\b", m => m.Value.ToLowerInvariant());
-        s = Regex.Replace(s, @"[()\[\]{}|•–—+/]", " ");
+
+        // número com unidade (inclui decimal com vírgula: "1,5 litro" -> "um vírgula cinco litro")
+        s = Regex.Replace(s, @"\b(\d+)(?:[.,](\d+))?\s?(ml|litros?|l|cm|mm|kg|gb|mb|w|v|g|m)\b", m =>
+        {
+            var u = UnidadesFala[m.Groups[3].Value];
+            var inteiro = long.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+            if (m.Groups[2].Success)
+                return $"{PorExtenso(inteiro, u.fem)} vírgula {string.Join(' ', m.Groups[2].Value.Select(d => Unidades[d - '0']))} {u.plural}";
+            return $"{PorExtenso(inteiro, u.fem)} {(inteiro == 1 ? u.singular : u.plural)}";
+        }, RegexOptions.IgnoreCase);
+
+        // decimais sem unidade (cilindrada de motor): "1.6" -> "um ponto seis"
+        s = Regex.Replace(s, @"\b(\d{1,2})[.,](\d{1,2})\b", m =>
+            $"{PorExtenso(long.Parse(m.Groups[1].Value))} ponto {string.Join(' ', m.Groups[2].Value.Select(d => Unidades[d - '0']))}");
+
+        // número seguido de substantivo: "1"/"2" concordam em gênero ("duas flanelas", "um frasco")
+        s = Regex.Replace(s, @"\b(\d{1,2})\s+(\p{L}{3,})", m =>
+        {
+            var n = long.Parse(m.Groups[1].Value);
+            var palavra = m.Groups[2].Value;
+            var fem = !Palavrinhas.Contains(palavra) && GeneroPalavra(palavra) == true;
+            return $"{PorExtenso(n, fem)} {palavra}";
+        });
+
+        s = Regex.Replace(s, @"\b\d{1,6}\b", m => PorExtenso(long.Parse(m.Value)));
         return Regex.Replace(s, @"\s+", " ").Trim();
     }
 
-    // Legenda: mesma frase, números e unidades legíveis ("2016 a 2023", "500 ml").
-    private static string Legenda(string s)
+    // Legenda: mesmas palavras, com números e unidades legíveis ("500 ml", "2016 a 2023").
+    public static string Legenda(string s)
     {
         s = Regex.Replace(s, @"(\d{4})\s*-\s*(\d{4})", "$1 a $2");
-        s = Regex.Replace(s, @"(\d)(ml|cm|mm|kg|g|l)\b", "$1 $2", RegexOptions.IgnoreCase);
+        s = Regex.Replace(s, @"(\d)(ml|cm|mm|kg|gb|mb|g|l|w|v)\b", "$1 $2", RegexOptions.IgnoreCase);
         return Regex.Replace(s, @"\s+", " ").Trim();
     }
 
