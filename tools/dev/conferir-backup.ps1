@@ -4,12 +4,11 @@
   Roda no seu computador. As connection strings ficam em variáveis da sessão e nunca são impressas.
 
   Uso (PowerShell, na raiz do repositório):
-    1) No Neon, em Connection details, selecione a branch `production` e copie a connection string (formato URL).
-    2) $env:NEXO_PROD_CONNECTION   = "<connection string da branch production>"
-    3) Troque a branch no mesmo painel para `backup-antes-afiliados` e copie a connection string dela.
-    4) $env:NEXO_BACKUP_CONNECTION = "<connection string da branch backup-antes-afiliados>"
-    5) ./tools/dev/conferir-backup.ps1
-  Feche a janela depois para apagar as variáveis. Não cole as strings em chat, e-mail ou arquivos.
+    1) Abra o PowerShell na pasta do projeto e rode:  ./tools/dev/conferir-backup.ps1
+    2) Ele pede, uma de cada vez, a connection string da branch `production` e a da branch `backup-antes-afiliados`.
+       No Neon: Connection details > escolha a branch > botão de copiar. Cole quando ele pedir (não aparece na tela).
+  (Alternativa: definir $env:NEXO_PROD_CONNECTION e $env:NEXO_BACKUP_CONNECTION antes, com a string real entre aspas simples.)
+  Não cole as strings em chat, e-mail ou arquivos.
 #>
 param(
     [string]$SslMode = "require"
@@ -17,11 +16,18 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-function Ler-Conexao([string]$nomeVariavel) {
+function Ler-Conexao([string]$nomeVariavel, [string]$descricao) {
     $bruta = [Environment]::GetEnvironmentVariable($nomeVariavel)
-    if ([string]::IsNullOrWhiteSpace($bruta)) { throw "Defina primeiro `$env:$nomeVariavel (veja o topo deste arquivo)." }
-    if ($bruta -notmatch '^postgres(ql)?://') { throw "$nomeVariavel precisa estar no formato URL (postgres://usuario:senha@host/banco?sslmode=require)." }
-    $u = [System.Uri]$bruta
+    if ([string]::IsNullOrWhiteSpace($bruta)) {
+        # Sem variável definida: pergunta aqui no terminal (o que você cola não aparece na tela).
+        $segura = Read-Host "Cole a connection string da branch '$descricao' e aperte Enter" -AsSecureString
+        $bruta = [Runtime.InteropServices.Marshal]::PtrToStringUni([Runtime.InteropServices.Marshal]::SecureStringToBSTR($segura))
+    }
+    $bruta = $bruta.Trim().Trim("'").Trim('"')
+    if ($bruta -notmatch '^postgres(ql)?://[^/\s]+@[^/\s]+/[^/\s?]+') {
+        throw "O texto colado não parece uma connection string completa. Ela começa com postgresql://, tem usuário, senha, @, o endereço do servidor e o nome do banco. Copie de novo, inteira, no botão de copiar do Neon (Connection details)."
+    }
+    try { $u = [System.Uri]$bruta } catch { throw "Não consegui ler o endereço dessa connection string. Copie de novo, inteira, no botão de copiar do Neon." }
     $p = $u.UserInfo.Split(':', 2)
     [pscustomobject]@{
         Host = $u.Host
@@ -50,8 +56,8 @@ function Consulta($c, [string]$sql) {
     finally { Remove-Item Env:PGPASSWORD, Env:PGSSLMODE -ErrorAction SilentlyContinue }
 }
 
-$prod = Ler-Conexao "NEXO_PROD_CONNECTION"
-$bkp = Ler-Conexao "NEXO_BACKUP_CONNECTION"
+$prod = Ler-Conexao "NEXO_PROD_CONNECTION" "production"
+$bkp = Ler-Conexao "NEXO_BACKUP_CONNECTION" "backup-antes-afiliados"
 if ($prod.Host -eq $bkp.Host -and $prod.Banco -eq $bkp.Banco) {
     throw "As duas strings apontam para o MESMO banco ($($prod.Host)/$($prod.Banco)). A do backup deve ser a da branch backup-antes-afiliados."
 }
