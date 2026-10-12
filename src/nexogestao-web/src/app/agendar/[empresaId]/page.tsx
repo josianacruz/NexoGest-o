@@ -117,7 +117,7 @@ export default function AutoagendamentoPage() {
   }
 
   if (carregando) {
-    return <main className="max-w-md mx-auto px-4 py-10 text-sm text-black/50 dark:text-white/50">Carregando...</main>;
+    return <main className="max-w-md mx-auto px-4 py-10 text-sm text-black/60 dark:text-white/60">Carregando...</main>;
   }
 
   if (erroInicial) {
@@ -185,11 +185,11 @@ export default function AutoagendamentoPage() {
           <div className="flex flex-col gap-2">
             <label className={labelStyle}>Horário</label>
             {buscandoHorarios ? (
-              <p className="text-sm text-black/50 dark:text-white/50">Buscando horários...</p>
+              <p className="text-sm text-black/60 dark:text-white/60">Buscando horários...</p>
             ) : erroHorarios ? (
               <p className="text-sm text-red-600">{erroHorarios}</p>
             ) : horarios.length === 0 ? (
-              <p className="text-sm text-black/50 dark:text-white/50">Nenhum horário disponível nesse dia.</p>
+              <p className="text-sm text-black/60 dark:text-white/60">Nenhum horário disponível nesse dia.</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {horarios.map((h) => (

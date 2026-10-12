@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "../../lib/api";
+import ThemeToggle from "../_components/ThemeToggle";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -36,10 +37,11 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4">
+    <main className="relative min-h-screen flex items-center justify-center px-4">
+      <ThemeToggle className="absolute top-4 right-4" />
       <div className="w-full max-w-sm bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-8 shadow-sm">
         <h1 className="text-xl font-semibold tracking-tight mb-1">NexoGestão</h1>
-        <p className="text-sm text-black/50 dark:text-white/50 mb-6">Entre para continuar</p>
+        <p className="text-sm text-black/60 dark:text-white/60 mb-6">Entre para continuar</p>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium">Email</label>
@@ -65,7 +67,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => setMostrarSenha((v) => !v)}
                 aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-black/60 dark:text-white/55 hover:text-black/70 dark:hover:text-white/70"
               >
                 {mostrarSenha ? "🙈" : "👁️"}
               </button>

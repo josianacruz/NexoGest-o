@@ -338,7 +338,7 @@ export default function ProdutosPage() {
         <div className={`${cardStyle} overflow-x-auto`}>
           <table className="w-full text-sm min-w-[640px]">
             <thead>
-              <tr className="text-left text-black/50 dark:text-white/50 border-b border-black/10 dark:border-white/10">
+              <tr className="text-left text-black/60 dark:text-white/60 border-b border-black/10 dark:border-white/10">
                 <th className="py-2.5 px-4 font-medium">Nome</th>
                 <th className="py-2.5 px-4 font-medium">Categoria</th>
                 <th className="py-2.5 px-4 font-medium">Preço</th>
@@ -378,7 +378,7 @@ export default function ProdutosPage() {
               })}
               {produtosFiltrados.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                  <td colSpan={6} className="py-6 px-4 text-center text-black/60 dark:text-white/55">
                     {carregando
                       ? "Carregando..."
                       : produtos.length === 0
@@ -538,14 +538,14 @@ export default function ProdutosPage() {
               >
                 {storyPreparandoLink ? "Preparando link..." : storyLinkCopiado ? "Link copiado!" : "Copiar link"}
               </button>
-              <span className="text-xs text-black/40 dark:text-white/40 text-center">
+              <span className="text-xs text-black/60 dark:text-white/55 text-center">
                 Cole este link no adesivo de link do Instagram.
               </span>
             </div>
 
             <button
               onClick={() => alternarLinkStory(storyProduto, !storyProduto.linkStoryAtivo)}
-              className="text-xs text-black/40 dark:text-white/40 underline"
+              className="text-xs text-black/60 dark:text-white/55 underline"
             >
               {storyProduto.linkStoryAtivo ? "Desativar este link" : "Ativar este link de novo"}
             </button>

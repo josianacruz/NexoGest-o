@@ -67,7 +67,7 @@ export default function InicioPage() {
       <Nav empresaNome={empresaNome} comandasHabilitadas={comandasHabilitadas} />
       <main className="max-w-2xl mx-auto px-4 sm:px-5 py-8 w-full min-w-0">
         <h1 className="text-xl font-semibold tracking-tight mb-1">Oi{nomeUsuario ? `, ${nomeUsuario}` : ""}! 👋</h1>
-        <p className="text-sm text-black/50 dark:text-white/50 mb-6">O que você quer fazer agora?</p>
+        <p className="text-sm text-black/60 dark:text-white/60 mb-6">O que você quer fazer agora?</p>
 
         <div className="flex flex-col gap-3">
           {temInteresses && (
@@ -79,7 +79,7 @@ export default function InicioPage() {
             >
               <div>
                 <div className="text-base font-semibold">💎 Interesses</div>
-                <div className="text-sm text-black/50 dark:text-white/50">
+                <div className="text-sm text-black/60 dark:text-white/60">
                   {interessesNovos > 0
                     ? `${interessesNovos} pessoa${interessesNovos > 1 ? "s" : ""} nova${interessesNovos > 1 ? "s" : ""} esperando resposta`
                     : "Ver quem já demonstrou interesse"}
@@ -100,7 +100,7 @@ export default function InicioPage() {
             >
               <div>
                 <div className="text-base font-semibold">💰 Nova venda</div>
-                <div className="text-sm text-black/50 dark:text-white/50">Vender direto, sem passar pelo Story</div>
+                <div className="text-sm text-black/60 dark:text-white/60">Vender direto, sem passar pelo Story</div>
               </div>
             </Link>
           )}
@@ -112,7 +112,7 @@ export default function InicioPage() {
             >
               <div>
                 <div className="text-base font-semibold">📸 Criar Story</div>
-                <div className="text-sm text-black/50 dark:text-white/50">Divulgar uma peça pra vender</div>
+                <div className="text-sm text-black/60 dark:text-white/60">Divulgar uma peça pra vender</div>
               </div>
             </Link>
           )}
@@ -124,7 +124,7 @@ export default function InicioPage() {
             >
               <div>
                 <div className="text-base font-semibold">🧾 Cobranças</div>
-                <div className="text-sm text-black/50 dark:text-white/50">Tem R$ {aReceber.toFixed(2)} pra receber</div>
+                <div className="text-sm text-black/60 dark:text-white/60">Tem R$ {aReceber.toFixed(2)} pra receber</div>
               </div>
             </Link>
           )}

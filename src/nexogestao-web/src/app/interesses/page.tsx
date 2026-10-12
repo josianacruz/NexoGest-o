@@ -41,7 +41,7 @@ const STATUS_ESTILO: Record<StatusInteresse, string> = {
   Novo: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
   Reservado: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   Convertido: "bg-green-500/10 text-green-600 dark:text-green-400",
-  Perdido: "bg-black/5 dark:bg-white/5 text-black/40 dark:text-white/40 line-through",
+  Perdido: "bg-black/5 dark:bg-white/5 text-black/60 dark:text-white/55 line-through",
 };
 
 // Rótulos em linguagem simples pra quem não usa termos de sistema no dia a dia.
@@ -272,20 +272,20 @@ export default function InteressesPage() {
                 <div className="flex flex-col gap-1.5 pt-2 border-t border-black/5 dark:border-white/5">
                   <button
                     onClick={() => chamarNoWhatsApp(i)}
-                    className="h-11 w-full inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-semibold bg-green-600 text-white hover:bg-green-700"
+                    className="h-11 w-full inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-semibold bg-green-700 text-white hover:bg-green-800"
                   >
                     💬 Chamar no WhatsApp
                   </button>
                   <div className="flex items-center justify-center gap-3 text-xs">
-                    <button onClick={() => reservar(i)} disabled={salvando} className="text-black/50 dark:text-white/50 hover:underline">
+                    <button onClick={() => reservar(i)} disabled={salvando} className="text-black/60 dark:text-white/60 hover:underline">
                       Reservar
                     </button>
                     <span className="text-black/20 dark:text-white/20">·</span>
-                    <button onClick={() => irVenderNaTelaDeVendas(i)} className="text-black/50 dark:text-white/50 hover:underline">
+                    <button onClick={() => irVenderNaTelaDeVendas(i)} className="text-black/60 dark:text-white/60 hover:underline">
                       Já vendeu
                     </button>
                     <span className="text-black/20 dark:text-white/20">·</span>
-                    <button onClick={() => marcarPerdido(i)} disabled={salvando} className="text-black/40 dark:text-white/40 hover:text-red-600 hover:underline">
+                    <button onClick={() => marcarPerdido(i)} disabled={salvando} className="text-black/60 dark:text-white/55 hover:text-red-600 hover:underline">
                       Não avançou
                     </button>
                   </div>
@@ -301,11 +301,11 @@ export default function InteressesPage() {
                     ✅ Vender agora
                   </button>
                   <div className="flex items-center justify-center gap-3 text-xs">
-                    <button onClick={() => chamarNoWhatsApp(i)} className="text-black/50 dark:text-white/50 hover:underline">
+                    <button onClick={() => chamarNoWhatsApp(i)} className="text-black/60 dark:text-white/60 hover:underline">
                       WhatsApp
                     </button>
                     <span className="text-black/20 dark:text-white/20">·</span>
-                    <button onClick={() => marcarPerdido(i)} disabled={salvando} className="text-black/40 dark:text-white/40 hover:text-red-600 hover:underline">
+                    <button onClick={() => marcarPerdido(i)} disabled={salvando} className="text-black/60 dark:text-white/55 hover:text-red-600 hover:underline">
                       Não avançou
                     </button>
                   </div>
@@ -327,7 +327,7 @@ export default function InteressesPage() {
           {!carregando && interesses.length === 0 && (
             <div className="text-center py-10">
               <p className="text-2xl mb-1">💎</p>
-              <p className="text-sm text-black/50 dark:text-white/50">
+              <p className="text-sm text-black/60 dark:text-white/60">
                 Nenhum interesse ainda. Crie uma Story em Produtos e compartilhe o link!
               </p>
             </div>

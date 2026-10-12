@@ -64,7 +64,7 @@ const ICONE_FORMA: Record<string, string> = {
 
 const CORES_FORMA: Record<string, string> = {
   Pix: "bg-emerald-500",
-  Dinheiro: "bg-green-600",
+  Dinheiro: "bg-green-700",
   CartaoCredito: "bg-indigo-600",
   CartaoDebito: "bg-blue-500",
   TransferenciaBancaria: "bg-amber-500",
@@ -209,7 +209,7 @@ export default function RelatoriosPage() {
           {periodo === "personalizado" && (
             <div className="flex items-center gap-2">
               <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className={inputStyle} />
-              <span className="text-black/40 dark:text-white/40 text-sm">até</span>
+              <span className="text-black/60 dark:text-white/55 text-sm">até</span>
               <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className={inputStyle} />
             </div>
           )}
@@ -218,7 +218,7 @@ export default function RelatoriosPage() {
         {erro && <p className="text-sm text-red-600 mb-4">{erro}</p>}
 
         {!carregando && resumo && !resumo.temMovimentacao ? (
-          <div className={`${cardStyle} p-8 text-center text-black/50 dark:text-white/50`}>
+          <div className={`${cardStyle} p-8 text-center text-black/60 dark:text-white/60`}>
             Você ainda não teve vendas ou recebimentos neste período.
           </div>
         ) : (
@@ -228,7 +228,7 @@ export default function RelatoriosPage() {
               <div className={`${cardStyle} p-5`}>
                 <div className={labelStyle}>💰 Total vendido</div>
                 <div className="text-2xl font-bold mt-1">{formatarMoeda(resumo?.totalVendido ?? 0)}</div>
-                <div className="text-xs text-black/40 dark:text-white/40 mt-1">
+                <div className="text-xs text-black/60 dark:text-white/55 mt-1">
                   {resumo?.quantidadeVendas ?? 0} venda{resumo?.quantidadeVendas === 1 ? "" : "s"}
                 </div>
               </div>
@@ -249,7 +249,7 @@ export default function RelatoriosPage() {
             {/* Como recebi meu dinheiro */}
             <h2 className="text-sm font-semibold mb-3">Como recebi meu dinheiro?</h2>
             {formas.length === 0 ? (
-              <div className={`${cardStyle} p-6 text-center text-black/40 dark:text-white/40 mb-6`}>
+              <div className={`${cardStyle} p-6 text-center text-black/60 dark:text-white/55 mb-6`}>
                 Você ainda não recebeu pagamentos neste período.
               </div>
             ) : (
@@ -265,10 +265,10 @@ export default function RelatoriosPage() {
                         <span className="text-sm font-medium">
                           {ICONE_FORMA[f.forma] ?? "🔹"} {LABEL_FORMA[f.forma] ?? f.forma}
                         </span>
-                        <span className="text-xs text-black/40 dark:text-white/40">{f.percentual}%</span>
+                        <span className="text-xs text-black/60 dark:text-white/55">{f.percentual}%</span>
                       </div>
                       <div className="text-xl font-bold">{formatarMoeda(f.valor)}</div>
-                      <div className="text-xs text-black/40 dark:text-white/40">
+                      <div className="text-xs text-black/60 dark:text-white/55">
                         {f.quantidade} pagamento{f.quantidade === 1 ? "" : "s"}
                       </div>
                     </button>
@@ -340,7 +340,7 @@ export default function RelatoriosPage() {
                         className="w-full bg-indigo-500 rounded-t hover:bg-indigo-600 transition-colors"
                         style={{ height: `${Math.max(4, (d.valor / maiorVendaDia) * 100)}%` }}
                       />
-                      <div className="text-[10px] text-black/40 dark:text-white/40">{formatarDataCurta(d.data)}</div>
+                      <div className="text-[10px] text-black/60 dark:text-white/55">{formatarDataCurta(d.data)}</div>
                     </div>
                   ))}
                 </div>
@@ -354,7 +354,7 @@ export default function RelatoriosPage() {
                   {vendasRelatorio.produtosMaisVendidos.map((p) => (
                     <div key={p.produtoNome} className="flex items-center justify-between text-sm">
                       <span>{p.produtoNome}</span>
-                      <span className="text-black/50 dark:text-white/50">{p.quantidade}x — {formatarMoeda(p.totalVendido)}</span>
+                      <span className="text-black/60 dark:text-white/60">{p.quantidade}x — {formatarMoeda(p.totalVendido)}</span>
                     </div>
                   ))}
                 </div>
@@ -366,7 +366,7 @@ export default function RelatoriosPage() {
             <div className={`${cardStyle} overflow-x-auto`}>
               <table className="w-full text-sm min-w-[560px]">
                 <thead>
-                  <tr className="text-left text-black/50 dark:text-white/50 border-b border-black/10 dark:border-white/10">
+                  <tr className="text-left text-black/60 dark:text-white/60 border-b border-black/10 dark:border-white/10">
                     <th className="py-2.5 px-4 font-medium">Cliente</th>
                     <th className="py-2.5 px-4 font-medium">Valor</th>
                     <th className="py-2.5 px-4 font-medium">Recebido por</th>
@@ -386,7 +386,7 @@ export default function RelatoriosPage() {
                   ))}
                   {historico.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                      <td colSpan={4} className="py-6 px-4 text-center text-black/60 dark:text-white/55">
                         {carregando ? "Carregando..." : "Você ainda não recebeu pagamentos neste período."}
                       </td>
                     </tr>
@@ -409,13 +409,13 @@ export default function RelatoriosPage() {
               <div key={p.id} className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-2">
                 <div>
                   <div className="font-medium">{p.clienteNome}</div>
-                  <div className="text-xs text-black/40 dark:text-white/40">{formatarDataCurta(p.data)}</div>
+                  <div className="text-xs text-black/60 dark:text-white/55">{formatarDataCurta(p.data)}</div>
                 </div>
                 <div className="font-medium">{formatarMoeda(p.valor)}</div>
               </div>
             ))}
             {pagamentosDetalhe.length === 0 && (
-              <p className="text-center text-black/40 dark:text-white/40 py-4">Nenhum pagamento encontrado.</p>
+              <p className="text-center text-black/60 dark:text-white/55 py-4">Nenhum pagamento encontrado.</p>
             )}
             <div className="flex justify-end mt-1">
               <button onClick={() => setFormaDetalhe(null)} className={botaoSecundario}>

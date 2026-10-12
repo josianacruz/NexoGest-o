@@ -76,7 +76,7 @@ export default function InteressePage() {
   }
 
   if (carregando) {
-    return <main className="max-w-sm mx-auto px-4 py-10 text-sm text-black/50 dark:text-white/50">Carregando...</main>;
+    return <main className="max-w-sm mx-auto px-4 py-10 text-sm text-black/60 dark:text-white/60">Carregando...</main>;
   }
 
   if (!info) {
@@ -100,7 +100,7 @@ export default function InteressePage() {
         )}
 
         <div className="p-4 flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-black/50 dark:text-white/50">
+          <span className="text-xs font-medium text-black/60 dark:text-white/60">
             {separarNomeEslogan(info.empresaNome).nome}
             {separarNomeEslogan(info.empresaNome).slogan && ` · ${separarNomeEslogan(info.empresaNome).slogan}`}
           </span>

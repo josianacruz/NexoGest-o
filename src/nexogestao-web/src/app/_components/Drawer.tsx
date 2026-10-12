@@ -22,12 +22,12 @@ export default function Drawer({
         <div className="flex items-start justify-between mb-4">
           <div>
             <h3 className="font-semibold text-lg">{titulo}</h3>
-            {subtitulo && <p className="text-sm text-black/50 dark:text-white/50">{subtitulo}</p>}
+            {subtitulo && <p className="text-sm text-black/60 dark:text-white/60">{subtitulo}</p>}
           </div>
           <button
             onClick={onFechar}
             aria-label="Fechar"
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-black/50 dark:text-white/50"
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-black/60 dark:text-white/60"
           >
             ✕
           </button>

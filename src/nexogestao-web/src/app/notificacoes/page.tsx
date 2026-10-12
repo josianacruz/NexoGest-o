@@ -98,7 +98,7 @@ export default function NotificacoesPage() {
                 <p className="text-sm text-black/70 dark:text-white/70">
                   {n.clienteNome} agendou {n.servicoNome}
                 </p>
-                <p className="text-xs text-black/50 dark:text-white/50">
+                <p className="text-xs text-black/60 dark:text-white/60">
                   {dt.toLocaleDateString("pt-BR", { timeZone: "UTC" })} às{" "}
                   {dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} · Origem: Horário vago
                 </p>
@@ -106,7 +106,7 @@ export default function NotificacoesPage() {
             );
           })}
           {!carregando && notificacoes.length === 0 && (
-            <p className="text-sm text-black/40 dark:text-white/40 text-center py-8">Nenhuma notificação ainda.</p>
+            <p className="text-sm text-black/60 dark:text-white/55 text-center py-8">Nenhuma notificação ainda.</p>
           )}
         </div>
       </main>

@@ -19,7 +19,7 @@ export default function SearchInput({
         viewBox="0 0 24 24"
         width="16"
         height="16"
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 dark:text-white/40 pointer-events-none"
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-black/60 dark:text-white/55 pointer-events-none"
         fill="none"
         stroke="currentColor"
         strokeWidth="2"

@@ -138,11 +138,11 @@ export default function CriarCardapioPage() {
                       className="accent-indigo-600"
                     />
                     <span className="flex-1">{p.nome}</span>
-                    <span className="text-black/50 dark:text-white/50">R$ {p.preco.toFixed(2)}</span>
+                    <span className="text-black/60 dark:text-white/60">R$ {p.preco.toFixed(2)}</span>
                   </label>
                 ))}
                 {produtos.length === 0 && (
-                  <p className="text-sm text-black/40 dark:text-white/40 py-2">Nenhum produto cadastrado.</p>
+                  <p className="text-sm text-black/60 dark:text-white/55 py-2">Nenhum produto cadastrado.</p>
                 )}
               </div>
             </div>
@@ -210,6 +210,7 @@ export default function CriarCardapioPage() {
           <div className="flex flex-col items-center">
             <div
               ref={previewRef}
+              data-arte
               className="w-full max-w-sm bg-gradient-to-b from-indigo-950 to-black text-white rounded-xl p-6 flex flex-col gap-4"
             >
               <h1 className="text-xl font-bold text-center">{empresaNome || "Cardápio"}</h1>
@@ -237,7 +238,7 @@ export default function CriarCardapioPage() {
                 </div>
               ))}
             </div>
-            <p className="text-xs text-black/40 dark:text-white/40 mt-2">Pré-visualização do cardápio</p>
+            <p className="text-xs text-black/60 dark:text-white/55 mt-2">Pré-visualização do cardápio</p>
           </div>
         </div>
       </main>

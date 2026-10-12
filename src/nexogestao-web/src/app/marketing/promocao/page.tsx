@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "../../_components/Nav";
 import PageHeader from "../../_components/PageHeader";
-import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, cardStyle } from "../../_components/ui";
+import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, cardStyle, ARTE_COR_BASE } from "../../_components/ui";
 import { API_URL } from "../../../lib/api";
 import { temModulo } from "../../../lib/modulos";
 
@@ -311,12 +311,16 @@ export default function CriarPromocaoPage() {
           <div className="flex flex-col items-center">
             <div
               ref={previewRef}
+              data-arte
               className={`w-full max-w-sm ${dimensoes} overflow-hidden relative flex flex-col`}
-              style={
-                foto
+              // A arte não segue o tema da interface: cor e esquema fixos, independentes do modo claro/escuro.
+              style={{
+                color: ARTE_COR_BASE,
+                colorScheme: "light",
+                ...(foto
                   ? { background: paleta.background }
-                  : { backgroundImage: `linear-gradient(160deg, ${paleta.surface}, ${paleta.background})` }
-              }
+                  : { backgroundImage: `linear-gradient(160deg, ${paleta.surface}, ${paleta.background})` }),
+              }}
             >
               {/* Foto ocupa ~60% da arte — o resto é sempre reservado pras informações,
                   então o texto nunca fica espremido no rodapé. */}
@@ -381,7 +385,7 @@ export default function CriarPromocaoPage() {
                 </div>
               </div>
             </div>
-            <p className="text-xs text-black/40 dark:text-white/40 mt-2">Pré-visualização da arte</p>
+            <p className="text-xs text-black/60 dark:text-white/55 mt-2">Pré-visualização da arte</p>
           </div>
         </div>
       </main>

@@ -51,7 +51,7 @@ export default function MarketingPage() {
           >
             <div className="text-3xl mb-2">🏷️</div>
             <h2 className="font-semibold mb-1">Criar Promoção</h2>
-            <p className="text-sm text-black/50 dark:text-white/50">
+            <p className="text-sm text-black/60 dark:text-white/60">
               Monte uma arte de promoção com preço, foto e frase de destaque.
             </p>
           </Link>
@@ -63,7 +63,7 @@ export default function MarketingPage() {
             >
               <div className="text-3xl mb-2">📋</div>
               <h2 className="font-semibold mb-1">Criar Cardápio</h2>
-              <p className="text-sm text-black/50 dark:text-white/50">
+              <p className="text-sm text-black/60 dark:text-white/60">
                 Gere uma imagem de cardápio a partir dos seus produtos cadastrados.
               </p>
             </Link>
@@ -75,7 +75,7 @@ export default function MarketingPage() {
               >
                 <div className="text-3xl mb-2">📋</div>
                 <h2 className="font-semibold mb-1">Tabela de serviços e valores</h2>
-                <p className="text-sm text-black/50 dark:text-white/50">
+                <p className="text-sm text-black/60 dark:text-white/60">
                   Gere uma imagem com os seus serviços e preços cadastrados.
                 </p>
               </Link>
@@ -85,7 +85,7 @@ export default function MarketingPage() {
               >
                 <div className="text-3xl mb-2">📅</div>
                 <h2 className="font-semibold mb-1">Divulgar horário disponível</h2>
-                <p className="text-sm text-black/50 dark:text-white/50">
+                <p className="text-sm text-black/60 dark:text-white/60">
                   Avise que vagou um horário, com link/QR pro cliente agendar direto.
                 </p>
               </Link>

@@ -182,7 +182,7 @@ export default function ServicosPage() {
         <div className={`${cardStyle} overflow-x-auto`}>
           <table className="w-full text-sm min-w-[480px]">
             <thead>
-              <tr className="text-left text-black/50 dark:text-white/50 border-b border-black/10 dark:border-white/10">
+              <tr className="text-left text-black/60 dark:text-white/60 border-b border-black/10 dark:border-white/10">
                 <th className="py-2.5 px-4 font-medium">Nome</th>
                 <th className="py-2.5 px-4 font-medium">Duração</th>
                 <th className="py-2.5 px-4 font-medium">Preço</th>
@@ -211,7 +211,7 @@ export default function ServicosPage() {
               ))}
               {servicos.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                  <td colSpan={5} className="py-6 px-4 text-center text-black/60 dark:text-white/55">
                     {carregando ? "Carregando..." : "Nenhum serviço cadastrado."}
                   </td>
                 </tr>

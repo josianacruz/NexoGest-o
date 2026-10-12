@@ -30,3 +30,7 @@ export function badgeEstoque(estoque: number, estoqueMinimo: number) {
   }
   return { texto: "Em estoque", classe: "bg-green-500/10 text-green-600 dark:text-green-400" };
 }
+
+// Cor-base das artes de divulgação (Post/Story). As artes NÃO seguem o tema claro/escuro da interface:
+// o texto de cada arte já tem cor própria e a raiz fixa esta cor, para nada herdar do tema.
+export const ARTE_COR_BASE = "#171717";

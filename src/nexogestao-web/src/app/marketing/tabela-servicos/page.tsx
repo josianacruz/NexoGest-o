@@ -95,13 +95,13 @@ export default function TabelaServicosPage() {
                       className="accent-indigo-600"
                     />
                     <span className="flex-1">
-                      {s.nome} <span className="text-black/40 dark:text-white/40">({s.duracaoMinutos} min)</span>
+                      {s.nome} <span className="text-black/60 dark:text-white/55">({s.duracaoMinutos} min)</span>
                     </span>
-                    <span className="text-black/50 dark:text-white/50">R$ {s.preco.toFixed(2)}</span>
+                    <span className="text-black/60 dark:text-white/60">R$ {s.preco.toFixed(2)}</span>
                   </label>
                 ))}
                 {servicos.length === 0 && (
-                  <p className="text-sm text-black/40 dark:text-white/40 py-2">Nenhum serviço cadastrado.</p>
+                  <p className="text-sm text-black/60 dark:text-white/55 py-2">Nenhum serviço cadastrado.</p>
                 )}
               </div>
             </div>
@@ -114,6 +114,7 @@ export default function TabelaServicosPage() {
           <div className="flex flex-col items-center">
             <div
               ref={previewRef}
+              data-arte
               className="w-full max-w-sm bg-gradient-to-b from-indigo-950 to-black text-white rounded-xl p-6 flex flex-col gap-3"
             >
               <h1 className="text-xl font-bold text-center">{empresaNome || "Serviços"}</h1>
@@ -134,7 +135,7 @@ export default function TabelaServicosPage() {
                 ))}
               </div>
             </div>
-            <p className="text-xs text-black/40 dark:text-white/40 mt-2">Pré-visualização da tabela</p>
+            <p className="text-xs text-black/60 dark:text-white/55 mt-2">Pré-visualização da tabela</p>
           </div>
         </div>
       </main>

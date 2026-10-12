@@ -453,7 +453,7 @@ export default function ComandasPage() {
         )}
 
         {comandasFiltradas.length === 0 ? (
-          <div className={`${cardStyle} py-6 px-4 text-center text-black/40 dark:text-white/40 text-sm`}>
+          <div className={`${cardStyle} py-6 px-4 text-center text-black/60 dark:text-white/55 text-sm`}>
             {carregando
               ? "Carregando..."
               : comandas.length === 0
@@ -486,7 +486,7 @@ export default function ComandasPage() {
                     #{c.numero}
                   </span>
                   <span className="text-sm truncate">{c.nomeCliente ?? "Sem nome"}</span>
-                  <span className="text-xs text-black/50 dark:text-white/50">
+                  <span className="text-xs text-black/60 dark:text-white/60">
                     {qtdItens} {qtdItens === 1 ? "item" : "itens"}
                   </span>
                   <span className="font-semibold mt-1">R$ {total.toFixed(2)}</span>
@@ -684,7 +684,7 @@ export default function ComandasPage() {
                           type="button"
                           onClick={() => setDataVencimento("")}
                           aria-label="Limpar data"
-                          className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70 hover:bg-black/5 dark:hover:bg-white/10"
+                          className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-black/60 dark:text-white/55 hover:text-black/70 dark:hover:text-white/70 hover:bg-black/5 dark:hover:bg-white/10"
                         >
                           ✕
                         </button>

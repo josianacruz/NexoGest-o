@@ -5,10 +5,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { API_URL } from "../../lib/api";
 import { MODULOS_MENU, temModulo } from "../../lib/modulos";
+import { definirPadraoClaroDaEmpresa } from "../../lib/tema";
+import ThemeToggle from "./ThemeToggle";
 
-// Ids de empresa configuradas pra ficar sempre no modo claro (pedido pontual
-// de identidade visual). Fica por Id — nome é dado editável do usuário e não
-// deve decidir comportamento do sistema.
+// Ids de empresa que pediram modo CLARO POR PADRÃO (pedido pontual de identidade
+// visual). É só o ponto de partida: quem usa pode escolher o modo escuro no seletor
+// de aparência, e a escolha dela vale mais que este padrão. Fica por Id — nome é
+// dado editável do usuário e não deve decidir comportamento do sistema.
 const EMPRESAS_TEMA_CLARO = [3];
 
 export default function Nav({
@@ -49,12 +52,8 @@ export default function Nav({
 
         setModulos(empresas[0].modulos ?? []);
 
-        // Modo claro travado só pra essa empresa (por Id, nunca por nome —
-        // o nome é dado editável do usuário) — não mexe no tema de mais
-        // ninguém, que continua seguindo a preferência do aparelho.
-        const claroForcado = EMPRESAS_TEMA_CLARO.includes(empresas[0].id);
-        localStorage.setItem("nexo_tema_claro_forcado", claroForcado ? "1" : "0");
-        if (claroForcado) document.documentElement.classList.remove("dark");
+        // Padrão claro só pra essas empresas (por Id, nunca por nome); nunca sobrescreve a escolha da pessoa.
+        definirPadraoClaroDaEmpresa(EMPRESAS_TEMA_CLARO.includes(empresas[0].id));
 
         if (temModulo(empresas[0].modulos ?? [], "Agenda")) {
           const resNotificacoes = await fetch(
@@ -139,7 +138,7 @@ export default function Nav({
             })}
           </div>
         </div>
-        <div className="flex items-center gap-3 text-sm shrink-0">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm min-w-0">
           {modulos !== null && temModulo(modulos, "Agenda") && (
             <Link href="/notificacoes" className="relative h-9 w-9 inline-flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-lg" title="Notificações">
               🔔
@@ -151,13 +150,28 @@ export default function Nav({
             </Link>
           )}
           {empresaNome && (
-            <span className="flex items-baseline gap-1.5 truncate max-w-[220px]">
+            <span className="flex items-baseline gap-1.5 truncate max-w-[150px] sm:max-w-[220px]">
               <span className="font-medium text-black/70 dark:text-white/70 truncate">{empresaNome.split(" | ")[0]}</span>
               {empresaNome.includes(" | ") && (
-                <span className="text-black/40 dark:text-white/40 text-xs truncate">{empresaNome.split(" | ")[1]}</span>
+                <span className="text-black/60 dark:text-white/55 text-xs truncate">{empresaNome.split(" | ")[1]}</span>
               )}
             </span>
           )}
+          <Link
+            href="/configuracoes"
+            title="Configurações (nome da loja e aparência)"
+            aria-label="Configurações"
+            className={`h-9 px-2.5 inline-flex items-center gap-1.5 rounded-lg text-sm font-medium transition-colors ${
+              pathname === "/configuracoes" ? "bg-indigo-600 text-white" : "text-black/70 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/10"
+            }`}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+            </svg>
+            <span className="hidden sm:inline">Configurações</span>
+          </Link>
+          <ThemeToggle />
           <button
             onClick={sair}
             className="h-9 px-3 inline-flex items-center rounded-lg text-black/70 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/10 font-medium"

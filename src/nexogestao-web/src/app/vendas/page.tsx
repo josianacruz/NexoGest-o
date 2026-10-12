@@ -444,7 +444,7 @@ function VendasConteudo() {
                 setClienteSelecionado("");
                 router.replace("/vendas");
               }}
-              className="text-xs text-black/40 dark:text-white/40 hover:underline"
+              className="text-xs text-black/60 dark:text-white/55 hover:underline"
             >
               Cancelar
             </button>
@@ -493,7 +493,7 @@ function VendasConteudo() {
             <div className="rounded-lg border border-black/10 dark:border-white/10 overflow-hidden mb-4">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-black/50 dark:text-white/50 bg-black/[0.02] dark:bg-white/[0.03]">
+                  <tr className="text-left text-black/60 dark:text-white/60 bg-black/[0.02] dark:bg-white/[0.03]">
                     <th className="py-2 px-3 font-medium">Produto</th>
                     <th className="py-2 px-3 font-medium">Qtd.</th>
                     <th className="py-2 px-3 font-medium">Preço</th>
@@ -573,7 +573,7 @@ function VendasConteudo() {
                   >
                     {salvandoClienteNovo ? "Salvando..." : "Salvar"}
                   </button>
-                  <button type="button" onClick={() => setClienteNovoAberto(false)} className="text-xs text-black/40 dark:text-white/40 hover:underline">
+                  <button type="button" onClick={() => setClienteNovoAberto(false)} className="text-xs text-black/60 dark:text-white/55 hover:underline">
                     cancelar
                   </button>
                 </div>
@@ -656,7 +656,7 @@ function VendasConteudo() {
                       type="button"
                       onClick={() => setDataVencimento("")}
                       aria-label="Limpar data"
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70 hover:bg-black/5 dark:hover:bg-white/10"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-black/60 dark:text-white/55 hover:text-black/70 dark:hover:text-white/70 hover:bg-black/5 dark:hover:bg-white/10"
                     >
                       ✕
                     </button>
@@ -750,7 +750,7 @@ function VendasConteudo() {
             <div className="rounded-lg border border-black/10 dark:border-white/10 overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-black/50 dark:text-white/50 bg-black/[0.02] dark:bg-white/[0.03]">
+                  <tr className="text-left text-black/60 dark:text-white/60 bg-black/[0.02] dark:bg-white/[0.03]">
                     <th className="py-2 px-3 font-medium">Produto</th>
                     <th className="py-2 px-3 font-medium text-right">Qtd. sem estoque</th>
                   </tr>
@@ -791,7 +791,7 @@ function VendasConteudo() {
         <div className={`${cardStyle} overflow-x-auto`}>
           <table className="w-full text-sm min-w-[720px]">
             <thead>
-              <tr className="text-left text-black/50 dark:text-white/50 border-b border-black/10 dark:border-white/10">
+              <tr className="text-left text-black/60 dark:text-white/60 border-b border-black/10 dark:border-white/10">
                 <th className="py-2.5 px-4 font-medium">Data</th>
                 <th className="py-2.5 px-4 font-medium">Cliente</th>
                 <th className="py-2.5 px-4 font-medium">Total</th>
@@ -858,7 +858,7 @@ function VendasConteudo() {
               ))}
               {vendasFiltradas.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                  <td colSpan={6} className="py-6 px-4 text-center text-black/60 dark:text-white/55">
                     {carregando
                       ? "Carregando..."
                       : vendas.length === 0
@@ -900,7 +900,7 @@ function VendasConteudo() {
             <div className="rounded-lg border border-black/10 dark:border-white/10 overflow-hidden mt-1">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-black/50 dark:text-white/50 bg-black/[0.02] dark:bg-white/[0.03]">
+                  <tr className="text-left text-black/60 dark:text-white/60 bg-black/[0.02] dark:bg-white/[0.03]">
                     <th className="py-2 px-3 font-medium">Produto</th>
                     <th className="py-2 px-3 font-medium">Qtd.</th>
                     <th className="py-2 px-3 font-medium">Preço</th>

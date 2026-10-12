@@ -78,7 +78,7 @@ export default function WhatsAppMenu({ nome, telefone, saldoDevedor, empresaId, 
         onClick={alternarMenu}
         title={`Chamar ${nome} no WhatsApp`}
         aria-label={`Chamar ${nome} no WhatsApp`}
-        className="w-8 h-8 flex items-center justify-center rounded-md bg-green-600 hover:bg-green-700 text-white transition-colors"
+        className="w-8 h-8 flex items-center justify-center rounded-md bg-green-700 hover:bg-green-800 text-white transition-colors"
       >
         <svg viewBox="0 0 32 32" width="16" height="16" fill="currentColor" aria-hidden="true">
           <path d="M16.001 3C9.096 3 3.5 8.596 3.5 15.5c0 2.316.63 4.484 1.727 6.35L3 29l7.32-2.19a12.44 12.44 0 0 0 5.68 1.44h.001c6.905 0 12.5-5.596 12.5-12.5S22.906 3 16.001 3zm0 22.7h-.001a10.2 10.2 0 0 1-5.2-1.43l-.373-.222-3.87 1.159 1.176-3.77-.243-.387a10.17 10.17 0 0 1-1.59-5.55c0-5.632 4.578-10.2 10.203-10.2 5.624 0 10.199 4.568 10.199 10.2 0 5.633-4.575 10.2-10.201 10.2zm5.593-7.638c-.306-.153-1.81-.893-2.09-.994-.28-.102-.484-.153-.688.152-.204.306-.79.994-.968 1.198-.178.204-.356.23-.663.077-.306-.153-1.293-.477-2.463-1.52-.91-.812-1.525-1.815-1.703-2.121-.178-.306-.019-.471.134-.623.137-.137.306-.357.459-.535.153-.178.204-.306.306-.51.102-.204.05-.383-.026-.535-.077-.153-.688-1.658-.943-2.271-.248-.596-.5-.515-.688-.524l-.586-.01c-.204 0-.535.077-.815.383-.28.306-1.068 1.043-1.068 2.545s1.093 2.953 1.246 3.157c.153.204 2.152 3.286 5.213 4.607.728.314 1.296.502 1.739.642.731.232 1.396.199 1.922.121.586-.088 1.81-.74 2.065-1.454.255-.714.255-1.326.178-1.454-.076-.128-.28-.204-.586-.357z" />
@@ -165,7 +165,7 @@ export default function WhatsAppMenu({ nome, telefone, saldoDevedor, empresaId, 
               <button
                 type="button"
                 onClick={confirmarPromocao}
-                className="px-4 py-1.5 text-sm rounded-md bg-green-600 text-white font-medium hover:bg-green-700"
+                className="px-4 py-1.5 text-sm rounded-md bg-green-700 text-white font-medium hover:bg-green-800"
               >
                 Abrir WhatsApp
               </button>

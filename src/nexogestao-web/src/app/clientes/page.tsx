@@ -262,7 +262,7 @@ export default function ClientesPage() {
         <div className={`${cardStyle} overflow-x-auto`}>
           <table className="w-full text-sm min-w-[640px]">
             <thead>
-              <tr className="text-left text-black/50 dark:text-white/50 border-b border-black/10 dark:border-white/10">
+              <tr className="text-left text-black/60 dark:text-white/60 border-b border-black/10 dark:border-white/10">
                 <th className="py-2.5 px-4 font-medium">Nome</th>
                 <th className="py-2.5 px-4 font-medium">Telefone</th>
                 <th className="py-2.5 px-4 font-medium">Email</th>
@@ -284,7 +284,7 @@ export default function ClientesPage() {
                           🔴 R$ {c.totalVencido.toFixed(2)} vencido
                         </span>
                         {c.proximoVencimento && (
-                          <div className="text-xs text-black/50 dark:text-white/50">
+                          <div className="text-xs text-black/60 dark:text-white/60">
                             Venceu {formatarDataBr(c.proximoVencimento)}
                           </div>
                         )}
@@ -295,7 +295,7 @@ export default function ClientesPage() {
                           🟡 R$ {c.totalPendente.toFixed(2)} a receber
                         </span>
                         {c.proximoVencimento && (
-                          <div className="text-xs text-black/50 dark:text-white/50">
+                          <div className="text-xs text-black/60 dark:text-white/60">
                             Vence {formatarDataBr(c.proximoVencimento)}
                           </div>
                         )}
@@ -322,7 +322,7 @@ export default function ClientesPage() {
               ))}
               {clientesFiltrados.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-6 px-4 text-center text-black/40 dark:text-white/40">
+                  <td colSpan={6} className="py-6 px-4 text-center text-black/60 dark:text-white/55">
                     {carregando
                       ? "Carregando..."
                       : clientes.length === 0
@@ -407,16 +407,16 @@ export default function ClientesPage() {
 
             <div className="flex flex-col gap-2">
               {carregandoContas ? (
-                <p className="text-sm text-black/40 dark:text-white/40 text-center py-4">Carregando...</p>
+                <p className="text-sm text-black/60 dark:text-white/55 text-center py-4">Carregando...</p>
               ) : contas.length === 0 ? (
-                <p className="text-sm text-black/40 dark:text-white/40 text-center py-4">
+                <p className="text-sm text-black/60 dark:text-white/55 text-center py-4">
                   Nenhuma conta fiado registrada.
                 </p>
               ) : (
                 contas.map((conta) => (
                   <div key={conta.id} className={`${cardStyle} p-3 flex flex-col gap-2`}>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-black/50 dark:text-white/50">Venda #{conta.vendaId}</span>
+                      <span className="text-sm text-black/60 dark:text-white/60">Venda #{conta.vendaId}</span>
                       {conta.status === "PAGO" && (
                         <span className="text-xs font-medium text-green-600 dark:text-green-500">🟢 Pago</span>
                       )}

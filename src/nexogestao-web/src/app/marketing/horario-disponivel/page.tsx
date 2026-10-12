@@ -4,7 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Nav from "../../_components/Nav";
 import PageHeader from "../../_components/PageHeader";
-import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../../_components/ui";
+import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle, ARTE_COR_BASE } from "../../_components/ui";
 import { API_URL } from "../../../lib/api";
 
 function formatarDataBr(data: string) {
@@ -364,12 +364,18 @@ function DivulgarHorarioConteudo() {
                   />
                 ))}
               </div>
-              <p className="text-xs text-center mt-2 text-black/50 dark:text-white/50">{MOLDES.find((m) => m.id === moldeId)?.nome}</p>
+              <p className="text-xs text-center mt-2 text-black/60 dark:text-white/60">{MOLDES.find((m) => m.id === moldeId)?.nome}</p>
             </div>
           </div>
 
           <div className="flex flex-col items-center gap-3">
-            <div ref={previewRef} className={`w-full max-w-sm ${dimensoes} overflow-hidden relative`}>
+            {/* A arte não segue o tema da interface: cor e esquema fixos, independentes do modo claro/escuro. */}
+            <div
+              ref={previewRef}
+              data-arte
+              className={`w-full max-w-sm ${dimensoes} overflow-hidden relative`}
+              style={{ color: ARTE_COR_BASE, colorScheme: "light" }}
+            >
               <Arte
                 moldeId={moldeId}
                 empresaNome={empresaNome || "Sua Empresa"}
@@ -379,7 +385,7 @@ function DivulgarHorarioConteudo() {
                 frase={frase}
               />
             </div>
-            <p className="text-xs text-black/40 dark:text-white/40">Pré-visualização da arte</p>
+            <p className="text-xs text-black/60 dark:text-white/55">Pré-visualização da arte</p>
 
             <button onClick={baixarImagem} disabled={baixando || !data || !hora} className={`${botaoPrimario} w-full max-w-sm`}>
               {baixando ? "Gerando..." : "Baixar imagem"}
@@ -407,7 +413,7 @@ function DivulgarHorarioConteudo() {
                 {gerandoLink ? "Gerando link..." : "Gerar link exclusivo desta vaga"}
               </button>
             )}
-            <p className="text-xs text-black/40 dark:text-white/40 text-center max-w-sm">
+            <p className="text-xs text-black/60 dark:text-white/55 text-center max-w-sm">
               O link é exclusivo dessa data/hora: some assim que alguém agendar.
             </p>
           </div>

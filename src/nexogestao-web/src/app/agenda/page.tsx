@@ -87,7 +87,7 @@ const STATUS_ESTILO: Record<StatusAgendamento, string> = {
   Agendado: "bg-black/10 dark:bg-white/10 text-black/70 dark:text-white/70",
   Confirmado: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
   Concluido: "bg-green-500/10 text-green-600 dark:text-green-400",
-  Cancelado: "bg-black/5 dark:bg-white/5 text-black/40 dark:text-white/40 line-through",
+  Cancelado: "bg-black/5 dark:bg-white/5 text-black/60 dark:text-white/55 line-through",
   Faltou: "bg-red-500/10 text-red-600 dark:text-red-400",
 };
 
@@ -152,7 +152,7 @@ function BotaoWhatsApp({ nome, onClick }: { nome: string; onClick: () => void })
     <button
       onClick={onClick}
       title={`Chamar ${nome} no WhatsApp`}
-      className="w-8 h-8 shrink-0 flex items-center justify-center rounded-md bg-green-600 hover:bg-green-700 text-white transition-colors"
+      className="w-8 h-8 shrink-0 flex items-center justify-center rounded-md bg-green-700 hover:bg-green-800 text-white transition-colors"
     >
       <svg viewBox="0 0 32 32" width="16" height="16" fill="currentColor" aria-hidden="true">
         <path d="M16.001 3C9.096 3 3.5 8.596 3.5 15.5c0 2.316.63 4.484 1.727 6.35L3 29l7.32-2.19a12.44 12.44 0 0 0 5.68 1.44h.001c6.905 0 12.5-5.596 12.5-12.5S22.906 3 16.001 3zm0 22.7h-.001a10.2 10.2 0 0 1-5.2-1.43l-.373-.222-3.87 1.159 1.176-3.77-.243-.387a10.17 10.17 0 0 1-1.59-5.55c0-5.632 4.578-10.2 10.203-10.2 5.624 0 10.199 4.568 10.199 10.2 0 5.633-4.575 10.2-10.201 10.2zm5.593-7.638c-.306-.153-1.81-.893-2.09-.994-.28-.102-.484-.153-.688.152-.204.306-.79.994-.968 1.198-.178.204-.356.23-.663.077-.306-.153-1.293-.477-2.463-1.52-.91-.812-1.525-1.815-1.703-2.121-.178-.306-.019-.471.134-.623.137-.137.306-.357.459-.535.153-.178.204-.306.306-.51.102-.204.05-.383-.026-.535-.077-.153-.688-1.658-.943-2.271-.248-.596-.5-.515-.688-.524l-.586-.01c-.204 0-.535.077-.815.383-.28.306-1.068 1.043-1.068 2.545s1.093 2.953 1.246 3.157c.153.204 2.152 3.286 5.213 4.607.728.314 1.296.502 1.739.642.731.232 1.396.199 1.922.121.586-.088 1.81-.74 2.065-1.454.255-.714.255-1.326.178-1.454-.076-.128-.28-.204-.586-.357z" />
@@ -186,7 +186,7 @@ function CampoDataHora({
         onClick={(e) => e.currentTarget.showPicker?.()}
         className={`${inputStyle} ${className} cursor-pointer`}
       />
-      <span className="text-[11px] text-black/40 dark:text-white/40">Toque para escolher</span>
+      <span className="text-[11px] text-black/60 dark:text-white/55">Toque para escolher</span>
     </div>
   );
 }
@@ -656,11 +656,11 @@ export default function AgendaPage() {
         </div>
         <div className="text-sm">
           <span className="font-medium">{a.clienteNome}</span>
-          <span className="text-black/50 dark:text-white/50"> — {a.servicoNome}</span>
+          <span className="text-black/60 dark:text-white/60"> — {a.servicoNome}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-black/50 dark:text-white/50">R$ {a.valor.toFixed(2)}</span>
-          {a.observacao && <span className="text-black/40 dark:text-white/40 truncate max-w-[60%]">{a.observacao}</span>}
+          <span className="text-black/60 dark:text-white/60">R$ {a.valor.toFixed(2)}</span>
+          {a.observacao && <span className="text-black/60 dark:text-white/55 truncate max-w-[60%]">{a.observacao}</span>}
         </div>
         {PROXIMOS_STATUS[a.status].length > 0 && concluindoId !== a.id && reagendandoId !== a.id && (
           <div className="flex flex-wrap gap-3 pt-1 border-t border-black/5 dark:border-white/5 mt-1">
@@ -841,7 +841,7 @@ export default function AgendaPage() {
                   Começar confirmações
                 </button>
               ) : (
-                <div className="flex items-center gap-2 text-xs text-black/50 dark:text-white/50">
+                <div className="flex items-center gap-2 text-xs text-black/60 dark:text-white/60">
                   <span>
                     Enviando {indiceConfirmacao + 1} de {confirmacoesAEnviar.length}
                   </span>
@@ -856,7 +856,7 @@ export default function AgendaPage() {
                 <div key={a.id} className="flex items-center justify-between gap-2 text-sm">
                   <div className="min-w-0 truncate">
                     <span className="font-medium">{a.clienteNome}</span>
-                    <span className="text-black/50 dark:text-white/50"> — {a.servicoNome} — {formatarHora(a.dataHora)}</span>
+                    <span className="text-black/60 dark:text-white/60"> — {a.servicoNome} — {formatarHora(a.dataHora)}</span>
                   </div>
                   <BotaoWhatsApp nome={a.clienteNome} onClick={() => enviarConfirmacao(a)} />
                 </div>
@@ -873,7 +873,7 @@ export default function AgendaPage() {
                 <div key={a.id} className="flex items-center justify-between gap-2 text-sm">
                   <div className="min-w-0 truncate">
                     <span className="font-medium">{a.clienteNome}</span>
-                    <span className="text-black/50 dark:text-white/50"> — {a.servicoNome} — {formatarHora(a.dataHora)}</span>
+                    <span className="text-black/60 dark:text-white/60"> — {a.servicoNome} — {formatarHora(a.dataHora)}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <BotaoWhatsApp nome={a.clienteNome} onClick={() => enviarConfirmacao(a)} />
@@ -935,7 +935,7 @@ export default function AgendaPage() {
                 ))}
               </select>
               {servicos.length === 0 && (
-                <span className="text-xs text-black/40 dark:text-white/40">
+                <span className="text-xs text-black/60 dark:text-white/55">
                   Cadastre um serviço primeiro na tela Serviços.
                 </span>
               )}
@@ -1068,7 +1068,7 @@ export default function AgendaPage() {
                 )}
                 <div className="flex flex-col gap-2">
                   {lista.length === 0 ? (
-                    <p className="text-sm text-black/40 dark:text-white/40 py-2">
+                    <p className="text-sm text-black/60 dark:text-white/55 py-2">
                       {carregando ? "Carregando..." : "Nenhum agendamento."}
                     </p>
                   ) : (
@@ -1103,7 +1103,7 @@ export default function AgendaPage() {
                   Copiar
                 </button>
               </div>
-              <span className="text-[11px] text-black/40 dark:text-white/40">
+              <span className="text-[11px] text-black/60 dark:text-white/55">
                 Envie esse link para os clientes marcarem horário sozinhos, sem login. Só serviços com "Permitir autoagendamento" habilitado aparecem nele.
               </span>
             </div>

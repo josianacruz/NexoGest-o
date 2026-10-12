@@ -85,7 +85,7 @@ export default function VagaPage() {
   }
 
   if (carregando) {
-    return <main className="max-w-md mx-auto px-4 py-10 text-sm text-black/50 dark:text-white/50">Carregando...</main>;
+    return <main className="max-w-md mx-auto px-4 py-10 text-sm text-black/60 dark:text-white/60">Carregando...</main>;
   }
 
   if (!vaga) {
@@ -131,7 +131,7 @@ export default function VagaPage() {
   return (
     <main className="max-w-md mx-auto px-4 py-10">
       <h1 className="text-lg font-semibold mb-1">{vaga.empresaNome}</h1>
-      <p className="text-sm text-black/50 dark:text-white/50 mb-5">Vagou um horário — garanta o seu!</p>
+      <p className="text-sm text-black/60 dark:text-white/60 mb-5">Vagou um horário — garanta o seu!</p>
 
       <form onSubmit={confirmar} className={`${cardStyle} p-5 flex flex-col gap-4`}>
         <div className={`${inputStyle} font-semibold`}>
@@ -140,7 +140,7 @@ export default function VagaPage() {
         </div>
 
         {servicos.length === 0 ? (
-          <p className="text-sm text-black/50 dark:text-white/50">Nenhum serviço cabe nesse horário no momento.</p>
+          <p className="text-sm text-black/60 dark:text-white/60">Nenhum serviço cabe nesse horário no momento.</p>
         ) : (
           <div className="flex flex-col gap-1">
             <label className={labelStyle}>Serviço</label>
