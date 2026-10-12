@@ -5,16 +5,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { API_URL } from "../../lib/api";
 import { MODULOS_MENU, temModulo } from "../../lib/modulos";
-import { definirPadraoClaroDaEmpresa } from "../../lib/tema";
+import { EMPRESAS_TEMA_CLARO, definirPadraoClaroDaEmpresa } from "../../lib/tema";
 import ThemeToggle from "./ThemeToggle";
+import { useEmpresaOpcional } from "../_suave/EmpresaContext";
 
-// Ids de empresa que pediram modo CLARO POR PADRÃO (pedido pontual de identidade
-// visual). É só o ponto de partida: quem usa pode escolher o modo escuro no seletor
-// de aparência, e a escolha dela vale mais que este padrão. Fica por Id — nome é
-// dado editável do usuário e não deve decidir comportamento do sistema.
-const EMPRESAS_TEMA_CLARO = [3];
 
-export default function Nav({
+// Nas telas do visual suave o menu é o lateral (ShellSuave); este menu do topo só aparece nas telas ainda não migradas.
+export default function Nav(props: { empresaNome?: string; comandasHabilitadas?: boolean }) {
+  return useEmpresaOpcional() ? null : <NavAntigo {...props} />;
+}
+
+function NavAntigo({
   empresaNome,
   comandasHabilitadas = true,
 }: {

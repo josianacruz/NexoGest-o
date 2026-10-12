@@ -2,12 +2,12 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Nav from "../_components/Nav";
-import Modal from "../_components/Modal";
-import PageHeader from "../_components/PageHeader";
-import SearchInput from "../_components/SearchInput";
-import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../_components/ui";
-import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
+import Nav from "../../_components/Nav";
+import Modal from "../../_components/Modal";
+import PageHeader from "../../_components/PageHeader";
+import SearchInput from "../../_components/SearchInput";
+import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../../_components/ui";
+import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
 
 interface Produto {
   id: number;
@@ -738,7 +738,7 @@ function VendasConteudo() {
                     onClick={() => setPeriodoSemEstoque(p)}
                     className={`h-8 px-3 rounded-lg text-xs font-medium transition-colors ${
                       periodoSemEstoque === p
-                        ? "bg-indigo-600 text-white"
+                        ? "bg-violet-200 text-violet-950 hover:bg-violet-300 dark:bg-violet-300/25 dark:text-violet-50"
                         : "bg-black/5 dark:bg-white/10 text-black/70 dark:text-white/70 hover:bg-black/10 dark:hover:bg-white/20"
                     }`}
                   >

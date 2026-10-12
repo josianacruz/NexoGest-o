@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "../../lib/api";
+import { EMPRESAS_TEMA_CLARO, definirPadraoClaroDaEmpresa } from "../../lib/tema";
 
 export interface EmpresaAtual {
   id: number;
@@ -12,8 +13,15 @@ export interface EmpresaAtual {
   comandasHabilitadas: boolean;
 }
 
+export interface Avisos {
+  naoLidas: number; // notificações da agenda
+  vencidas: number; // cobranças vencidas
+  interessesNovos: number;
+}
+
 interface Contexto {
   empresa: EmpresaAtual | null;
+  avisos: Avisos;
   carregando: boolean;
   erro: string | null;
   // Chamada autenticada para /api/empresas/{id}{caminho}.
@@ -21,6 +29,11 @@ interface Contexto {
 }
 
 const Ctx = createContext<Contexto | null>(null);
+
+// Para componentes que também existem fora do visual suave (ex.: o menu antigo): devolve null em vez de lançar erro.
+export function useEmpresaOpcional() {
+  return useContext(Ctx);
+}
 
 export function useEmpresa() {
   const c = useContext(Ctx);
@@ -34,6 +47,7 @@ export function EmpresaProvider({ children }: { children: React.ReactNode }) {
   const [empresa, setEmpresa] = useState<EmpresaAtual | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [avisos, setAvisos] = useState<Avisos>({ naoLidas: 0, vencidas: 0, interessesNovos: 0 });
 
   useEffect(() => {
     const token = localStorage.getItem("nexo_token");
@@ -54,7 +68,20 @@ export function EmpresaProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         const e = lista[0];
-        setEmpresa({ id: e.id, nome: e.nome, modulos: e.modulos ?? [], papel: e.papel ?? "", comandasHabilitadas: e.comandasHabilitadas ?? true });
+        const modulos: string[] = e.modulos ?? [];
+        setEmpresa({ id: e.id, nome: e.nome, modulos, papel: e.papel ?? "", comandasHabilitadas: e.comandasHabilitadas ?? true });
+        // Padrão claro só para empresas que pediram (por Id); nunca sobrescreve a escolha da pessoa.
+        definirPadraoClaroDaEmpresa(EMPRESAS_TEMA_CLARO.includes(e.id));
+
+        // Avisos do menu: um extra, falha em silêncio.
+        const h = { headers: { Authorization: `Bearer ${token}` } };
+        const base = `${API_URL}/api/empresas/${e.id}`;
+        const [n, i, c] = await Promise.all([
+          modulos.includes("Agenda") ? fetch(`${base}/notificacoes/nao-lidas`, h).then((r) => (r.ok ? r.json() : null)).catch(() => null) : null,
+          modulos.includes("Interesses") ? fetch(`${base}/interesses?status=Novo`, h).then((r) => (r.ok ? r.json() : null)).catch(() => null) : null,
+          modulos.includes("Cobrancas") ? fetch(`${base}/contas-receber/resumo`, h).then((r) => (r.ok ? r.json() : null)).catch(() => null) : null,
+        ]);
+        setAvisos({ naoLidas: n?.quantidade ?? 0, interessesNovos: Array.isArray(i) ? i.length : 0, vencidas: c?.quantidadeVencidas ?? 0 });
       } catch {
         setErro("Não consegui falar com o servidor. Tente de novo em instantes.");
       } finally {
@@ -74,6 +101,6 @@ export function EmpresaProvider({ children }: { children: React.ReactNode }) {
     [empresa?.id]
   );
 
-  const valor = useMemo(() => ({ empresa, carregando, erro, api }), [empresa, carregando, erro, api]);
+  const valor = useMemo(() => ({ empresa, avisos, carregando, erro, api }), [empresa, avisos, carregando, erro, api]);
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
 }

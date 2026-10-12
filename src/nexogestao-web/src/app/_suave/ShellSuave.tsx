@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import ThemeToggle from "../_components/ThemeToggle";
 import { separarNomeEslogan } from "../../lib/modulos";
-import { EmpresaProvider, useEmpresa } from "./EmpresaContext";
+import { EmpresaProvider, useEmpresa, type Avisos } from "./EmpresaContext";
 import { SUAVE } from "./tokens";
 
 interface Item {
@@ -13,6 +13,7 @@ interface Item {
   rotulo: string;
   href: string;
   icone: string;
+  aviso?: keyof Avisos; // número vermelho/lilás ao lado do item
 }
 
 // Os 12 botões do cabeçalho antigo, agrupados por o que a pessoa quer fazer.
@@ -22,6 +23,7 @@ const GRUPOS: { titulo: string; itens: Item[] }[] = [
     itens: [
       { chave: null, rotulo: "Início", href: "/inicio", icone: "🏠" },
       { chave: "Agenda", rotulo: "Agenda", href: "/agenda", icone: "📅" },
+      { chave: "Agenda", rotulo: "Avisos", href: "/notificacoes", icone: "🔔", aviso: "naoLidas" },
       { chave: "Clientes", rotulo: "Clientes", href: "/clientes", icone: "👥" },
     ],
   },
@@ -30,8 +32,8 @@ const GRUPOS: { titulo: string; itens: Item[] }[] = [
     itens: [
       { chave: "Vendas", rotulo: "Vendas", href: "/vendas", icone: "🛍️" },
       { chave: "Comandas", rotulo: "Comandas", href: "/comandas", icone: "🧾" },
-      { chave: "Cobrancas", rotulo: "Cobranças", href: "/cobrancas", icone: "💰" },
-      { chave: "Interesses", rotulo: "Interesses", href: "/interesses", icone: "💬" },
+      { chave: "Cobrancas", rotulo: "Cobranças", href: "/cobrancas", icone: "💰", aviso: "vencidas" },
+      { chave: "Interesses", rotulo: "Interesses", href: "/interesses", icone: "💬", aviso: "interessesNovos" },
       { chave: "Produtos", rotulo: "Produtos", href: "/produtos", icone: "📦" },
     ],
   },
@@ -54,7 +56,7 @@ const GRUPOS: { titulo: string; itens: Item[] }[] = [
 
 function Menu({ recolhido, aoNavegar }: { recolhido: boolean; aoNavegar?: () => void }) {
   const pathname = usePathname();
-  const { empresa } = useEmpresa();
+  const { empresa, avisos } = useEmpresa();
   const modulos = empresa?.modulos ?? [];
 
   return (
@@ -76,12 +78,17 @@ function Menu({ recolhido, aoNavegar }: { recolhido: boolean; aoNavegar?: () => 
                       onClick={aoNavegar}
                       title={recolhido ? i.rotulo : undefined}
                       aria-current={ativo ? "page" : undefined}
-                      className={`${ativo ? SUAVE.itemMenuAtivo : SUAVE.itemMenu} ${recolhido ? "justify-center px-0" : ""}`}
+                      className={`${ativo ? SUAVE.itemMenuAtivo : SUAVE.itemMenu} relative ${recolhido ? "justify-center px-0" : ""}`}
                     >
                       <span aria-hidden="true" className="text-lg leading-none">
                         {i.icone}
                       </span>
-                      {!recolhido && <span>{i.rotulo}</span>}
+                      {!recolhido && <span className="flex-1">{i.rotulo}</span>}
+                      {i.aviso && avisos[i.aviso] > 0 && (
+                        <span className={`${recolhido ? "absolute right-2 top-1" : ""} grid min-w-5 place-items-center rounded-full bg-rose-200 px-1.5 text-[11px] font-bold leading-5 text-rose-950 dark:bg-rose-400/30 dark:text-rose-50`} aria-label={`${avisos[i.aviso]} novos`}>
+                          {avisos[i.aviso]}
+                        </span>
+                      )}
                       {recolhido && <span className="sr-only">{i.rotulo}</span>}
                     </Link>
                   </li>
@@ -181,9 +188,10 @@ function Estrutura({ children }: { children: React.ReactNode }) {
           </button>
         </header>
 
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6">
-          {carregando ? <p className={SUAVE.textoSuave}>Carregando…</p> : erro ? <p className="text-rose-700 dark:text-rose-300">{erro}</p> : children}
-        </main>
+        {/* Cada tela traz o próprio <main> (largura e margens). */}
+        <div className="w-full flex-1">
+          {carregando ? <main className={`mx-auto max-w-5xl px-4 py-6 ${SUAVE.textoSuave}`}>Carregando…</main> : erro ? <main className="mx-auto max-w-5xl px-4 py-6 text-rose-700 dark:text-rose-300">{erro}</main> : children}
+        </div>
       </div>
     </div>
   );

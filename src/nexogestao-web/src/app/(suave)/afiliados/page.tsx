@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Nav from "../_components/Nav";
-import PageHeader from "../_components/PageHeader";
-import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../_components/ui";
-import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
+import Nav from "../../_components/Nav";
+import PageHeader from "../../_components/PageHeader";
+import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../../_components/ui";
+import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
 import WorkerPanel from "./WorkerPanel";
 import RadarPanel from "./RadarPanel";
 
@@ -747,7 +747,7 @@ export default function AfiliadosPage() {
               type="file"
               accept=".csv,text/csv"
               onChange={(e) => setCsvArquivo(e.target.files?.[0] ?? null)}
-              className="text-sm"
+              className="min-w-0 max-w-full text-sm"
             />
             <button type="submit" disabled={salvando || !csvArquivo} className={botaoPrimario}>
               {salvando ? "Importando..." : "Importar arquivo"}

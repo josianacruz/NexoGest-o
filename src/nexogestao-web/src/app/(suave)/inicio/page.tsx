@@ -52,7 +52,7 @@ export default function InicioPage() {
   const tem = (m: string) => empresa.modulos.includes(m);
 
   return (
-    <div className="space-y-8">
+    <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Oi{nomeUsuario ? `, ${nomeUsuario}` : ""}! 👋</h1>
         <p className={`text-sm ${SUAVE.textoSuave}`}>{dataHoje}</p>
@@ -124,6 +124,6 @@ export default function InicioPage() {
       <ClientesSuave atualizar={atualizar} aoAgendar={(c) => abrirAgendamento(c)} />
 
       <AgendamentoRapido aberto={modal} aoFechar={() => setModal(false)} aoCriar={() => setAtualizar((n) => n + 1)} clienteInicial={cliente} horarioInicial={horario} />
-    </div>
+    </main>
   );
 }

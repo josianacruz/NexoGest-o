@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Nav from "../_components/Nav";
-import Modal from "../_components/Modal";
-import PageHeader from "../_components/PageHeader";
-import { inputStyle, labelStyle, botaoPrimario, botaoTexto, cardStyle } from "../_components/ui";
-import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
+import Nav from "../../_components/Nav";
+import Modal from "../../_components/Modal";
+import PageHeader from "../../_components/PageHeader";
+import { inputStyle, labelStyle, botaoPrimario, botaoTexto, cardStyle } from "../../_components/ui";
+import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
 
 interface Servico {
   id: number;

@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Nav from "../_components/Nav";
-import Modal from "../_components/Modal";
-import PageHeader from "../_components/PageHeader";
-import SearchInput from "../_components/SearchInput";
-import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle, badgeEstoque } from "../_components/ui";
-import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
-import { separarNomeEslogan } from "../../lib/modulos";
+import Nav from "../../_components/Nav";
+import Modal from "../../_components/Modal";
+import PageHeader from "../../_components/PageHeader";
+import SearchInput from "../../_components/SearchInput";
+import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle, badgeEstoque } from "../../_components/ui";
+import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
+import { separarNomeEslogan } from "../../../lib/modulos";
 
 interface Produto {
   id: number;

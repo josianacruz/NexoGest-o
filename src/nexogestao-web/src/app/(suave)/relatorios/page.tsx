@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Nav from "../_components/Nav";
-import Modal from "../_components/Modal";
-import PageHeader from "../_components/PageHeader";
-import { inputStyle, labelStyle, botaoSecundario, cardStyle } from "../_components/ui";
-import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
+import Nav from "../../_components/Nav";
+import Modal from "../../_components/Modal";
+import PageHeader from "../../_components/PageHeader";
+import { inputStyle, labelStyle, botaoSecundario, cardStyle } from "../../_components/ui";
+import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
 
 type Periodo = "hoje" | "semana" | "mes" | "personalizado";
 
@@ -199,7 +199,7 @@ export default function RelatoriosPage() {
               onClick={() => setPeriodo(p.valor)}
               className={`h-9 px-3 rounded-lg text-sm font-medium transition-colors ${
                 periodo === p.valor
-                  ? "bg-indigo-600 text-white"
+                  ? "bg-violet-200 text-violet-950 hover:bg-violet-300 dark:bg-violet-300/25 dark:text-violet-50"
                   : "bg-black/5 dark:bg-white/10 text-black/70 dark:text-white/70 hover:bg-black/10 dark:hover:bg-white/20"
               }`}
             >

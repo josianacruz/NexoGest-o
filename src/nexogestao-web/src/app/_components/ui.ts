@@ -1,25 +1,21 @@
 // Estilos compartilhados — mantém altura, espaçamento e cores consistentes
 // em todos os botões, inputs e selects do sistema.
 
-export const inputStyle =
-  "h-10 px-3 rounded-lg border border-black/15 dark:border-white/15 bg-white dark:bg-black/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder:text-black/30 dark:placeholder:text-white/30";
+export const inputStyle = "h-11 px-4 rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-200/60 dark:focus:ring-violet-400/20";
 
-export const labelStyle = "text-xs font-medium text-black/60 dark:text-white/60";
+export const labelStyle = "text-xs font-semibold text-slate-600 dark:text-slate-300";
 
-export const botaoBase =
-  "h-10 px-4 inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed";
+export const botaoBase = "h-11 px-5 inline-flex items-center justify-center gap-1.5 rounded-2xl text-sm font-semibold shadow-sm transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 
-export const botaoPrimario = `${botaoBase} bg-indigo-600 text-white hover:bg-indigo-700`;
+export const botaoPrimario = `${botaoBase} bg-violet-200 text-violet-950 hover:bg-violet-300 dark:bg-violet-300/25 dark:text-violet-50 dark:hover:bg-violet-300/35`;
 
-export const botaoSecundario = `${botaoBase} bg-black/5 dark:bg-white/10 text-black/80 dark:text-white/80 hover:bg-black/10 dark:hover:bg-white/20`;
+export const botaoSecundario = `${botaoBase} bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600`;
 
-export const botaoPerigo = `${botaoBase} bg-red-600 text-white hover:bg-red-700`;
+export const botaoPerigo = `${botaoBase} bg-rose-200 text-rose-950 hover:bg-rose-300 dark:bg-rose-400/25 dark:text-rose-50 dark:hover:bg-rose-400/35`;
 
-export const botaoTexto =
-  "text-indigo-600 hover:underline text-sm font-medium disabled:opacity-40 disabled:no-underline cursor-pointer disabled:cursor-not-allowed";
+export const botaoTexto = "text-violet-800 dark:text-violet-200 hover:underline text-sm font-semibold disabled:opacity-40 disabled:no-underline cursor-pointer disabled:cursor-not-allowed";
 
-export const cardStyle =
-  "bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl shadow-sm";
+export const cardStyle = "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm";
 
 export function badgeEstoque(estoque: number, estoqueMinimo: number) {
   if (estoque <= 0) {

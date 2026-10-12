@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Nav from "../_components/Nav";
-import Modal from "../_components/Modal";
-import PageHeader from "../_components/PageHeader";
-import { botaoSecundario, botaoPrimario, cardStyle, labelStyle } from "../_components/ui";
-import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
-import { abrirWhatsApp, mensagemInteresseProduto } from "../../lib/whatsapp";
+import Nav from "../../_components/Nav";
+import Modal from "../../_components/Modal";
+import PageHeader from "../../_components/PageHeader";
+import { botaoSecundario, botaoPrimario, cardStyle, labelStyle } from "../../_components/ui";
+import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
+import { abrirWhatsApp, mensagemInteresseProduto } from "../../../lib/whatsapp";
 
 interface VendaResumo {
   id: number;
@@ -38,10 +38,10 @@ interface Interesse {
 }
 
 const STATUS_ESTILO: Record<StatusInteresse, string> = {
-  Novo: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
-  Reservado: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  Convertido: "bg-green-500/10 text-green-600 dark:text-green-400",
-  Perdido: "bg-black/5 dark:bg-white/5 text-black/60 dark:text-white/55 line-through",
+  Novo: "bg-violet-100 text-violet-900 dark:bg-violet-300/20 dark:text-violet-50",
+  Reservado: "bg-amber-100 text-amber-900 dark:bg-amber-400/20 dark:text-amber-100",
+  Convertido: "bg-emerald-100 text-emerald-900 dark:bg-emerald-400/20 dark:text-emerald-100",
+  Perdido: "bg-slate-100 text-slate-600 line-through dark:bg-slate-700 dark:text-slate-300",
 };
 
 // Rótulos em linguagem simples pra quem não usa termos de sistema no dia a dia.
@@ -212,7 +212,7 @@ export default function InteressesPage() {
         <PageHeader titulo="Interesses" />
 
         {!carregando && interesses.filter((i) => i.status === "Novo").length > 0 && filtro === "" && (
-          <div className="rounded-xl bg-indigo-600 text-white px-4 py-3 mb-4 flex items-center gap-2 text-sm font-medium">
+          <div className="rounded-xl bg-violet-200 text-violet-950 hover:bg-violet-300 dark:bg-violet-300/25 dark:text-violet-50 px-4 py-3 mb-4 flex items-center gap-2 text-sm font-medium">
             <span className="text-lg">👉</span>
             {interesses.filter((i) => i.status === "Novo").length === 1
               ? "1 pessoa nova interessada — chame no WhatsApp!"
@@ -272,7 +272,7 @@ export default function InteressesPage() {
                 <div className="flex flex-col gap-1.5 pt-2 border-t border-black/5 dark:border-white/5">
                   <button
                     onClick={() => chamarNoWhatsApp(i)}
-                    className="h-11 w-full inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-semibold bg-green-700 text-white hover:bg-green-800"
+                    className="h-11 w-full inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-semibold bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-400/20 dark:text-emerald-100"
                   >
                     💬 Chamar no WhatsApp
                   </button>
@@ -280,11 +280,11 @@ export default function InteressesPage() {
                     <button onClick={() => reservar(i)} disabled={salvando} className="text-black/60 dark:text-white/60 hover:underline">
                       Reservar
                     </button>
-                    <span className="text-black/20 dark:text-white/20">·</span>
+                    <span aria-hidden="true" className="text-slate-500 dark:text-slate-400">·</span>
                     <button onClick={() => irVenderNaTelaDeVendas(i)} className="text-black/60 dark:text-white/60 hover:underline">
                       Já vendeu
                     </button>
-                    <span className="text-black/20 dark:text-white/20">·</span>
+                    <span aria-hidden="true" className="text-slate-500 dark:text-slate-400">·</span>
                     <button onClick={() => marcarPerdido(i)} disabled={salvando} className="text-black/60 dark:text-white/55 hover:text-red-600 hover:underline">
                       Não avançou
                     </button>
@@ -296,7 +296,7 @@ export default function InteressesPage() {
                 <div className="flex flex-col gap-1.5 pt-2 border-t border-black/5 dark:border-white/5">
                   <button
                     onClick={() => irVenderNaTelaDeVendas(i)}
-                    className="h-11 w-full inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700"
+                    className="h-11 w-full inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-semibold bg-violet-200 text-violet-950 hover:bg-violet-300 dark:bg-violet-300/25 dark:text-violet-50"
                   >
                     ✅ Vender agora
                   </button>
@@ -304,7 +304,7 @@ export default function InteressesPage() {
                     <button onClick={() => chamarNoWhatsApp(i)} className="text-black/60 dark:text-white/60 hover:underline">
                       WhatsApp
                     </button>
-                    <span className="text-black/20 dark:text-white/20">·</span>
+                    <span aria-hidden="true" className="text-slate-500 dark:text-slate-400">·</span>
                     <button onClick={() => marcarPerdido(i)} disabled={salvando} className="text-black/60 dark:text-white/55 hover:text-red-600 hover:underline">
                       Não avançou
                     </button>

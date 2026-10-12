@@ -184,7 +184,7 @@ export default function ClientesPage() {
   if (!empresa) return null;
 
   return (
-    <div className="space-y-5">
+    <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Clientes</h1>
@@ -389,6 +389,6 @@ export default function ClientesPage() {
       )}
 
       <AgendamentoRapido aberto={agendarAberto} aoFechar={() => setAgendarAberto(false)} aoCriar={() => {}} clienteInicial={agendarPara} horarioInicial={null} />
-    </div>
+    </main>
   );
 }

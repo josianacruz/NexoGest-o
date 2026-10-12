@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../_components/ui";
-import { API_URL } from "../../lib/api";
+import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../../_components/ui";
+import { API_URL } from "../../../lib/api";
 
 interface Consulta {
   id: number;

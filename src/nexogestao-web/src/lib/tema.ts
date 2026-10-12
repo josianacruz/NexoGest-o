@@ -85,3 +85,9 @@ export function definirPadraoClaroDaEmpresa(claroPorPadrao: boolean) {
   }
   if (claroPorPadrao && !temaSalvo()) aplicarTema("claro");
 }
+
+// Ids de empresa que pediram modo CLARO POR PADRÃO (pedido pontual de identidade
+// visual). É só o ponto de partida: quem usa pode escolher o modo escuro no seletor
+// de aparência, e a escolha dela vale mais que este padrão. Fica por Id — nome é
+// dado editável do usuário e não deve decidir comportamento do sistema.
+export const EMPRESAS_TEMA_CLARO = [3];

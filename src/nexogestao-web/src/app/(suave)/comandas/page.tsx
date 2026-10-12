@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Nav from "../_components/Nav";
-import Drawer from "../_components/Drawer";
-import PageHeader from "../_components/PageHeader";
-import SearchInput from "../_components/SearchInput";
-import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, botaoPerigo, cardStyle } from "../_components/ui";
-import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
+import Nav from "../../_components/Nav";
+import Drawer from "../../_components/Drawer";
+import PageHeader from "../../_components/PageHeader";
+import SearchInput from "../../_components/SearchInput";
+import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, botaoPerigo, cardStyle } from "../../_components/ui";
+import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
 
 interface Produto {
   id: number;
