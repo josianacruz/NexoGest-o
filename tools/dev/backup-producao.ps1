@@ -1,4 +1,4 @@
-<#
+﻿<#
   Backup do banco de PRODUÇÃO (Neon) para um arquivo no SEU computador, antes de qualquer deploy com migrations.
   Roda só na sua máquina: a connection string fica numa variável da sessão e nunca é impressa nem gravada.
 

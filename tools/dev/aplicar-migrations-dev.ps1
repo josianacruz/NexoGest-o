@@ -1,4 +1,4 @@
-<#
+﻿<#
   Aplica as migrations do NexoGestão num banco de DESENVOLVIMENTO remoto (ex.: um projeto Neon
   separado do de produção), sem que a connection string apareça em comando, tela ou arquivo.
 

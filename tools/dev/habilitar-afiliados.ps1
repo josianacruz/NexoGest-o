@@ -1,4 +1,4 @@
-<#
+﻿<#
   Liga o módulo Afiliados para UMA empresa sua (ele não aparece sozinho para nenhuma empresa).
   Roda no seu computador: pede e-mail e senha aqui no terminal (a senha não aparece na tela e não é guardada).
 

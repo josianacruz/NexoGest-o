@@ -1,4 +1,4 @@
-<#
+﻿<#
   Gera a pasta/zip do NexoWorker para instalar em OUTRO computador (ex.: a máquina antiga).
   Uso (PowerShell, na raiz do repositório):
       ./tools/worker/empacotar.ps1                       # usa a música de %USERPROFILE%\.nexo-worker\musica_fundo.wav
