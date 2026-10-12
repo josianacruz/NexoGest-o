@@ -195,6 +195,17 @@ export default function ConfiguracoesPage() {
           </p>
           <ThemeToggle />
         </section>
+
+        <section className={`${cardStyle} p-5`}>
+          <h2 className="font-semibold mb-1">Novo visual (pré-visualização)</h2>
+          <p className="text-sm text-black/60 dark:text-white/60 mb-4">
+            Menu lateral com os itens agrupados, cores suaves, novidades no estilo Stories e agendamento rápido. É só uma prévia: o resto do sistema
+            continua como está.
+          </p>
+          <a href="/novo-visual" className={botaoPrimario}>
+            Ver o novo visual
+          </a>
+        </section>
       </main>
     </>
   );
