@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import ThemeToggle from "../../_components/ThemeToggle";
-import { separarNomeEslogan } from "../../../lib/modulos";
+import ThemeToggle from "../_components/ThemeToggle";
+import { separarNomeEslogan } from "../../lib/modulos";
 import { EmpresaProvider, useEmpresa } from "./EmpresaContext";
 import { SUAVE } from "./tokens";
 
@@ -20,7 +20,7 @@ const GRUPOS: { titulo: string; itens: Item[] }[] = [
   {
     titulo: "Hoje",
     itens: [
-      { chave: null, rotulo: "Início", href: "/novo-visual", icone: "🏠" },
+      { chave: null, rotulo: "Início", href: "/inicio", icone: "🏠" },
       { chave: "Agenda", rotulo: "Agenda", href: "/agenda", icone: "📅" },
       { chave: "Clientes", rotulo: "Clientes", href: "/clientes", icone: "👥" },
     ],

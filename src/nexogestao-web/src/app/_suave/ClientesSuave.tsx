@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { criarLinkWhatsApp } from "../../../lib/whatsapp";
+import { criarLinkWhatsApp } from "../../lib/whatsapp";
 import type { ClienteResumo } from "./AgendamentoRapido";
 import { useEmpresa } from "./EmpresaContext";
 import { SUAVE, brl } from "./tokens";

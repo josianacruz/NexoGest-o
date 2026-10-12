@@ -1232,6 +1232,38 @@ namespace NexoGestao.Api.Migrations
                     b.ToTable("Servicos");
                 });
 
+            modelBuilder.Entity("NexoGestao.Api.Domain.StoryLoja", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("DataCriacao")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ExpiraEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Texto")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("character varying(180)");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "ExpiraEm");
+
+                    b.ToTable("StoriesLoja");
+                });
+
             modelBuilder.Entity("NexoGestao.Api.Domain.VagaDivulgada", b =>
                 {
                     b.Property<int>("Id")
@@ -1886,6 +1918,17 @@ namespace NexoGestao.Api.Migrations
                 });
 
             modelBuilder.Entity("NexoGestao.Api.Domain.Servico", b =>
+                {
+                    b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("NexoGestao.Api.Domain.StoryLoja", b =>
                 {
                     b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
                         .WithMany()

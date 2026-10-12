@@ -1,21 +1,29 @@
-# Novo visual (pré-visualização) — `/novo-visual`
+# Visual suave (design system) — telas migradas em etapas
 
-Prévia do redesenho simples e suave. **Não altera nenhuma tela existente, nem o banco.** Para abrir: Configurações → "Ver o novo visual", ou `/novo-visual`.
+O visual suave é o padrão das telas **já migradas**. Hoje: **Início** (`/inicio`) e **Clientes** (`/clientes`).
+As demais telas continuam no visual antigo (menu no topo) e abrem normalmente pelo menu lateral. Para migrar uma tela:
+mover a pasta dela para `src/app/(suave)/` (o grupo `(suave)` não aparece no endereço) e trocar `Nav`/`PageHeader` e os
+estilos antigos pelos de `_suave/tokens.ts`. Etapa 1 concluída; sugestão de próximas: Agenda, Vendas/Comandas, Cobranças,
+Produtos/Interesses, Marketing/Afiliados, Serviços/Relatórios, Configurações.
 
 ## 1. Estrutura do layout
 
 ```
-novo-visual/
-├─ layout.tsx            → envolve tudo no ShellSuave
-├─ page.tsx              → Início: Stories, atalhos, agenda do dia, clientes
-└─ _ux/
-   ├─ tokens.ts          → TODAS as classes Tailwind da paleta (fonte única) + helpers de data
-   ├─ EmpresaContext.tsx → carrega a empresa/módulos uma vez e entrega `api()` já autenticada
-   ├─ ShellSuave.tsx     → menu lateral agrupado + cabeçalho (nome da loja, tema, Sair)
-   ├─ Stories.tsx        → carrossel de novidades + criar (2 toques) + visualizador
-   ├─ AgendamentoRapido.tsx → modal "Agendar em 1 toque"
-   ├─ AgendaDia.tsx      → agenda em cartões (horários livres tracejados, 1 toque agenda)
-   └─ ClientesSuave.tsx  → clientes em cartões com botão "Agendar"
+(suave)/
+├─ layout.tsx            → fonte Plus Jakarta Sans + ShellSuave (menu lateral e cabeçalho)
+├─ inicio/page.tsx       → Início: Stories, atalhos, agenda do dia, clientes
+└─ clientes/page.tsx     → Clientes em cartões (novo/editar, contas a receber, WhatsApp, agendar)
+_suave/
+├─ tokens.ts             → TODAS as classes Tailwind da paleta (fonte única) + helpers de data
+├─ EmpresaContext.tsx    → carrega a empresa/módulos uma vez e entrega `api()` já autenticada
+├─ ShellSuave.tsx        → menu lateral agrupado + cabeçalho (nome da loja, tema, Sair)
+├─ Folha.tsx             → janela padrão (sobe de baixo no celular, centralizada no computador)
+├─ StoriesVisual.tsx     → tipos, anéis e visualizador (usado pelo Dono e pelos clientes)
+├─ Stories.tsx           → Stories do Dono (criar/apagar na API)
+├─ VitrineStories.tsx    → faixa de novidades que o CLIENTE vê em /agendar/<loja>
+├─ AgendamentoRapido.tsx → modal "Agendar em 1 toque"
+├─ AgendaDia.tsx         → agenda em cartões (horários livres tracejados, 1 toque agenda)
+└─ ClientesSuave.tsx     → prévia de clientes no Início
 ```
 
 Menu lateral (os 12 botões antigos, agrupados; só aparecem os módulos que a empresa tem):
@@ -78,8 +86,9 @@ await api("/agendamentos", { method: "POST", body: JSON.stringify({
 }) });
 ```
 
-## 4. Stories & Novidades
+## 4. Stories & Novidades (no servidor, visíveis para os clientes)
 
-Carrossel no topo do início: **"Novo"** (círculo tracejado) → escolher o tipo (novidade, promoção ou lembrete; o texto já vem sugerido) → **"Publicar"** = 2 toques. Toque no círculo abre o visualizador (barras de progresso, avança sozinho, enviar por WhatsApp, copiar texto, apagar). O círculo "Hoje" resume a agenda do dia.
-
-**Limite desta prévia:** as novidades ficam **só neste aparelho** (`localStorage`, chave `nexo_stories_<empresaId>`) e expiram em 24 h. Para aparecerem para os clientes ou em outros aparelhos é preciso backend (tabela + endpoint público) — decisão pendente.
+- **Dono**: no Início, "Novo" (ou "Enviar novidade") → tipo (novidade, promoção ou lembrete; o texto já vem sugerido) → **"Publicar"** = 2 toques. Depois de publicar aparece "Copiar link para os clientes". Só o Dono publica e apaga.
+- **Cliente**: vê a faixa de novidades no topo da página pública de agendamento `/agendar/<id da loja>`, sem login, e toca em "Agendar um horário".
+- **Regras**: texto simples de até 180 letras (mostrado como texto, nunca como HTML), validade de 24 h, no máximo 10 no ar por loja; expirados há mais de 7 dias são removidos na próxima publicação.
+- **API**: `GET/POST api/empresas/{id}/stories`, `DELETE api/empresas/{id}/stories/{storyId}` (login; escrita só Dono) e `GET api/publico/empresas/{id}/stories` (público, com limite de requisições). Tabela nova `StoriesLoja` (migration `CriaStoriesDaLoja`, só cria a tabela).

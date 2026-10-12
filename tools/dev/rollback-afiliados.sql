@@ -1,3 +1,11 @@
+START TRANSACTION;
+DROP TABLE "StoriesLoja";
+
+DELETE FROM "__EFMigrationsHistory"
+WHERE "MigrationId" = '20261012223831_CriaStoriesDaLoja';
+
+COMMIT;
+
 ﻿START TRANSACTION;
 DROP TABLE "ProdutoAfiliadoSnapshots";
 

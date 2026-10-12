@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { criarLinkWhatsApp } from "../../../lib/whatsapp";
+import { criarLinkWhatsApp } from "../../lib/whatsapp";
 import { useEmpresa } from "./EmpresaContext";
 import { SELO_STATUS, SUAVE, TEXTO_STATUS, brl, gerarHorarios, horaDoAgendamento, horarioOcupado, isoDoDia, pad, rotuloDoDia, somarDias } from "./tokens";
 

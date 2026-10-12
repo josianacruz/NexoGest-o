@@ -41,6 +41,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<RadarConsulta> RadarConsultas => Set<RadarConsulta>();
     public DbSet<RadarExecucao> RadarExecucoes => Set<RadarExecucao>();
     public DbSet<ProdutoAfiliadoSnapshot> ProdutoAfiliadoSnapshots => Set<ProdutoAfiliadoSnapshot>();
+    public DbSet<StoryLoja> StoriesLoja => Set<StoryLoja>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -87,5 +88,8 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         builder.Entity<RadarExecucao>().HasIndex(e => new { e.EmpresaId, e.Inicio });
         builder.Entity<ProdutoAfiliadoSnapshot>().HasQueryFilter(x => EmpresaAtualId != null && x.EmpresaId == EmpresaAtualId);
         builder.Entity<ProdutoAfiliadoSnapshot>().HasIndex(x => new { x.ProdutoAfiliadoId, x.DataConsulta });
+        builder.Entity<StoryLoja>().HasQueryFilter(s => EmpresaAtualId != null && s.EmpresaId == EmpresaAtualId);
+        builder.Entity<StoryLoja>().Property(s => s.Texto).HasMaxLength(StoryLoja.MaxTexto);
+        builder.Entity<StoryLoja>().HasIndex(s => new { s.EmpresaId, s.ExpiraEm });
     }
 }

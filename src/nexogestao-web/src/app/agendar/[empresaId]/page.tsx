@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { inputStyle, labelStyle, botaoPrimario, cardStyle } from "../../_components/ui";
 import { API_URL } from "../../../lib/api";
+import VitrineStories from "../../_suave/VitrineStories";
 
 interface Servico {
   id: number;
@@ -123,6 +124,7 @@ export default function AutoagendamentoPage() {
   if (erroInicial) {
     return (
       <main className="max-w-md mx-auto px-4 py-10">
+        <VitrineStories empresaId={empresaId} />
         <p className="text-sm text-red-600">{erroInicial}</p>
       </main>
     );
@@ -147,9 +149,10 @@ export default function AutoagendamentoPage() {
 
   return (
     <main className="max-w-md mx-auto px-4 py-10">
+      <VitrineStories empresaId={empresaId} aoAgendar={() => document.getElementById("form-agendar")?.scrollIntoView({ behavior: "smooth", block: "start" })} />
       <h1 className="text-lg font-semibold mb-5">Agendar horário</h1>
 
-      <form onSubmit={confirmar} className={`${cardStyle} p-5 flex flex-col gap-4`}>
+      <form id="form-agendar" onSubmit={confirmar} className={`${cardStyle} p-5 flex flex-col gap-4`}>
         <div className="flex flex-col gap-1">
           <label className={labelStyle}>Serviço</label>
           <select

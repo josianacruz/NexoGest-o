@@ -28,7 +28,7 @@ export default function LoginPage() {
       }
       const data = await res.json();
       localStorage.setItem("nexo_token", data.token);
-      router.push("/clientes");
+      router.push("/inicio");
     } catch (err: any) {
       setErro(err.message);
     } finally {
