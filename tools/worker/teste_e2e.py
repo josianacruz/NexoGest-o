@@ -86,6 +86,18 @@ emailC, tokC = novo_usuario("wAtend")
 _, empA = req("POST", "/api/empresas", {"nome": "Loja Worker A Teste", "segmento": "Comercio"}, tokA)
 _, empB = req("POST", "/api/empresas", {"nome": "Loja Worker B Teste", "segmento": "Comercio"}, tokB)
 ea, eb = empA["id"], empB["id"]
+
+
+def habilita_afiliados(eid, tok):
+    # Afiliados não vem ligado sozinho: o Dono liga (mantendo os módulos que a empresa já tem).
+    _, minhas = req("GET", "/api/empresas/minhas", None, tok)
+    atuais = next(e for e in minhas if e["id"] == eid)["modulos"]
+    corpo = {"modulos": [{"modulo": m, "habilitado": True} for m in dict.fromkeys(atuais + ["Afiliados"])]}
+    req("PUT", f"/api/empresas/{eid}/modulos", corpo, tok)
+
+
+habilita_afiliados(ea, tokA)
+habilita_afiliados(eb, tokB)
 uid_c = sql(f"SELECT \"Id\" FROM \"AspNetUsers\" WHERE \"Email\"='{emailC}'")
 sql(f"INSERT INTO \"MembrosEmpresa\" (\"UsuarioId\",\"EmpresaId\",\"Papel\") VALUES ('{uid_c}',{ea},2)")  # 2 = Atendente
 A, Bb = f"/api/empresas/{ea}/afiliados", f"/api/empresas/{eb}/afiliados"

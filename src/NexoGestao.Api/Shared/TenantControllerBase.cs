@@ -58,6 +58,10 @@ public abstract class TenantControllerBase : ControllerBase
             var temConfiguracao = await Context.ModulosEmpresa
                 .AnyAsync(m => m.EmpresaId == empresaIdSolicitada);
 
+            // Módulos de ligação explícita (Afiliados) não valem por padrão em empresa sem configuração de módulos.
+            if (!temConfiguracao && ModulosPadrao.SoComLigacaoExplicita.Contains(moduloRequerido.Value))
+                return null;
+
             if (temConfiguracao)
             {
                 var moduloHabilitado = await Context.ModulosEmpresa.AnyAsync(m =>

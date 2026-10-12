@@ -9,6 +9,13 @@ public static class ModulosPadrao
 {
     public static readonly Modulo[] TodosOsModulos = Enum.GetValues<Modulo>();
 
+    // Empresa sem nenhuma linha em ModulosEmpresa (criada antes da configuração de módulos) mantém tudo liberado,
+    // EXCETO módulos que precisam ser ligados de propósito. Afiliados é um deles: nunca aparece sozinho para
+    // empresas de clientes; o Dono liga explicitamente (PUT /api/empresas/{id}/modulos).
+    public static readonly Modulo[] SoComLigacaoExplicita = { Modulo.Afiliados };
+
+    public static IEnumerable<Modulo> LiberadosSemConfiguracao => TodosOsModulos.Where(m => !SoComLigacaoExplicita.Contains(m));
+
     public static readonly IReadOnlyDictionary<TipoNegocio, Modulo[]> PorTipoNegocio = new Dictionary<TipoNegocio, Modulo[]>
     {
         [TipoNegocio.Alimentacao] = new[]

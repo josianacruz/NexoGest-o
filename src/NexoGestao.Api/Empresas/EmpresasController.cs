@@ -96,7 +96,7 @@ public class EmpresasController : ControllerBase
             e.ComandasHabilitadas,
             TipoNegocio = e.TipoNegocio?.ToString(),
             e.Papel,
-            Modulos = (e.TemConfiguracaoDeModulos ? e.ModulosHabilitados : ModulosPadrao.TodosOsModulos.ToList())
+            Modulos = (e.TemConfiguracaoDeModulos ? e.ModulosHabilitados : ModulosPadrao.LiberadosSemConfiguracao.ToList())
                 .Select(m => m.ToString())
                 .ToList(),
         });
