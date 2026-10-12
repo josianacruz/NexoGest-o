@@ -61,6 +61,14 @@ builder.Services.AddHttpClient<NexoGestao.Api.Shared.DescobertaShopeeFetcher>();
 // Esta opção só diz onde a API (rodando no mesmo PC do worker) pode ler o MP4 para entregar.
 builder.Services.Configure<NexoGestao.Api.Videos.VideosWorkerOptions>(builder.Configuration.GetSection("Videos:Worker"));
 
+// Radar Shopee: API oficial de afiliados (GraphQL). App ID/Secret só por variável de ambiente
+// (Shopee__Affiliate__AppId / __AppSecret) ou pelo cadastro criptografado da empresa; nunca no código.
+// Sem credenciais nada é consultado. Rotina diária às 8h de Brasília: ver RadarAgendadorService.
+builder.Services.Configure<NexoGestao.Api.Shared.ShopeeAffiliateOptions>(builder.Configuration.GetSection("Shopee:Affiliate"));
+builder.Services.AddHttpClient<NexoGestao.Api.Shared.ShopeeAffiliateApiService>();
+builder.Services.AddScoped<NexoGestao.Api.Radar.RadarService>();
+builder.Services.AddHostedService<NexoGestao.Api.Radar.RadarAgendadorService>();
+
 // Lê só o 1º redirecionamento de links curtos de afiliada (s.shopee.com.br);
 // AllowAutoRedirect desligado de propósito pra nunca seguir além disso.
 builder.Services.AddHttpClient<NexoGestao.Api.Shared.ResolvedorLinkAfiliado>()

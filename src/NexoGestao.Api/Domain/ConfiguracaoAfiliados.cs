@@ -21,5 +21,8 @@ public class ConfiguracaoAfiliados
     // nenhum endpoint de integração oficial é chamado — tudo fica manual/CSV.
     public bool ApiOficialHabilitada { get; set; } = false;
 
+    // Atualização diária do Radar (produtos, preços e comissões pela API oficial). Desligada por
+    // padrão: só roda com credenciais configuradas E esta chave ligada pelo Dono.
+    public bool RadarAtivo { get; set; }
     public DateTime AtualizadoEm { get; set; } = DateTime.UtcNow;
 }

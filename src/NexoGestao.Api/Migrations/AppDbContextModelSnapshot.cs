@@ -416,6 +416,9 @@ namespace NexoGestao.Api.Migrations
                     b.Property<string>("IdAfiliado")
                         .HasColumnType("text");
 
+                    b.Property<bool>("RadarAtivo")
+                        .HasColumnType("boolean");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EmpresaId")
@@ -921,13 +924,22 @@ namespace NexoGestao.Api.Migrations
                     b.Property<bool>("Ativo")
                         .HasColumnType("boolean");
 
+                    b.Property<double?>("Avaliacao")
+                        .HasColumnType("double precision");
+
                     b.Property<string>("Categoria")
                         .HasColumnType("text");
 
                     b.Property<decimal?>("ComissaoPercentual")
                         .HasColumnType("numeric");
 
+                    b.Property<decimal?>("ComissaoShopeePercentual")
+                        .HasColumnType("numeric");
+
                     b.Property<decimal?>("ComissaoValor")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("ComissaoVendedorPercentual")
                         .HasColumnType("numeric");
 
                     b.Property<DateTime>("DataCadastro")
@@ -945,11 +957,17 @@ namespace NexoGestao.Api.Migrations
                     b.Property<int>("EmpresaId")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime?>("FimOferta")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("FonteDescoberta")
                         .HasColumnType("text");
 
                     b.Property<string>("ImagemUrl")
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("InicioOferta")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<long?>("ItemId")
                         .HasColumnType("bigint");
@@ -983,6 +1001,9 @@ namespace NexoGestao.Api.Migrations
                     b.Property<long?>("ShopId")
                         .HasColumnType("bigint");
 
+                    b.Property<DateTime?>("UltimaConsultaApi")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int?>("Vendas")
                         .HasColumnType("integer");
 
@@ -996,6 +1017,151 @@ namespace NexoGestao.Api.Migrations
                         .HasFilter("\"ItemId\" IS NOT NULL");
 
                     b.ToTable("ProdutosAfiliados");
+                });
+
+            modelBuilder.Entity("NexoGestao.Api.Domain.ProdutoAfiliadoSnapshot", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("ComissaoPercentual")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("ComissaoShopeePercentual")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("ComissaoValor")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("ComissaoVendedorPercentual")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime>("DataConsulta")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("FimOferta")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Fonte")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("InicioOferta")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("Preco")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("ProdutoAfiliadoId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Vendas")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProdutoAfiliadoId", "DataConsulta");
+
+                    b.ToTable("ProdutoAfiliadoSnapshots");
+                });
+
+            modelBuilder.Entity("NexoGestao.Api.Domain.RadarConsulta", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Ativa")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal?>("ComissaoMinimaPercentual")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime>("CriadaEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaximoProdutos")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Ordenacao")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PalavraChave")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("RadarConsultas");
+                });
+
+            modelBuilder.Entity("NexoGestao.Api.Domain.RadarExecucao", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AmostraBruta")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Atualizados")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Chamadas")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Consultados")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Consultas")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("Fim")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("Inicio")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Mensagem")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Novos")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Origem")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "Inicio");
+
+                    b.ToTable("RadarExecucoes");
                 });
 
             modelBuilder.Entity("NexoGestao.Api.Domain.RegistroVendaSemEstoque", b =>
@@ -1649,6 +1815,39 @@ namespace NexoGestao.Api.Migrations
                 });
 
             modelBuilder.Entity("NexoGestao.Api.Domain.ProdutoAfiliado", b =>
+                {
+                    b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("NexoGestao.Api.Domain.ProdutoAfiliadoSnapshot", b =>
+                {
+                    b.HasOne("NexoGestao.Api.Domain.ProdutoAfiliado", "ProdutoAfiliado")
+                        .WithMany()
+                        .HasForeignKey("ProdutoAfiliadoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProdutoAfiliado");
+                });
+
+            modelBuilder.Entity("NexoGestao.Api.Domain.RadarConsulta", b =>
+                {
+                    b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("NexoGestao.Api.Domain.RadarExecucao", b =>
                 {
                     b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
                         .WithMany()

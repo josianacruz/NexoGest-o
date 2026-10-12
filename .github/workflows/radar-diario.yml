@@ -1,0 +1,47 @@
+# Atualização diária do Radar Shopee às 08:00 de Brasília.
+#
+# ATENÇÃO — este agendamento está PREPARADO, não ligado:
+#  - O GitHub só executa workflows agendados a partir da branch padrão (main). Enquanto este arquivo estiver
+#    só na `dev`, nada roda. Ele passa a valer quando a `dev` for para a `main`, com a sua aprovação.
+#  - Mesmo na `main`, o job só roda se a variável do repositório RADAR_ATIVO for "true"
+#    (Settings > Secrets and variables > Actions > Variables).
+#  - Precisa de dois segredos do repositório: RADAR_API_URL (endereço da API, https) e RADAR_CHAVE
+#    (a mesma chave configurada na API em Shopee__Affiliate__ChaveAgendador). Nada disso fica neste arquivo.
+#  - A API só consulta a Shopee se houver App ID e Secret aprovados; sem eles registra "não configurada".
+#
+# 08:00 em Brasília = 11:00 UTC (o Brasil não tem horário de verão desde 2019). O GitHub pode atrasar execuções
+# agendadas por alguns minutos (ou mais, em horários de pico), então não é exato ao minuto. A rotina é idempotente
+# por dia: se rodar mais de uma vez no mesmo dia, as empresas já atualizadas são puladas.
+name: Radar Shopee (diário)
+
+on:
+  schedule:
+    - cron: "0 11 * * *"
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  disparar:
+    if: ${{ vars.RADAR_ATIVO == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Chamar a API (acorda o servidor grátis, se estiver dormindo)
+        env:
+          API_URL: ${{ secrets.RADAR_API_URL }}
+          CHAVE: ${{ secrets.RADAR_CHAVE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${API_URL}" ] || [ -z "${CHAVE}" ]; then
+            echo "Faltam os segredos RADAR_API_URL e RADAR_CHAVE."; exit 1
+          fi
+          # O servidor do plano grátis pode levar ~1 min para acordar: tenta algumas vezes.
+          for i in 1 2 3 4; do
+            code=$(curl -s -o /tmp/resp.txt -w "%{http_code}" --max-time 90 -X POST \
+              -H "X-Cron-Key: ${CHAVE}" "${API_URL%/}/api/interno/radar/executar-agendadas" || true)
+            echo "tentativa $i: HTTP $code"
+            if [ "$code" = "202" ]; then cat /tmp/resp.txt; exit 0; fi
+            sleep 30
+          done
+          echo "A API não confirmou o disparo."; exit 1

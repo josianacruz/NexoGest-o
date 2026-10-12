@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 
 # vídeos gerados pelo worker local (nunca versionar)
 src/NexoGestao.Api/storage/
+
+# Pacote do worker gerado por tools/worker/empacotar.ps1
+dist/

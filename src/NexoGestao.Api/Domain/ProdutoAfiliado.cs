@@ -41,6 +41,16 @@ public class ProdutoAfiliado
     public decimal? ComissaoPercentual { get; set; }
     public decimal? ComissaoValor { get; set; }
 
+    // Só preenchidos quando a API oficial da Shopee devolver o campo (Origem == ApiOficial).
+    // Os nomes seguem os campos da API (taxa do vendedor / taxa da Shopee); o Nexo NÃO afirma que
+    // um deles é a "Comissão Extra" enquanto a documentação oficial não confirmar o significado.
+    public decimal? ComissaoVendedorPercentual { get; set; }
+    public decimal? ComissaoShopeePercentual { get; set; }
+    public DateTime? InicioOferta { get; set; }
+    public DateTime? FimOferta { get; set; }
+    public double? Avaliacao { get; set; }
+    public DateTime? UltimaConsultaApi { get; set; }
+
     // De onde vieram preço/vendas/comissão e quando (nome do arquivo + data).
     public string? OrigemDados { get; set; }
     public DateTime? DataImportacao { get; set; }

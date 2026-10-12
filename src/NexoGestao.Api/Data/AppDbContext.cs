@@ -38,6 +38,9 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<ConteudoAfiliado> ConteudosAfiliados => Set<ConteudoAfiliado>();
     public DbSet<VideoAfiliado> VideosAfiliados => Set<VideoAfiliado>();
     public DbSet<WorkerCredencial> WorkerCredenciais => Set<WorkerCredencial>();
+    public DbSet<RadarConsulta> RadarConsultas => Set<RadarConsulta>();
+    public DbSet<RadarExecucao> RadarExecucoes => Set<RadarExecucao>();
+    public DbSet<ProdutoAfiliadoSnapshot> ProdutoAfiliadoSnapshots => Set<ProdutoAfiliadoSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -79,5 +82,10 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         // Filtro por empresa nas telas; a autenticação do worker (pelo token) usa IgnoreQueryFilters só para achar a credencial.
         builder.Entity<WorkerCredencial>().HasQueryFilter(c => EmpresaAtualId != null && c.EmpresaId == EmpresaAtualId);
         builder.Entity<WorkerCredencial>().HasIndex(c => c.TokenHash).IsUnique();
+        builder.Entity<RadarConsulta>().HasQueryFilter(c => EmpresaAtualId != null && c.EmpresaId == EmpresaAtualId);
+        builder.Entity<RadarExecucao>().HasQueryFilter(e => EmpresaAtualId != null && e.EmpresaId == EmpresaAtualId);
+        builder.Entity<RadarExecucao>().HasIndex(e => new { e.EmpresaId, e.Inicio });
+        builder.Entity<ProdutoAfiliadoSnapshot>().HasQueryFilter(x => EmpresaAtualId != null && x.EmpresaId == EmpresaAtualId);
+        builder.Entity<ProdutoAfiliadoSnapshot>().HasIndex(x => new { x.ProdutoAfiliadoId, x.DataConsulta });
     }
 }

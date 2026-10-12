@@ -6,6 +6,8 @@ import Nav from "../_components/Nav";
 import PageHeader from "../_components/PageHeader";
 import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../_components/ui";
 import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../lib/api";
+import WorkerPanel from "./WorkerPanel";
+import RadarPanel from "./RadarPanel";
 
 interface Conteudo {
   id: number;
@@ -30,6 +32,12 @@ interface ProdutoAfiliado {
   vendas: number | null;
   comissaoPercentual: number | null;
   comissaoValor: number | null;
+  comissaoVendedorPercentual: number | null;
+  comissaoShopeePercentual: number | null;
+  inicioOferta: string | null;
+  fimOferta: string | null;
+  avaliacao: number | null;
+  ultimaConsultaApi: string | null;
   origemDados: string | null;
   dataImportacao: string | null;
   origem: string;
@@ -96,6 +104,8 @@ interface Video {
   tamanhoBytes: number | null;
   tempoProcessamentoSegundos: number | null;
   temArquivo: boolean;
+  arquivoLocal: string | null;
+  arquivoNaApi: boolean;
   criadoEm: string;
   atualizadoEm: string;
 }
@@ -194,6 +204,7 @@ export default function AfiliadosPage() {
   const [quantidadeSelecionar, setQuantidadeSelecionar] = useState("5");
   const [gerando, setGerando] = useState(false);
   const [avisoWorker, setAvisoWorker] = useState<string | null>(null);
+  const [variacoes, setVariacoes] = useState<Record<number, { variacaoVendas: number | null; de: string }>>({});
 
   const [previas, setPrevias] = useState<Record<number, string>>({});
   const [carregandoArquivoId, setCarregandoArquivoId] = useState<number | null>(null);
@@ -226,6 +237,12 @@ export default function AfiliadosPage() {
       { headers: { Authorization: `Bearer ${token}` } }
     );
     if (res.ok) setProdutos(await res.json());
+    // Variação de vendas observada entre as consultas diárias (vazio enquanto não há consultas pela API).
+    fetch(`${API_URL}/api/empresas/${id}/afiliados/radar/variacoes?dias=7`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((lista: { produtoId: number; variacaoVendas: number | null; de: string }[]) =>
+        setVariacoes(Object.fromEntries(lista.map((x) => [x.produtoId, { variacaoVendas: x.variacaoVendas, de: x.de }]))))
+      .catch(() => undefined);
     return res;
   }
 
@@ -288,6 +305,10 @@ export default function AfiliadosPage() {
 
   // Enquanto houver vídeo na fila ou sendo gerado, confere a cada poucos segundos.
   const haVideoEmAndamento = videos.some((v) => v.status === "Pendente" || v.status === "Processando");
+  // O aviso de "worker desconectado" só vale enquanto há vídeo esperando.
+  useEffect(() => {
+    if (!haVideoEmAndamento) setAvisoWorker(null);
+  }, [haVideoEmAndamento]);
   useEffect(() => {
     if (!haVideoEmAndamento || !empresaId) return;
     const timer = setInterval(() => {
@@ -925,7 +946,32 @@ export default function AfiliadosPage() {
                             <span className="text-gray-400">comissão não informada</span>
                           )}
                         </p>
-                        {(p.comissaoPercentual != null || p.comissaoValor != null) && (
+                        {(p.comissaoVendedorPercentual != null || p.comissaoShopeePercentual != null) && (
+                          <p className="text-xs text-black/70 dark:text-white/70">
+                            Taxas informadas pela API:{" "}
+                            {p.comissaoVendedorPercentual != null && <>vendedor {percentual(p.comissaoVendedorPercentual)}</>}
+                            {p.comissaoVendedorPercentual != null && p.comissaoShopeePercentual != null && " · "}
+                            {p.comissaoShopeePercentual != null && <>Shopee {percentual(p.comissaoShopeePercentual)}</>}
+                            <span className="text-[11px] text-gray-400"> (o significado de “Comissão Extra” ainda não foi confirmado na documentação oficial)</span>
+                          </p>
+                        )}
+                        {(p.inicioOferta || p.fimOferta || p.avaliacao != null) && (
+                          <p className="text-xs text-black/70 dark:text-white/70">
+                            {p.inicioOferta || p.fimOferta
+                              ? `Validade da oferta: ${p.inicioOferta ? dataBr(p.inicioOferta) : "?"} a ${p.fimOferta ? dataBr(p.fimOferta) : "?"}`
+                              : ""}
+                            {p.avaliacao != null ? `${p.inicioOferta || p.fimOferta ? " · " : ""}nota ${p.avaliacao.toLocaleString("pt-BR")}` : ""}
+                            {variacoes[p.id]?.variacaoVendas != null
+                              ? ` · vendas ${variacoes[p.id].variacaoVendas! >= 0 ? "+" : ""}${variacoes[p.id].variacaoVendas} desde ${dataBr(variacoes[p.id].de)}`
+                              : ""}
+                          </p>
+                        )}
+                        {p.ultimaConsultaApi && (
+                          <p className="text-[11px] text-green-700">
+                            ✓ Comissão verificada pela API oficial da Shopee em {new Date(p.ultimaConsultaApi).toLocaleString("pt-BR")}
+                          </p>
+                        )}
+                        {(p.comissaoPercentual != null || p.comissaoValor != null) && !p.ultimaConsultaApi && (
                           <p className="text-[11px] text-gray-400">
                             Informação do arquivo{p.dataImportacao ? `, importado em ${dataBr(p.dataImportacao)}` : ""}.
                             Sujeita às condições da Shopee.
@@ -1088,7 +1134,7 @@ export default function AfiliadosPage() {
                         )}
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        {v.status === "Pronto" && v.temArquivo && (
+                        {v.status === "Pronto" && v.temArquivo && v.arquivoNaApi && (
                           <>
                             <button onClick={() => obterArquivo(v.id)} disabled={carregandoArquivoId === v.id} className={botaoSecundario}>
                               {carregandoArquivoId === v.id ? "Abrindo..." : previas[v.id] ? "Vídeo aberto" : "Ver vídeo"}
@@ -1116,6 +1162,17 @@ export default function AfiliadosPage() {
 
                     {v.status === "Pronto" && (
                       <div className="mt-3 pt-3 border-t space-y-2 text-sm">
+                        {v.arquivoLocal && (
+                          <div className="rounded-lg bg-black/5 dark:bg-white/10 p-2 text-xs">
+                            <p className="font-medium text-gray-500">Arquivo no computador do worker</p>
+                            <p className="break-all mt-1">{v.arquivoLocal}</p>
+                            <p className="text-gray-500 mt-1">
+                              Ao lado do vídeo há um .txt com a legenda, as hashtags e os links. Para publicar, copie o MP4 para o
+                              computador ou celular de publicação (cabo USB, Google Drive ou WhatsApp para si mesma).
+                            </p>
+                            <button onClick={() => copiar(v.arquivoLocal!, mostrarAviso)} className={botaoTexto}>Copiar caminho</button>
+                          </div>
+                        )}
                         {v.legenda && (
                           <div>
                             <div className="flex items-center justify-between">
@@ -1145,7 +1202,7 @@ export default function AfiliadosPage() {
                           )}
                         </div>
                         {v.musicaCredito && (
-                          <p className="text-[11px] text-gray-400">Música: {v.musicaCredito}</p>
+                          <p className="text-[11px] text-gray-400">{/^m[úu]sica/i.test(v.musicaCredito) ? "" : "Música: "}{v.musicaCredito}</p>
                         )}
                       </div>
                     )}
@@ -1155,6 +1212,13 @@ export default function AfiliadosPage() {
             </div>
           )}
         </section>
+
+        {empresaId && (
+          <>
+            <RadarPanel empresaId={empresaId} getToken={getToken} aoAtualizar={carregarTudo} />
+            <WorkerPanel empresaId={empresaId} getToken={getToken} />
+          </>
+        )}
 
         {/* Buscar por palavra-chave, cadastro manual e configuração (secundários) */}
         <section className={`${cardStyle} p-4`}>

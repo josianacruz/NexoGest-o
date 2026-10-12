@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/NexoGestao.Tests/NexoGestao.Tests.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/NexoGestao.Api/NexoGestao.Api.csproj" />
     <Project Path="src/NexoGestao.Worker/NexoGestao.Worker.csproj" />
