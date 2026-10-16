@@ -175,27 +175,45 @@ public class AgendamentoPublicoController : ControllerBase
         return Ok(HorariosLivres(CombinarDataHora(dataBase, horaInicio), CombinarDataHora(dataBase, horaFim), dados.DuracaoMinutos, DateTime.UtcNow, ocupados));
     }
 
-    // Conta pura (sem banco): horários que cabem na janela, a partir de agora e sem bater em agendamento existente.
-    // Os passos são do tamanho do próprio serviço (comportamento de sempre).
+    // Todos os horários que o serviço pode ocupar dentro da janela de trabalho (passo = duração do serviço).
+    public static List<DateTime> GradeDoDia(DateTime inicioJanela, DateTime fimJanela, int duracaoMinutos)
+    {
+        var grade = new List<DateTime>();
+        if (duracaoMinutos <= 0)
+            return grade;
+
+        for (var horario = inicioJanela; horario.AddMinutes(duracaoMinutos) <= fimJanela; horario = horario.AddMinutes(duracaoMinutos))
+            grade.Add(horario);
+        return grade;
+    }
+
+    // Conta pura (sem banco): horários da grade a partir de agora e sem bater em agendamento existente.
     public static List<string> HorariosLivres(DateTime inicioJanela, DateTime fimJanela, int duracaoMinutos, DateTime agora, IEnumerable<(DateTime Inicio, int Minutos)> ocupados)
     {
         var lista = ocupados.ToList();
-        var livres = new List<string>();
-        if (duracaoMinutos <= 0)
-            return livres;
+        return GradeDoDia(inicioJanela, fimJanela, duracaoMinutos)
+            .Where(h => h >= agora)
+            .Where(h =>
+            {
+                var fimSlot = h.AddMinutes(duracaoMinutos);
+                return !lista.Any(a => a.Inicio < fimSlot && h < a.Inicio.AddMinutes(a.Minutos));
+            })
+            .Select(h => h.ToString("HH:mm"))
+            .ToList();
+    }
 
-        for (var horario = inicioJanela; horario.AddMinutes(duracaoMinutos) <= fimJanela; horario = horario.AddMinutes(duracaoMinutos))
-        {
-            if (horario < agora)
-                continue;
+    // Janela de trabalho de uma data: a regra do dia da semana (Configurações > Horário de trabalho); sem ela, a janela
+    // padrão da agenda. Devolve nulo quando a loja não atende nesse dia.
+    private async Task<(string Inicio, string Fim)?> JanelaDoDiaAsync(DateTime dia)
+    {
+        var diaSemana = (int)dia.DayOfWeek;
+        var regra = await Context.ConfiguracoesDiaSemana.AsNoTracking().Where(d => d.DiaSemana == diaSemana).Select(d => new { d.Ativo, d.HoraInicio, d.HoraFim }).FirstOrDefaultAsync();
+        if (regra is not null)
+            return regra.Ativo ? (regra.HoraInicio, regra.HoraFim) : null;
 
-            var fimSlot = horario.AddMinutes(duracaoMinutos);
-            if (lista.Any(a => a.Inicio < fimSlot && horario < a.Inicio.AddMinutes(a.Minutos)))
-                continue;
-
-            livres.Add(horario.ToString("HH:mm"));
-        }
-        return livres;
+        var padrao = await Context.ConfiguracoesAgenda.AsNoTracking().Select(c => new { c.HoraInicioAtendimento, c.HoraFimAtendimento }).FirstOrDefaultAsync();
+        return (string.IsNullOrWhiteSpace(padrao?.HoraInicioAtendimento) ? "08:00" : padrao.HoraInicioAtendimento,
+                string.IsNullOrWhiteSpace(padrao?.HoraFimAtendimento) ? "18:00" : padrao.HoraFimAtendimento);
     }
 
     [HttpPost("agendamento")]
@@ -216,9 +234,21 @@ public class AgendamentoPublicoController : ControllerBase
         if (servico is null)
             return NotFound(new { mensagem = "Serviço não encontrado." });
 
+        if (!HorarioTrabalho.HoraValida(request.Hora))
+            return BadRequest(new { mensagem = "Horário inválido." });
+
         var inicio = CombinarDataHora(request.Data, request.Hora);
         if (inicio < DateTime.UtcNow)
             return BadRequest(new { mensagem = "Esse horário já passou." });
+
+        // A agenda é cravada no horário de trabalho da loja: fora do expediente (ou num dia fechado) não se agenda,
+        // mesmo que alguém monte o pedido na mão. Só vale o que a página oferece (grade do serviço dentro da janela).
+        var janela = await JanelaDoDiaAsync(inicio.Date);
+        if (janela is null)
+            return BadRequest(new { mensagem = "Não atendemos nesse dia. Escolha outro dia." });
+        var grade = GradeDoDia(CombinarDataHora(inicio.Date, janela.Value.Inicio), CombinarDataHora(inicio.Date, janela.Value.Fim), servico.DuracaoMinutos);
+        if (!grade.Contains(inicio))
+            return BadRequest(new { mensagem = "Esse horário está fora do nosso horário de atendimento. Escolha outro." });
 
         // Trava só quem tenta marcar na mesma empresa+dia — outras empresas e
         // outros dias seguem em paralelo sem esperar. A trava fica até o fim
