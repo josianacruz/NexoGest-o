@@ -42,6 +42,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<RadarExecucao> RadarExecucoes => Set<RadarExecucao>();
     public DbSet<ProdutoAfiliadoSnapshot> ProdutoAfiliadoSnapshots => Set<ProdutoAfiliadoSnapshot>();
     public DbSet<StoryLoja> StoriesLoja => Set<StoryLoja>();
+    public DbSet<MidiaLoja> MidiasLoja => Set<MidiaLoja>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -91,5 +92,13 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         builder.Entity<StoryLoja>().HasQueryFilter(s => EmpresaAtualId != null && s.EmpresaId == EmpresaAtualId);
         builder.Entity<StoryLoja>().Property(s => s.Texto).HasMaxLength(StoryLoja.MaxTexto);
         builder.Entity<StoryLoja>().HasIndex(s => new { s.EmpresaId, s.ExpiraEm });
+        builder.Entity<StoryLoja>().HasOne(s => s.Midia).WithMany().HasForeignKey(s => s.MidiaId).OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<MidiaLoja>().HasQueryFilter(m => EmpresaAtualId != null && m.EmpresaId == EmpresaAtualId);
+        builder.Entity<MidiaLoja>().HasIndex(m => new { m.EmpresaId, m.Hash }).IsUnique();
+        builder.Entity<MidiaLoja>().HasIndex(m => new { m.EmpresaId, m.UltimoUsoEm });
+        builder.Entity<MidiaLoja>().Property(m => m.Nome).HasMaxLength(80);
+        builder.Entity<MidiaLoja>().Property(m => m.ContentType).HasMaxLength(30);
+        builder.Entity<MidiaLoja>().Property(m => m.Hash).HasMaxLength(64);
+        builder.Entity<Produto>().Property(p => p.AtributosJson).HasMaxLength(4000);
     }
 }

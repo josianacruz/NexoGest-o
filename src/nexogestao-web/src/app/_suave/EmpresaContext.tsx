@@ -11,6 +11,7 @@ export interface EmpresaAtual {
   modulos: string[];
   papel: string;
   comandasHabilitadas: boolean;
+  nicho: "Alimentos" | "Moda" | "BelezaServicos" | "Outros";
 }
 
 export interface Avisos {
@@ -69,7 +70,7 @@ export function EmpresaProvider({ children }: { children: React.ReactNode }) {
         }
         const e = lista[0];
         const modulos: string[] = e.modulos ?? [];
-        setEmpresa({ id: e.id, nome: e.nome, modulos, papel: e.papel ?? "", comandasHabilitadas: e.comandasHabilitadas ?? true });
+        setEmpresa({ id: e.id, nome: e.nome, modulos, papel: e.papel ?? "", comandasHabilitadas: e.comandasHabilitadas ?? true, nicho: e.nicho ?? "Outros" });
         // Padrão claro só para empresas que pediram (por Id); nunca sobrescreve a escolha da pessoa.
         definirPadraoClaroDaEmpresa(EMPRESAS_TEMA_CLARO.includes(e.id));
 

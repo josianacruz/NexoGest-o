@@ -8,8 +8,8 @@ using NexoGestao.Api.Shared;
 
 namespace NexoGestao.Api.Produtos;
 
-public record CriarProdutoRequest(string Nome, string? Categoria, decimal Preco, decimal Custo, int Estoque, int EstoqueMinimo, string? FotoUrl = null);
-public record AtualizarProdutoRequest(string Nome, string? Categoria, decimal Preco, decimal Custo, int Estoque, int EstoqueMinimo, string? FotoUrl = null);
+public record CriarProdutoRequest(string Nome, string? Categoria, decimal Preco, decimal Custo, int Estoque, int EstoqueMinimo, string? FotoUrl = null, AtributosProduto? Atributos = null);
+public record AtualizarProdutoRequest(string Nome, string? Categoria, decimal Preco, decimal Custo, int Estoque, int EstoqueMinimo, string? FotoUrl = null, AtributosProduto? Atributos = null);
 public record AtivarLinkStoryRequest(bool Ativo);
 
 [ApiController]
@@ -35,6 +35,10 @@ public class ProdutosController : TenantControllerBase
         if (request.Estoque < 0 || request.EstoqueMinimo < 0)
             return BadRequest(new { mensagem = "Estoque e estoque mínimo não podem ser negativos." });
 
+        var (erroAtributos, atributosJson) = AtributosProdutoRegras.Sanitizar(request.Atributos);
+        if (erroAtributos is not null)
+            return BadRequest(new { mensagem = erroAtributos });
+
         var produto = new Produto
         {
             EmpresaId = empresaAutorizada.Value,
@@ -45,6 +49,7 @@ public class ProdutosController : TenantControllerBase
             Estoque = request.Estoque,
             EstoqueMinimo = request.EstoqueMinimo,
             FotoUrl = request.FotoUrl,
+            AtributosJson = atributosJson,
         };
         Context.Produtos.Add(produto);
         await Context.SaveChangesAsync();
@@ -59,16 +64,21 @@ public class ProdutosController : TenantControllerBase
         if (empresaAutorizada is null)
             return Forbid();
 
-        var produtos = await Context.Produtos
+        var linhas = await Context.Produtos
             .OrderBy(p => p.Nome)
             .Select(p => new
             {
                 p.Id, p.Nome, p.Categoria, p.Preco, p.Custo, p.Estoque, p.EstoqueMinimo, p.Ativo,
-                p.FotoUrl, p.LinkStoryToken, p.LinkStoryAtivo,
+                p.FotoUrl, p.LinkStoryToken, p.LinkStoryAtivo, p.AtributosJson,
             })
             .ToListAsync();
 
-        return Ok(produtos);
+        return Ok(linhas.Select(p => new
+        {
+            p.Id, p.Nome, p.Categoria, p.Preco, p.Custo, p.Estoque, p.EstoqueMinimo, p.Ativo,
+            p.FotoUrl, p.LinkStoryToken, p.LinkStoryAtivo,
+            Atributos = AtributosProdutoRegras.Ler(p.AtributosJson),
+        }));
     }
 
     [HttpPut("{produtoId:int}")]
@@ -87,6 +97,10 @@ public class ProdutosController : TenantControllerBase
         if (request.Estoque < 0 || request.EstoqueMinimo < 0)
             return BadRequest(new { mensagem = "Estoque e estoque mínimo não podem ser negativos." });
 
+        var (erroAtributos, atributosJson) = AtributosProdutoRegras.Sanitizar(request.Atributos);
+        if (erroAtributos is not null)
+            return BadRequest(new { mensagem = erroAtributos });
+
         var produto = await Context.Produtos.FirstOrDefaultAsync(p => p.Id == produtoId);
         if (produto is null)
             return NotFound(new { mensagem = "Produto não encontrado." });
@@ -98,6 +112,9 @@ public class ProdutosController : TenantControllerBase
         produto.Estoque = request.Estoque;
         produto.EstoqueMinimo = request.EstoqueMinimo;
         produto.FotoUrl = request.FotoUrl;
+        // Quem ainda não manda "atributos" (versões antigas da tela) não apaga o que já estava cadastrado.
+        if (request.Atributos is not null)
+            produto.AtributosJson = atributosJson;
 
         await Context.SaveChangesAsync();
 

@@ -1,4 +1,18 @@
 START TRANSACTION;
+ALTER TABLE "StoriesLoja" DROP COLUMN "MidiaId";
+
+DROP TABLE "MidiasLoja";
+
+ALTER TABLE "Produtos" DROP COLUMN "AtributosJson";
+
+ALTER TABLE "Empresas" DROP COLUMN "Nicho";
+
+DELETE FROM "__EFMigrationsHistory"
+WHERE "MigrationId" = '20261012231125_AdicionaMidiasNichoEAtributos';
+
+COMMIT;
+
+START TRANSACTION;
 DROP TABLE "StoriesLoja";
 
 DELETE FROM "__EFMigrationsHistory"

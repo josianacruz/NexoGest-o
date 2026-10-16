@@ -9,6 +9,10 @@ import SearchInput from "../../_components/SearchInput";
 import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle, badgeEstoque } from "../../_components/ui";
 import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
 import { separarNomeEslogan } from "../../../lib/modulos";
+import { blobParaDataUrl } from "../../../lib/imagem";
+import BibliotecaRapida, { type MidiaResumo } from "../../_suave/BibliotecaRapida";
+import CamposDoNicho, { atributosDaApi, atributosParaApi, atributosVazios, resumoDosAtributos, type AtributosForm, type Nicho } from "../../_suave/CamposDoNicho";
+import { useEmpresa } from "../../_suave/EmpresaContext";
 
 interface Produto {
   id: number;
@@ -22,6 +26,14 @@ interface Produto {
   fotoUrl?: string | null;
   linkStoryToken?: string | null;
   linkStoryAtivo: boolean;
+  atributos?: {
+    adicionais?: { nome: string; preco: number }[] | null;
+    ingredientes?: string | null;
+    tamanhos?: { nome: string; preco: number }[] | null;
+    cores?: string[] | null;
+    grade?: string[] | null;
+    duracaoMinutos?: number | null;
+  } | null;
 }
 
 async function mensagemDeErro(res: Response, padrao: string) {
@@ -32,6 +44,9 @@ async function mensagemDeErro(res: Response, padrao: string) {
 const formVazio = { nome: "", categoria: "", preco: "", custo: "", estoque: "", estoqueMinimo: "", fotoUrl: "" };
 
 export default function ProdutosPage() {
+  const { api } = useEmpresa();
+  const [nicho, setNicho] = useState<Nicho>("Outros");
+  const [atrib, setAtrib] = useState<AtributosForm>(atributosVazios());
   const [empresaId, setEmpresaId] = useState<number | null>(null);
   const [empresaNome, setEmpresaNome] = useState("");
   const [comandasHabilitadas, setComandasHabilitadas] = useState(true);
@@ -84,6 +99,7 @@ export default function ProdutosPage() {
       setEmpresaId(primeiraEmpresa.id);
       setEmpresaNome(primeiraEmpresa.nome);
       setComandasHabilitadas(primeiraEmpresa.comandasHabilitadas ?? true);
+      setNicho((primeiraEmpresa.nicho as Nicho) ?? "Outros");
 
       const resProdutos = await fetch(
         `${API_URL}/api/empresas/${primeiraEmpresa.id}/produtos`,
@@ -107,6 +123,7 @@ export default function ProdutosPage() {
   function abrirNovo() {
     setErro(null);
     setForm(formVazio);
+    setAtrib(atributosVazios());
     setModalAberto("novo");
   }
 
@@ -122,6 +139,7 @@ export default function ProdutosPage() {
       estoqueMinimo: String(p.estoqueMinimo),
       fotoUrl: p.fotoUrl ?? "",
     });
+    setAtrib(atributosDaApi(p.atributos));
     setModalAberto("editar");
   }
 
@@ -157,6 +175,8 @@ export default function ProdutosPage() {
           estoque: Number(form.estoque),
           estoqueMinimo: Number(form.estoqueMinimo),
           fotoUrl: form.fotoUrl || null,
+          // Em "Outros" não há campos extras: não manda nada e a API mantém o que já estava gravado.
+          atributos: nicho === "Outros" ? undefined : atributosParaApi(atrib),
         }),
       });
 
@@ -172,12 +192,16 @@ export default function ProdutosPage() {
     }
   }
 
-  function onFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const arquivo = e.target.files?.[0];
-    if (!arquivo) return;
-    const leitor = new FileReader();
-    leitor.onload = () => setForm((f) => ({ ...f, fotoUrl: leitor.result as string }));
-    leitor.readAsDataURL(arquivo);
+  // Foto escolhida na biblioteca: devolve a foto inteira (a que acabou de ser enviada já vem pronta).
+  async function fotoDaMidia(m: MidiaResumo, dataUrl?: string): Promise<string | null> {
+    if (dataUrl) return dataUrl;
+    const r = await api(`/midias/${m.id}/arquivo`);
+    if (!r.ok) {
+      setErro("Não consegui carregar essa foto. Tente outra.");
+      return null;
+    }
+    await api(`/midias/${m.id}/usar`, { method: "POST" });
+    return blobParaDataUrl(await r.blob());
   }
 
   async function alternarLinkStory(produto: Produto, ativo: boolean) {
@@ -225,35 +249,29 @@ export default function ProdutosPage() {
     setStoryProduto(null);
   }
 
-  function onStoryFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const arquivo = e.target.files?.[0];
-    if (!arquivo || !storyProduto || !empresaId) return;
-    const leitor = new FileReader();
-    leitor.onload = async () => {
-      const dataUrl = leitor.result as string;
-      setStoryFoto(dataUrl);
-      setStorySalvandoFoto(true);
-      const token = getToken();
-      try {
-        await fetch(`${API_URL}/api/empresas/${empresaId}/produtos/${storyProduto.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            nome: storyProduto.nome,
-            categoria: storyProduto.categoria,
-            preco: storyProduto.preco,
-            custo: storyProduto.custo,
-            estoque: storyProduto.estoque,
-            estoqueMinimo: storyProduto.estoqueMinimo,
-            fotoUrl: dataUrl,
-          }),
-        });
-        await carregarEmpresaEProdutos();
-      } finally {
-        setStorySalvandoFoto(false);
-      }
-    };
-    leitor.readAsDataURL(arquivo);
+  async function salvarStoryFoto(dataUrl: string) {
+    if (!storyProduto || !empresaId) return;
+    setStoryFoto(dataUrl);
+    setStorySalvandoFoto(true);
+    const token = getToken();
+    try {
+      await fetch(`${API_URL}/api/empresas/${empresaId}/produtos/${storyProduto.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          nome: storyProduto.nome,
+          categoria: storyProduto.categoria,
+          preco: storyProduto.preco,
+          custo: storyProduto.custo,
+          estoque: storyProduto.estoque,
+          estoqueMinimo: storyProduto.estoqueMinimo,
+          fotoUrl: dataUrl,
+        }),
+      });
+      await carregarEmpresaEProdutos();
+    } finally {
+      setStorySalvandoFoto(false);
+    }
   }
 
   async function baixarStory() {
@@ -352,7 +370,12 @@ export default function ProdutosPage() {
                 const badge = badgeEstoque(p.estoque, p.estoqueMinimo);
                 return (
                   <tr key={p.id} className="border-b border-black/5 dark:border-white/5 last:border-0">
-                    <td className="py-2.5 px-4">{p.nome}</td>
+                    <td className="py-2.5 px-4">
+                      <div>{p.nome}</div>
+                      {resumoDosAtributos(nicho, p.atributos).length > 0 && (
+                        <div className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">{resumoDosAtributos(nicho, p.atributos).join(" · ")}</div>
+                      )}
+                    </td>
                     <td className="py-2.5 px-4">{p.categoria}</td>
                     <td className="py-2.5 px-4">R$ {p.preco.toFixed(2)}</td>
                     <td className="py-2.5 px-4">
@@ -408,15 +431,23 @@ export default function ProdutosPage() {
                 className={inputStyle}
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className={labelStyle}>Foto (opcional, usada na Story)</label>
-              <div className="flex items-center gap-3">
-                {form.fotoUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={form.fotoUrl} alt="" className="w-14 h-14 object-cover rounded-lg border border-black/10 dark:border-white/10" />
-                )}
-                <input type="file" accept="image/*" onChange={onFotoChange} className="text-sm" />
-              </div>
+            <div className="flex flex-col gap-2">
+              <label className={labelStyle}>Foto (opcional) — toque em uma recente ou envie outra</label>
+              {form.fotoUrl && (
+                <div className="flex items-center gap-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={form.fotoUrl} alt="" className="h-16 w-16 rounded-2xl border border-slate-200 object-cover dark:border-slate-700" />
+                  <button type="button" onClick={() => setForm((f) => ({ ...f, fotoUrl: "" }))} className={botaoTexto}>
+                    Tirar foto
+                  </button>
+                </div>
+              )}
+              <BibliotecaRapida
+                aoEscolher={async (m, d) => {
+                  const url = await fotoDaMidia(m, d);
+                  if (url) setForm((f) => ({ ...f, fotoUrl: url }));
+                }}
+              />
             </div>
             <div className="flex flex-col gap-1">
               <label className={labelStyle}>Categoria</label>
@@ -426,6 +457,7 @@ export default function ProdutosPage() {
                 className={inputStyle}
               />
             </div>
+            <CamposDoNicho nicho={nicho} valor={atrib} aoMudar={setAtrib} />
             <div className="flex gap-3">
               <div className="flex flex-col gap-1 flex-1">
                 <label className={labelStyle}>Preço</label>
@@ -513,10 +545,15 @@ export default function ProdutosPage() {
               </div>
             </div>
 
-            <label className="text-sm font-medium text-indigo-600 dark:text-indigo-400 cursor-pointer">
-              {storySalvandoFoto ? "Salvando foto..." : storyFoto ? "Trocar foto" : "Adicionar foto"}
-              <input type="file" accept="image/*" onChange={onStoryFotoChange} className="hidden" disabled={storySalvandoFoto} />
-            </label>
+            <div className="w-full">
+              <p className={`${labelStyle} mb-1`}>{storySalvandoFoto ? "Salvando foto..." : "Foto do Story — toque em uma recente ou envie outra"}</p>
+              <BibliotecaRapida
+                aoEscolher={async (m, d) => {
+                  const url = await fotoDaMidia(m, d);
+                  if (url) await salvarStoryFoto(url);
+                }}
+              />
+            </div>
 
             <ol className="w-full text-sm text-black/70 dark:text-white/70 list-decimal list-inside flex flex-col gap-0.5 bg-black/[0.03] dark:bg-white/5 rounded-lg px-4 py-3 mt-1">
               <li>Baixe a imagem</li>

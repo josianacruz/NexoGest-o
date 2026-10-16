@@ -19,7 +19,7 @@ export default function VitrineStories({ empresaId, textoBotao = "Agendar um hor
         if (!res.ok) return;
         const d = await res.json();
         setNome(separarNomeEslogan(d.empresaNome ?? ""));
-        setLista((d.stories as { id: number; tipo: string; texto: string }[]).map((s) => ({ id: String(s.id), tipo: tipoDaApi(s.tipo), texto: s.texto })));
+        setLista((d.stories as { id: number; tipo: string; texto: string; temImagem?: boolean }[]).map((s) => ({ id: String(s.id), tipo: tipoDaApi(s.tipo), texto: s.texto, imagemUrl: s.temImagem ? `${API_URL}/api/publico/empresas/${empresaId}/stories/${s.id}/imagem` : undefined })));
       })
       .catch(() => {
         /* sem novidades: a página segue normal */

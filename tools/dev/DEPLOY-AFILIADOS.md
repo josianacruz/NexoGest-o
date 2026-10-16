@@ -1,8 +1,8 @@
 # Deploy do módulo Afiliados (dev → main)
 
-Este roteiro vale para a publicação do módulo Afiliados, do worker de vídeo, do Radar e dos Stories da loja. Nada aqui altera dados de
-clientes: as migrations só **criam tabelas novas** (Afiliados, vídeos, credenciais do worker, Radar, Stories da loja). O ensaio feito
-numa cópia local no estado da `main` aplicou as 9 migrations de Afiliados/Radar (a 10ª, `CriaStoriesDaLoja`, também só cria uma tabela; reensaiar antes do deploy) sem alterar nenhuma linha nem coluna das tabelas
+Este roteiro vale para a publicação do módulo Afiliados, do worker de vídeo, do Radar, dos Stories da loja, da biblioteca de fotos e do nicho da loja. Nada aqui altera dados de
+clientes: as migrations só **criam tabelas novas** (Afiliados, vídeos, credenciais do worker, Radar, Stories da loja, biblioteca de fotos) e **duas colunas novas, vazias e opcionais**, em `Empresas` (`Nicho`) e `Produtos` (`AtributosJson`). O ensaio feito
+numa cópia local no estado da `main` aplicou as 9 migrations de Afiliados/Radar (a 10ª, `CriaStoriesDaLoja`, e a 11ª, `AdicionaMidiasNichoEAtributos`, só criam tabelas e colunas novas; o ensaio com elas também preservou todas as linhas existentes) sem alterar nenhuma linha nem coluna das tabelas
 que já existem (`tools/dev/testar-migrations-em-copia.py`).
 
 ## Ordem
@@ -31,8 +31,8 @@ que antes recebiam todos). Os demais módulos seguem exatamente como estão.
   *Promote to Production*; e `git revert` do merge na `main`. As tabelas novas ficam no banco sem uso (o código antigo
   as ignora), então voltar o código **não exige** mexer no banco.
 - **Banco (só se for preciso remover as tabelas novas)**: `tools/dev/rollback-afiliados.sql`. Ele apaga apenas as
-  tabelas e colunas do Afiliados e dos Stories e as linhas dessas 10 migrations em `__EFMigrationsHistory`. É destrutivo para os dados
-  do Afiliados e dos Stories; use só depois de ter o backup e de reverter o código.
+  tabelas e colunas do Afiliados e dos Stories e as linhas dessas 11 migrations em `__EFMigrationsHistory`. É destrutivo para os dados
+  do Afiliados, dos Stories, das fotos da biblioteca e do nicho da loja; use só depois de ter o backup e de reverter o código.
 - **Restauração total**: `pg_restore` do arquivo gerado no passo 1 (ou restaurar a branch do Neon).
 
 ## Cuidados conhecidos

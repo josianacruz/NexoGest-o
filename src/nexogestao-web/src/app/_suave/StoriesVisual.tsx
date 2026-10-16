@@ -12,6 +12,7 @@ export interface StoryVista {
   tipo: Tipo;
   texto: string;
   automatico?: boolean;
+  imagemUrl?: string; // foto da novidade (opcional)
 }
 
 export const DURACAO_MS = 6000;
@@ -50,7 +51,14 @@ export function Anel({ s, aoAbrir }: { s: StoryVista; aoAbrir: () => void }) {
   return (
     <button type="button" onClick={aoAbrir} className="flex w-20 flex-col items-center gap-2" aria-label={`Ver ${TIPOS[s.tipo].nome}`}>
       <span className={`rounded-full bg-gradient-to-tr p-[3px] ${TIPOS[s.tipo].anel}`}>
-        <span className="grid h-[66px] w-[66px] place-items-center rounded-full border-2 border-white bg-white text-2xl dark:border-slate-800 dark:bg-slate-800">{TIPOS[s.tipo].icone}</span>
+        <span className="grid h-[66px] w-[66px] place-items-center overflow-hidden rounded-full border-2 border-white bg-white text-2xl dark:border-slate-800 dark:bg-slate-800">
+          {s.imagemUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={s.imagemUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            TIPOS[s.tipo].icone
+          )}
+        </span>
       </span>
       <span className="w-full truncate text-center text-xs font-semibold">{s.automatico ? "Hoje" : TIPOS[s.tipo].nome}</span>
     </button>
@@ -72,6 +80,7 @@ export function VerStory({
   rodape: (s: StoryVista) => React.ReactNode;
 }) {
   const s = todos[indice];
+  const foto = !!s.imagemUrl;
   const [pausado, setPausado] = useState(false);
 
   const proximo = useCallback(() => (indice + 1 < todos.length ? aoMudar(indice + 1) : aoFechar()), [indice, todos.length, aoMudar, aoFechar]);
@@ -103,22 +112,29 @@ export function VerStory({
         onTouchStart={() => setPausado(true)}
         onTouchEnd={() => setPausado(false)}
       >
-        <div className="flex gap-1" aria-hidden="true">
+        {foto && (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={s.imagemUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-b from-slate-900/45 via-slate-900/25 to-slate-900/80" aria-hidden="true" />
+          </>
+        )}
+        <div className="relative flex gap-1" aria-hidden="true">
           {todos.map((x, i) => (
-            <span key={x.id} className="h-1 flex-1 overflow-hidden rounded-full bg-slate-900/15 dark:bg-white/20">
+            <span key={x.id} className={`h-1 flex-1 overflow-hidden rounded-full ${foto ? "bg-white/30" : "bg-slate-900/15 dark:bg-white/20"}`}>
               <span
-                className={`block h-full rounded-full bg-slate-700 dark:bg-slate-100 ${i < indice ? "w-full" : i === indice ? "story-progresso" : "w-0"}`}
+                className={`block h-full rounded-full ${foto ? "bg-white" : "bg-slate-700 dark:bg-slate-100"} ${i < indice ? "w-full" : i === indice ? "story-progresso" : "w-0"}`}
                 style={i === indice ? { animationDuration: `${DURACAO_MS}ms`, animationPlayState: pausado ? "paused" : "running" } : undefined}
               />
             </span>
           ))}
         </div>
 
-        <div className="mt-4 flex items-center justify-between text-slate-800 dark:text-slate-100">
+        <div className={`relative mt-4 flex items-center justify-between ${foto ? "text-white" : "text-slate-800 dark:text-slate-100"}`}>
           <span className="text-sm font-bold">
             <span aria-hidden="true">{TIPOS[s.tipo].icone}</span> {s.automatico ? "Hoje" : TIPOS[s.tipo].nome}
           </span>
-          <button type="button" onClick={aoFechar} aria-label="Fechar" className="grid h-9 w-9 place-items-center rounded-full bg-white/60 dark:bg-slate-900/40">
+          <button type="button" onClick={aoFechar} aria-label="Fechar" className={`grid h-9 w-9 place-items-center rounded-full ${foto ? "bg-slate-900/50 text-white" : "bg-white/60 dark:bg-slate-900/40"}`}>
             ✕
           </button>
         </div>
@@ -127,7 +143,7 @@ export function VerStory({
           {/* áreas de toque: metade esquerda volta, metade direita avança */}
           <button type="button" aria-label="Anterior" onClick={anterior} className="absolute inset-y-0 left-0 w-1/2" />
           <button type="button" aria-label="Próxima" onClick={proximo} className="absolute inset-y-0 right-0 w-1/2" />
-          <p className="pointer-events-none w-full break-words text-center text-2xl font-bold leading-snug text-slate-800 dark:text-slate-100">{s.texto}</p>
+          <p className={`pointer-events-none w-full break-words text-center text-2xl font-bold leading-snug ${foto ? "text-white [text-shadow:0_1px_6px_rgba(0,0,0,0.5)]" : "text-slate-800 dark:text-slate-100"}`}>{s.texto}</p>
         </div>
 
         <div className="relative z-10 space-y-2">{rodape(s)}</div>

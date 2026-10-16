@@ -8,6 +8,7 @@ import ThemeToggle from "../../_components/ThemeToggle";
 import { inputStyle, labelStyle, botaoPrimario, cardStyle } from "../../_components/ui";
 import { API_URL } from "../../../lib/api";
 import { separarNomeEslogan } from "../../../lib/modulos";
+import { NICHOS, type Nicho } from "../../_suave/CamposDoNicho";
 
 const MAX_NOME = 60;
 const MAX_SLOGAN = 80;
@@ -27,6 +28,9 @@ export default function ConfiguracoesPage() {
   const [papel, setPapel] = useState<string>("");
   const [nome, setNome] = useState("");
   const [slogan, setSlogan] = useState("");
+  const [nicho, setNicho] = useState<Nicho>("Outros");
+  const [salvandoNicho, setSalvandoNicho] = useState(false);
+  const [avisoNicho, setAvisoNicho] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -56,6 +60,7 @@ export default function ConfiguracoesPage() {
         setEmpresaNome(e.nome);
         setComandasHabilitadas(e.comandasHabilitadas ?? true);
         setPapel(e.papel ?? "");
+        setNicho((e.nicho as Nicho) ?? "Outros");
         const partes = separarNomeEslogan(e.nome);
         setNome(partes.nome);
         setSlogan(partes.slogan ?? "");
@@ -104,6 +109,32 @@ export default function ConfiguracoesPage() {
       setAviso("Nome salvo. Ele já aparece no menu e nas páginas e artes que você criar daqui para frente.");
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function escolherNicho(novo: Nicho) {
+    if (!empresaId || !ehDono || salvandoNicho || novo === nicho) return;
+    const token = localStorage.getItem("nexo_token");
+    if (!token) return;
+    const anterior = nicho;
+    setNicho(novo);
+    setSalvandoNicho(true);
+    setAvisoNicho(null);
+    try {
+      // O nome vai de fora: a API só muda o que vem preenchido.
+      const res = await fetch(`${API_URL}/api/empresas/${empresaId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ comandasHabilitadas, nicho: novo }),
+      });
+      if (!res.ok) {
+        setNicho(anterior);
+        setAvisoNicho(res.status === 403 ? "Só o Dono da loja pode mudar o tipo da loja." : "Não foi possível salvar. Tente de novo.");
+        return;
+      }
+      setAvisoNicho("Salvo. O cadastro de produtos já mostra os campos desse tipo de loja.");
+    } finally {
+      setSalvandoNicho(false);
     }
   }
 
@@ -185,6 +216,42 @@ export default function ConfiguracoesPage() {
               {salvando ? "Salvando..." : "Salvar nome"}
             </button>
           </form>
+        </section>
+
+        <section className={`${cardStyle} p-5`}>
+          <h2 className="font-semibold mb-1">Tipo da loja</h2>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+            Escolha o que mais combina com a sua loja. O cadastro de produtos mostra só os campos que fazem sentido para ela, para você cadastrar mais rápido.
+          </p>
+          <div role="radiogroup" aria-label="Tipo da loja" className="grid gap-2 sm:grid-cols-2">
+            {NICHOS.map((n) => (
+              <button
+                key={n.valor}
+                type="button"
+                role="radio"
+                aria-checked={nicho === n.valor}
+                disabled={!ehDono || salvandoNicho}
+                onClick={() => escolherNicho(n.valor)}
+                className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                  nicho === n.valor ? "border-violet-300 bg-violet-100 ring-2 ring-violet-300 dark:border-violet-300/40 dark:bg-violet-300/20" : "border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700"
+                }`}
+              >
+                <span className="text-2xl" aria-hidden="true">
+                  {n.icone}
+                </span>
+                <span>
+                  <span className="block text-sm font-semibold">{n.nome}</span>
+                  <span className="block text-xs text-slate-600 dark:text-slate-300">{n.descricao}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+          {avisoNicho && (
+            <p role="status" className="mt-3 text-sm text-slate-700 dark:text-slate-200">
+              {avisoNicho}
+            </p>
+          )}
+          {!ehDono && <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">Só o Dono da loja pode mudar o tipo da loja.</p>}
         </section>
 
         <section className={`${cardStyle} p-5`}>

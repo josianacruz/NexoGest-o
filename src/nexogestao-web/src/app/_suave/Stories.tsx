@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { API_URL } from "../../lib/api";
 import { criarLinkWhatsApp } from "../../lib/whatsapp";
+import BibliotecaRapida from "./BibliotecaRapida";
 import { useEmpresa } from "./EmpresaContext";
 import { Anel, TIPOS, VerStory, tipoDaApi, type StoryVista, type Tipo } from "./StoriesVisual";
 import { SUAVE } from "./tokens";
@@ -10,6 +12,7 @@ interface StoryApi {
   id: number;
   tipo: string;
   texto: string;
+  temImagem?: boolean;
 }
 
 // "Stories" da tela inicial: novidades, promoções e lembretes em formato de cartão vertical.
@@ -35,25 +38,33 @@ export default function Stories({
   const ehDono = empresa?.papel === "Dono";
   const link = empresa && typeof window !== "undefined" ? `${window.location.origin}/agendar/${empresa.id}` : "";
 
+  // A foto de uma novidade no ar é pública (os clientes a veem), então o endereço dela é o público.
+  const vista = (s: StoryApi): StoryVista => ({
+    id: String(s.id),
+    tipo: tipoDaApi(s.tipo),
+    texto: s.texto,
+    imagemUrl: s.temImagem && empresa ? `${API_URL}/api/publico/empresas/${empresa.id}/stories/${s.id}/imagem` : undefined,
+  });
+
   useEffect(() => {
     if (!empresa) return;
     (async () => {
       const r = await api("/stories");
-      if (r.ok) setLista(((await r.json()) as StoryApi[]).map((s) => ({ id: String(s.id), tipo: tipoDaApi(s.tipo), texto: s.texto })));
+      if (r.ok) setLista(((await r.json()) as StoryApi[]).map(vista));
     })();
   }, [empresa?.id]);
 
   const todos: StoryVista[] = [...(resumoHoje ? [{ id: "auto-hoje", tipo: "lembrete" as Tipo, texto: resumoHoje, automatico: true }] : []), ...lista];
 
   // Devolve a mensagem de erro (para o formulário mostrar) ou null quando publicou.
-  async function publicar(tipo: Tipo, texto: string): Promise<string | null> {
-    const r = await api("/stories", { method: "POST", body: JSON.stringify({ tipo, texto: texto.trim() }) });
+  async function publicar(tipo: Tipo, texto: string, midiaId: number | null): Promise<string | null> {
+    const r = await api("/stories", { method: "POST", body: JSON.stringify({ tipo, texto: texto.trim(), midiaId }) });
     if (!r.ok) {
       const d = await r.json().catch(() => null);
       return r.status === 403 ? "Só o Dono da loja pode publicar novidades." : (d?.mensagem ?? "Não consegui publicar. Tente de novo.");
     }
     const s = (await r.json()) as StoryApi;
-    setLista((l) => [{ id: String(s.id), tipo: tipoDaApi(s.tipo), texto: s.texto }, ...l]);
+    setLista((l) => [vista(s), ...l]);
     setAviso("Publicado! ✅ Seus clientes veem na página de agendamento por 24 horas.");
     aoFecharCriar();
     return null;
@@ -124,7 +135,7 @@ export default function Stories({
                   </button>
                 )}
               </div>
-              <p className="text-center text-[11px] text-slate-600 dark:text-slate-300">{s.automatico ? "Resumo só para você, não aparece para os clientes." : "No ar para os clientes por 24 horas."}</p>
+              <p className={`text-center text-[11px] ${s.imagemUrl ? "text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]" : "text-slate-600 dark:text-slate-300"}`}>{s.automatico ? "Resumo só para você, não aparece para os clientes." : "No ar para os clientes por 24 horas."}</p>
             </>
           )}
         />
@@ -133,11 +144,12 @@ export default function Stories({
   );
 }
 
-function CriarStory({ aoPublicar, aoFechar }: { aoPublicar: (t: Tipo, texto: string) => Promise<string | null>; aoFechar: () => void }) {
+function CriarStory({ aoPublicar, aoFechar }: { aoPublicar: (t: Tipo, texto: string, midiaId: number | null) => Promise<string | null>; aoFechar: () => void }) {
   const [tipo, setTipo] = useState<Tipo>("novidade");
   const [texto, setTexto] = useState(TIPOS.novidade.sugestao);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [foto, setFoto] = useState<{ id: number; miniatura: string } | null>(null);
   const campo = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -164,7 +176,7 @@ function CriarStory({ aoPublicar, aoFechar }: { aoPublicar: (t: Tipo, texto: str
     setEnviando(true);
     setErro(null);
     try {
-      const e = await aoPublicar(tipo, texto);
+      const e = await aoPublicar(tipo, texto, foto?.id ?? null);
       if (e) setErro(e);
     } finally {
       setEnviando(false);
@@ -173,7 +185,7 @@ function CriarStory({ aoPublicar, aoFechar }: { aoPublicar: (t: Tipo, texto: str
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-end bg-slate-900/40 p-0 sm:place-items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Nova novidade">
-      <div className={`${SUAVE.cartao} w-full max-w-md space-y-4 rounded-b-none p-5 sm:rounded-b-2xl`}>
+      <div className={`${SUAVE.cartao} max-h-[94vh] w-full max-w-md space-y-4 overflow-y-auto rounded-b-none p-5 sm:rounded-b-2xl`}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold">Nova novidade</h2>
           <button type="button" onClick={aoFechar} aria-label="Fechar" className="grid h-9 w-9 place-items-center rounded-xl text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">
@@ -207,6 +219,11 @@ function CriarStory({ aoPublicar, aoFechar }: { aoPublicar: (t: Tipo, texto: str
           </label>
           <textarea id="texto-story" ref={campo} value={texto} onChange={(e) => setTexto(e.target.value.slice(0, 180))} rows={4} className={SUAVE.campo} />
           <p className={`mt-1 text-right text-xs ${SUAVE.textoFraco}`}>{texto.length}/180</p>
+        </div>
+
+        <div>
+          <p className={SUAVE.rotulo}>Foto (opcional) — toque em uma recente ou envie outra</p>
+          <BibliotecaRapida selecionadaId={foto?.id ?? null} aoEscolher={(m) => setFoto((atual) => (atual?.id === m.id ? null : { id: m.id, miniatura: m.miniatura }))} />
         </div>
 
         <p className={`text-xs ${SUAVE.textoSuave}`}>👀 Seus clientes veem esta novidade na página de agendamento por 24 horas. Não coloque dados pessoais.</p>

@@ -609,6 +609,9 @@ namespace NexoGestao.Api.Migrations
                     b.Property<DateTime>("DataCriacao")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("Nicho")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasColumnType("text");
@@ -750,6 +753,59 @@ namespace NexoGestao.Api.Migrations
                     b.ToTable("MembrosEmpresa");
                 });
 
+            modelBuilder.Entity("NexoGestao.Api.Domain.MidiaLoja", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<byte[]>("Dados")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<DateTime>("DataCriacao")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Miniatura")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<DateTime>("UltimoUsoEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Usos")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId", "Hash")
+                        .IsUnique();
+
+                    b.HasIndex("EmpresaId", "UltimoUsoEm");
+
+                    b.ToTable("MidiasLoja");
+                });
+
             modelBuilder.Entity("NexoGestao.Api.Domain.ModuloEmpresa", b =>
                 {
                     b.Property<int>("Id")
@@ -871,6 +927,10 @@ namespace NexoGestao.Api.Migrations
 
                     b.Property<bool>("Ativo")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("AtributosJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
 
                     b.Property<string>("Categoria")
                         .HasColumnType("text");
@@ -1249,6 +1309,9 @@ namespace NexoGestao.Api.Migrations
                     b.Property<DateTime>("ExpiraEm")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("MidiaId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Texto")
                         .IsRequired()
                         .HasMaxLength(180)
@@ -1258,6 +1321,8 @@ namespace NexoGestao.Api.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("MidiaId");
 
                     b.HasIndex("EmpresaId", "ExpiraEm");
 
@@ -1782,6 +1847,17 @@ namespace NexoGestao.Api.Migrations
                     b.Navigation("Empresa");
                 });
 
+            modelBuilder.Entity("NexoGestao.Api.Domain.MidiaLoja", b =>
+                {
+                    b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
             modelBuilder.Entity("NexoGestao.Api.Domain.ModuloEmpresa", b =>
                 {
                     b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
@@ -1936,7 +2012,14 @@ namespace NexoGestao.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("NexoGestao.Api.Domain.MidiaLoja", "Midia")
+                        .WithMany()
+                        .HasForeignKey("MidiaId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Empresa");
+
+                    b.Navigation("Midia");
                 });
 
             modelBuilder.Entity("NexoGestao.Api.Domain.VagaDivulgada", b =>

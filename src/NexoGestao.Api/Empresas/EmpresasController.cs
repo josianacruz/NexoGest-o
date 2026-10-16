@@ -10,7 +10,7 @@ using System.Security.Claims;
 namespace NexoGestao.Api.Empresas;
 
 public record CriarEmpresaRequest(string Nome, string? Segmento, bool ComandasHabilitadas = true, TipoNegocio? TipoNegocio = null);
-public record AtualizarEmpresaRequest(bool ComandasHabilitadas, string? Nome = null);
+public record AtualizarEmpresaRequest(bool ComandasHabilitadas, string? Nome = null, string? Nicho = null);
 public record ModuloConfigDto(string Modulo, bool Habilitado);
 public record AtualizarModulosRequest(List<ModuloConfigDto> Modulos);
 
@@ -81,6 +81,7 @@ public class EmpresasController : ControllerBase
                 m.Empresa.Nome,
                 m.Empresa.ComandasHabilitadas,
                 TipoNegocio = m.Empresa.TipoNegocio,
+                m.Empresa.Nicho,
                 Papel = m.Papel.ToString(),
                 ModulosHabilitados = m.Empresa.Modulos.Where(mo => mo.Habilitado).Select(mo => mo.Modulo).ToList(),
                 TemConfiguracaoDeModulos = m.Empresa.Modulos.Any(),
@@ -95,6 +96,7 @@ public class EmpresasController : ControllerBase
             e.Nome,
             e.ComandasHabilitadas,
             TipoNegocio = e.TipoNegocio?.ToString(),
+            Nicho = (e.Nicho ?? Nichos.Padrao(e.TipoNegocio)).ToString(),
             e.Papel,
             Modulos = (e.TemConfiguracaoDeModulos ? e.ModulosHabilitados : ModulosPadrao.LiberadosSemConfiguracao.ToList())
                 .Select(m => m.ToString())
@@ -117,12 +119,19 @@ public class EmpresasController : ControllerBase
         if (empresa is null)
             return NotFound();
 
+        if (!string.IsNullOrWhiteSpace(request.Nicho))
+        {
+            if (!Enum.TryParse<NichoLoja>(request.Nicho, true, out var nicho) || !Enum.IsDefined(nicho))
+                return BadRequest(new { mensagem = "Nicho inválido." });
+            empresa.Nicho = nicho;
+        }
+
         empresa.ComandasHabilitadas = request.ComandasHabilitadas;
         if (!string.IsNullOrWhiteSpace(request.Nome))
             empresa.Nome = request.Nome.Trim();
         await _context.SaveChangesAsync();
 
-        return Ok(new { empresa.Id, empresa.Nome, empresa.ComandasHabilitadas });
+        return Ok(new { empresa.Id, empresa.Nome, empresa.ComandasHabilitadas, Nicho = Nichos.Efetivo(empresa).ToString() });
     }
 
     // Endpoint preparado para o futuro painel administrativo da plataforma definir os

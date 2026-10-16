@@ -7,6 +7,7 @@ public class Empresa
     public string? Segmento { get; set; }
     public bool ComandasHabilitadas { get; set; } = true;
     public TipoNegocio? TipoNegocio { get; set; }
+    public NichoLoja? Nicho { get; set; } // nulo = usa o padrão do TipoNegocio (ver Nichos.Efetivo)
     public DateTime DataCriacao { get; set; } = DateTime.UtcNow;
 
     public ICollection<MembroEmpresa> Membros { get; set; } = new List<MembroEmpresa>();

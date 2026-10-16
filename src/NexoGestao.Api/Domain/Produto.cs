@@ -18,4 +18,7 @@ public class Produto
     public string? LinkStoryToken { get; set; }
     public bool LinkStoryAtivo { get; set; } = true;
     public string? FotoUrl { get; set; }
+
+    // Detalhes que dependem do nicho (adicionais e tamanhos, cores e grade, duração), em JSON validado pela API.
+    public string? AtributosJson { get; set; }
 }

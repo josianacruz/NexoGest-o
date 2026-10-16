@@ -16,4 +16,6 @@ public class StoryLoja
     public string Texto { get; set; } = string.Empty;
     public DateTime DataCriacao { get; set; } = DateTime.UtcNow;
     public DateTime ExpiraEm { get; set; }
+    public int? MidiaId { get; set; } // foto da biblioteca (opcional)
+    public MidiaLoja? Midia { get; set; }
 }

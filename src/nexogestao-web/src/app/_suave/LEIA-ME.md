@@ -1,7 +1,8 @@
 # Visual suave (design system) — telas migradas em etapas
 
-O visual suave é o padrão das telas **já migradas**. Hoje: **Início** (`/inicio`) e **Clientes** (`/clientes`).
-As demais telas continuam no visual antigo (menu no topo) e abrem normalmente pelo menu lateral. Para migrar uma tela:
+O visual suave é o padrão das telas **já migradas**: Início, Clientes, Agenda, Vendas, Comandas, Cobranças, Interesses,
+Produtos, Serviços, Relatórios, Avisos, Afiliados e Configurações. **Marketing** (editores de arte) ainda está no visual antigo.
+Os estilos de botões, campos e cartões das telas antigas vêm de `_components/ui.ts`, que já usa a paleta suave. Para migrar uma tela:
 mover a pasta dela para `src/app/(suave)/` (o grupo `(suave)` não aparece no endereço) e trocar `Nav`/`PageHeader` e os
 estilos antigos pelos de `_suave/tokens.ts`. Etapa 1 concluída; sugestão de próximas: Agenda, Vendas/Comandas, Cobranças,
 Produtos/Interesses, Marketing/Afiliados, Serviços/Relatórios, Configurações.
@@ -92,3 +93,17 @@ await api("/agendamentos", { method: "POST", body: JSON.stringify({
 - **Cliente**: vê a faixa de novidades no topo da página pública de agendamento `/agendar/<id da loja>`, sem login, e toca em "Agendar um horário".
 - **Regras**: texto simples de até 180 letras (mostrado como texto, nunca como HTML), validade de 24 h, no máximo 10 no ar por loja; expirados há mais de 7 dias são removidos na próxima publicação.
 - **API**: `GET/POST api/empresas/{id}/stories`, `DELETE api/empresas/{id}/stories/{storyId}` (login; escrita só Dono) e `GET api/publico/empresas/{id}/stories` (público, com limite de requisições). Tabela nova `StoriesLoja` (migration `CriaStoriesDaLoja`, só cria a tabela).
+
+## 5. Biblioteca rápida de fotos
+
+- Componente `BibliotecaRapida`: miniaturas das últimas fotos da loja; **1 toque reaproveita** uma foto, "＋ Foto" envia outra e já a seleciona. Aparece ao criar novidade (Stories), no cadastro de produto e no Story do produto.
+- A foto é reduzida no aparelho (lado maior 1080 px, JPEG, até ~380 KB) antes de enviar; a mesma foto não entra duas vezes (SHA-256) e só volta para o topo.
+- Limite de 60 fotos por loja: ao passar, sai a mais antiga que não esteja numa novidade no ar.
+- API: `GET/POST api/empresas/{id}/midias`, `GET .../midias/{mid}/arquivo`, `POST .../midias/{mid}/usar`, `DELETE .../midias/{mid}` (login, só da própria loja). A foto de uma novidade no ar é pública apenas em `GET api/publico/empresas/{id}/stories/{storyId}/imagem`; as demais fotos da biblioteca nunca são expostas.
+- Tabela `MidiasLoja`; novidades ganham `MidiaId` (opcional).
+
+## 6. Nicho da loja e cadastro por nicho
+
+- Configurações → "Tipo da loja": Alimentos, Moda e roupas, Beleza e serviços ou Outros (só o Dono muda). Sem escolha, vale o padrão do tipo de negócio com que a loja foi criada.
+- O cadastro de produto (`CamposDoNicho`) mostra: **Alimentos** = ingredientes, tamanhos (com preço) e adicionais (com preço); **Moda** = grade PP–XG e cores; **Beleza/Serviços** = duração em minutos; **Outros** = nada extra.
+- Os detalhes ficam em `Produto.AtributosJson`, validados pela API (limites: 20 adicionais, 8 tamanhos, 20 cores, grade só PP/P/M/G/GG/XG, duração de 5 a 600 min). Trocar de nicho não apaga o que já foi cadastrado.

@@ -1,7 +1,7 @@
 // Estilos compartilhados — mantém altura, espaçamento e cores consistentes
 // em todos os botões, inputs e selects do sistema.
 
-export const inputStyle = "h-11 px-4 rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-200/60 dark:focus:ring-violet-400/20";
+export const inputStyle = "h-11 min-w-0 px-4 rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-200/60 dark:focus:ring-violet-400/20";
 
 export const labelStyle = "text-xs font-semibold text-slate-600 dark:text-slate-300";
 
