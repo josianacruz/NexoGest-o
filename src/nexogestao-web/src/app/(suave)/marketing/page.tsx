@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Nav from "../_components/Nav";
-import PageHeader from "../_components/PageHeader";
-import { cardStyle } from "../_components/ui";
-import { API_URL } from "../../lib/api";
-import { temModulo } from "../../lib/modulos";
+import Nav from "../../_components/Nav";
+import PageHeader from "../../_components/PageHeader";
+import { cardStyle } from "../../_components/ui";
+import { API_URL } from "../../../lib/api";
+import { temModulo } from "../../../lib/modulos";
 
 export default function MarketingPage() {
   const [empresaNome, setEmpresaNome] = useState("");

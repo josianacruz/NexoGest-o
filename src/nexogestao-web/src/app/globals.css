@@ -139,3 +139,9 @@ select option {
   animation-timing-function: linear;
   animation-fill-mode: forwards;
 }
+
+/* As artes de divulgação (data-arte) mantêm a fonte de sempre, mesmo dentro das telas com a fonte do visual suave:
+   a imagem baixada não pode mudar de letra conforme a tela em que foi gerada. */
+[data-arte] {
+  font-family: Arial, Helvetica, sans-serif;
+}

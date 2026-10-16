@@ -75,6 +75,24 @@ export function resumoDosAtributos(nicho: Nicho, a?: AtributosApi | null): strin
   return r;
 }
 
+// Linhas de detalhe para a arte do cardápio (texto completo, ao contrário do resumo da lista).
+export function linhasParaArte(nicho: Nicho, a?: AtributosApi | null): string[] {
+  if (!a) return [];
+  const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const r: string[] = [];
+  if (nicho === "Alimentos") {
+    if (a.ingredientes) r.push(a.ingredientes);
+    if (a.tamanhos?.length) r.push(a.tamanhos.map((t) => `${t.nome} ${brl(t.preco)}`).join(" · "));
+    if (a.adicionais?.length) r.push(`Adicionais: ${a.adicionais.map((x) => `${x.nome} +${brl(x.preco)}`).join(", ")}`);
+  } else if (nicho === "Moda") {
+    if (a.grade?.length) r.push(`Tamanhos: ${a.grade.join(" ")}`);
+    if (a.cores?.length) r.push(`Cores: ${a.cores.join(", ")}`);
+  } else if (nicho === "BelezaServicos") {
+    if (a.duracaoMinutos) r.push(`${a.duracaoMinutos} min`);
+  }
+  return r;
+}
+
 const SUGESTOES_TAMANHO = ["Pequeno", "Médio", "Grande"];
 const SUGESTOES_COR = ["Preto", "Branco", "Azul", "Rosa", "Vermelho", "Verde"];
 const DURACOES = [15, 30, 45, 60, 90, 120];

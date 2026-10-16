@@ -2,10 +2,10 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Nav from "../../_components/Nav";
-import PageHeader from "../../_components/PageHeader";
-import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle, ARTE_COR_BASE } from "../../_components/ui";
-import { API_URL } from "../../../lib/api";
+import Nav from "../../../_components/Nav";
+import PageHeader from "../../../_components/PageHeader";
+import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle, ARTE_COR_BASE } from "../../../_components/ui";
+import { API_URL } from "../../../../lib/api";
 
 function formatarDataBr(data: string) {
   if (!data) return "";

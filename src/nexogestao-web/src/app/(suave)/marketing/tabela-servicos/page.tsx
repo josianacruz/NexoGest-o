@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Nav from "../../_components/Nav";
-import PageHeader from "../../_components/PageHeader";
-import { botaoPrimario, cardStyle } from "../../_components/ui";
-import { API_URL } from "../../../lib/api";
+import Nav from "../../../_components/Nav";
+import PageHeader from "../../../_components/PageHeader";
+import { botaoPrimario, cardStyle } from "../../../_components/ui";
+import { API_URL } from "../../../../lib/api";
 
 interface Servico {
   id: number;

@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Nav from "../../_components/Nav";
-import PageHeader from "../../_components/PageHeader";
-import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, cardStyle, ARTE_COR_BASE } from "../../_components/ui";
-import { API_URL } from "../../../lib/api";
-import { temModulo } from "../../../lib/modulos";
+import Nav from "../../../_components/Nav";
+import PageHeader from "../../../_components/PageHeader";
+import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, cardStyle, ARTE_COR_BASE } from "../../../_components/ui";
+import { API_URL } from "../../../../lib/api";
+import { temModulo } from "../../../../lib/modulos";
 
 interface Produto {
   id: number;

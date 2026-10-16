@@ -2,22 +2,25 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Nav from "../../_components/Nav";
-import PageHeader from "../../_components/PageHeader";
-import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../../_components/ui";
-import { API_URL } from "../../../lib/api";
+import Nav from "../../../_components/Nav";
+import PageHeader from "../../../_components/PageHeader";
+import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../../../_components/ui";
+import { API_URL } from "../../../../lib/api";
+import { linhasParaArte, type Nicho } from "../../../_suave/CamposDoNicho";
 
 interface Produto {
   id: number;
   nome: string;
   categoria?: string;
   preco: number;
+  atributos?: Parameters<typeof linhasParaArte>[1];
 }
 
 interface ItemCardapio {
   id: string;
   nome: string;
   descricao?: string;
+  detalhes?: string[]; // linhas extras do nicho (ingredientes, tamanhos, cores…)
   preco: number;
   categoria: string;
 }
@@ -25,6 +28,7 @@ interface ItemCardapio {
 export default function CriarCardapioPage() {
   const [empresaNome, setEmpresaNome] = useState("");
   const [comandasHabilitadas, setComandasHabilitadas] = useState(true);
+  const [nicho, setNicho] = useState<Nicho>("Outros");
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [selecionados, setSelecionados] = useState<number[]>([]);
   const [itensManuais, setItensManuais] = useState<ItemCardapio[]>([]);
@@ -54,6 +58,7 @@ export default function CriarCardapioPage() {
       if (empresas.length === 0) return;
       setEmpresaNome(empresas[0].nome);
       setComandasHabilitadas(empresas[0].comandasHabilitadas ?? true);
+      setNicho((empresas[0].nicho as Nicho) ?? "Outros");
 
       const resProdutos = await fetch(`${API_URL}/api/empresas/${empresas[0].id}/produtos`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -90,7 +95,7 @@ export default function CriarCardapioPage() {
 
   const itensDoCatalogo: ItemCardapio[] = produtos
     .filter((p) => selecionados.includes(p.id))
-    .map((p) => ({ id: `produto-${p.id}`, nome: p.nome, preco: p.preco, categoria: p.categoria || "Outros" }));
+    .map((p) => ({ id: `produto-${p.id}`, nome: p.nome, preco: p.preco, categoria: p.categoria || "Outros", detalhes: linhasParaArte(nicho, p.atributos) }));
 
   const todosItens = [...itensDoCatalogo, ...itensManuais];
 
@@ -230,6 +235,11 @@ export default function CriarCardapioPage() {
                         <div>
                           <div className="font-medium">{item.nome}</div>
                           {item.descricao && <div className="text-xs opacity-60">{item.descricao}</div>}
+                          {item.detalhes?.map((linha) => (
+                            <div key={linha} className="text-xs opacity-70">
+                              {linha}
+                            </div>
+                          ))}
                         </div>
                         <div className="font-semibold whitespace-nowrap">R$ {item.preco.toFixed(2)}</div>
                       </div>

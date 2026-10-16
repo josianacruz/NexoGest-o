@@ -522,6 +522,7 @@ export default function ProdutosPage() {
           <div className="flex flex-col items-center gap-3">
             <div
               ref={storyPreviewRef}
+              data-arte
               className="w-full max-w-[220px] aspect-[9/16] rounded-xl overflow-hidden relative flex flex-col justify-end text-center px-5 py-6"
               style={{ background: "linear-gradient(160deg,#1e1b3a,#0f0d1f)", color: "#fff" }}
             >

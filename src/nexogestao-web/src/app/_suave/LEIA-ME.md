@@ -1,7 +1,8 @@
 # Visual suave (design system) — telas migradas em etapas
 
 O visual suave é o padrão das telas **já migradas**: Início, Clientes, Agenda, Vendas, Comandas, Cobranças, Interesses,
-Produtos, Serviços, Relatórios, Avisos, Afiliados e Configurações. **Marketing** (editores de arte) ainda está no visual antigo.
+Produtos, Serviços, Relatórios, Avisos, Afiliados, Marketing e Configurações: **todas as telas do sistema**. Só a tela de login e as páginas públicas dos clientes (agendar, vaga, interesse) têm layout próprio.
+As artes de divulgação (`data-arte`) não seguem o tema nem a fonte da tela: ficam sempre iguais (fonte Arial fixada em `globals.css`).
 Os estilos de botões, campos e cartões das telas antigas vêm de `_components/ui.ts`, que já usa a paleta suave. Para migrar uma tela:
 mover a pasta dela para `src/app/(suave)/` (o grupo `(suave)` não aparece no endereço) e trocar `Nav`/`PageHeader` e os
 estilos antigos pelos de `_suave/tokens.ts`. Etapa 1 concluída; sugestão de próximas: Agenda, Vendas/Comandas, Cobranças,
