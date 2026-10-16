@@ -10,7 +10,7 @@ using System.Security.Claims;
 namespace NexoGestao.Api.Empresas;
 
 public record CriarEmpresaRequest(string Nome, string? Segmento, bool ComandasHabilitadas = true, TipoNegocio? TipoNegocio = null);
-public record AtualizarEmpresaRequest(bool ComandasHabilitadas, string? Nome = null, string? Nicho = null);
+public record AtualizarEmpresaRequest(bool ComandasHabilitadas, string? Nome = null, string? Nicho = null, string? WhatsApp = null);
 public record ModuloConfigDto(string Modulo, bool Habilitado);
 public record AtualizarModulosRequest(List<ModuloConfigDto> Modulos);
 
@@ -82,6 +82,7 @@ public class EmpresasController : ControllerBase
                 m.Empresa.ComandasHabilitadas,
                 TipoNegocio = m.Empresa.TipoNegocio,
                 m.Empresa.Nicho,
+                m.Empresa.WhatsApp,
                 Papel = m.Papel.ToString(),
                 ModulosHabilitados = m.Empresa.Modulos.Where(mo => mo.Habilitado).Select(mo => mo.Modulo).ToList(),
                 TemConfiguracaoDeModulos = m.Empresa.Modulos.Any(),
@@ -97,6 +98,7 @@ public class EmpresasController : ControllerBase
             e.ComandasHabilitadas,
             TipoNegocio = e.TipoNegocio?.ToString(),
             Nicho = (e.Nicho ?? Nichos.Padrao(e.TipoNegocio)).ToString(),
+            e.WhatsApp,
             e.Papel,
             Modulos = (e.TemConfiguracaoDeModulos ? e.ModulosHabilitados : ModulosPadrao.LiberadosSemConfiguracao.ToList())
                 .Select(m => m.ToString())
@@ -126,12 +128,23 @@ public class EmpresasController : ControllerBase
             empresa.Nicho = nicho;
         }
 
+        // WhatsApp da loja: nulo = não mexe; texto vazio = apaga; senão precisa ser um número brasileiro válido.
+        if (request.WhatsApp is not null)
+        {
+            if (string.IsNullOrWhiteSpace(request.WhatsApp))
+                empresa.WhatsApp = null;
+            else if (WhatsAppUtil.Normalizar(request.WhatsApp) is { } numero)
+                empresa.WhatsApp = numero;
+            else
+                return BadRequest(new { mensagem = "WhatsApp inválido. Use o DDD e o número, por exemplo (11) 91234-5678." });
+        }
+
         empresa.ComandasHabilitadas = request.ComandasHabilitadas;
         if (!string.IsNullOrWhiteSpace(request.Nome))
             empresa.Nome = request.Nome.Trim();
         await _context.SaveChangesAsync();
 
-        return Ok(new { empresa.Id, empresa.Nome, empresa.ComandasHabilitadas, Nicho = Nichos.Efetivo(empresa).ToString() });
+        return Ok(new { empresa.Id, empresa.Nome, empresa.ComandasHabilitadas, Nicho = Nichos.Efetivo(empresa).ToString(), empresa.WhatsApp });
     }
 
     // Endpoint preparado para o futuro painel administrativo da plataforma definir os

@@ -56,6 +56,8 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         builder.Entity<RegistroVendaSemEstoque>().HasQueryFilter(r => EmpresaAtualId != null && r.EmpresaId == EmpresaAtualId);
         builder.Entity<Servico>().HasQueryFilter(s => EmpresaAtualId != null && s.EmpresaId == EmpresaAtualId);
         builder.Entity<Agendamento>().HasQueryFilter(a => EmpresaAtualId != null && a.EmpresaId == EmpresaAtualId);
+        // Agenda do dia e horários livres: filtram por empresa e por faixa de data (e ignoram cancelados).
+        builder.Entity<Agendamento>().HasIndex(a => new { a.EmpresaId, a.DataHora, a.Status });
         builder.Entity<ConfiguracaoAgenda>().HasQueryFilter(c => EmpresaAtualId != null && c.EmpresaId == EmpresaAtualId);
         builder.Entity<CobrancaAgendamento>().HasQueryFilter(c => EmpresaAtualId != null && c.EmpresaId == EmpresaAtualId);
         builder.Entity<VagaDivulgada>().HasQueryFilter(v => EmpresaAtualId != null && v.EmpresaId == EmpresaAtualId);
@@ -89,6 +91,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         builder.Entity<RadarExecucao>().HasIndex(e => new { e.EmpresaId, e.Inicio });
         builder.Entity<ProdutoAfiliadoSnapshot>().HasQueryFilter(x => EmpresaAtualId != null && x.EmpresaId == EmpresaAtualId);
         builder.Entity<ProdutoAfiliadoSnapshot>().HasIndex(x => new { x.ProdutoAfiliadoId, x.DataConsulta });
+        builder.Entity<Empresa>().Property(e => e.WhatsApp).HasMaxLength(20);
         builder.Entity<StoryLoja>().HasQueryFilter(s => EmpresaAtualId != null && s.EmpresaId == EmpresaAtualId);
         builder.Entity<StoryLoja>().Property(s => s.Texto).HasMaxLength(StoryLoja.MaxTexto);
         builder.Entity<StoryLoja>().HasIndex(s => new { s.EmpresaId, s.ExpiraEm });

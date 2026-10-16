@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
+using System.IO.Compression;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -38,6 +40,17 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
+
+// Compressão das respostas (Brotli quando o navegador aceita, senão gzip): o JSON de listas fica de 3 a 10 vezes menor,
+// o que pesa bastante em celular com internet fraca. As respostas usam o token no cabeçalho (não cookie), então é seguro com HTTPS.
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -121,6 +134,18 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         }));
 
+    // Leitura pública (página da loja, horários livres, novidades): mais folgada, porque a tela adianta pedidos para
+    // ficar instantânea e muita gente divide o mesmo IP (rede de operadora, Wi-Fi de salão). Criar coisas continua no
+    // limite rígido "publico" abaixo.
+    options.AddPolicy("publico-leitura", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "desconhecido",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 120,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        }));
+
     options.AddPolicy("publico", httpContext => RateLimitPartition.GetFixedWindowLimiter(
         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "desconhecido",
         factory: _ => new FixedWindowRateLimiterOptions
@@ -133,10 +158,19 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+// Migrations: se existir ConnectionStrings:Migracoes (conexão DIRETA do Neon, sem "-pooler"), é ela que aplica as migrations.
+// O pooler do Neon (PgBouncer) é ótimo para as consultas do dia a dia, mas não combina com o bloqueio que o EF usa
+// para migrar. Sem essa configuração, tudo segue como antes (usa a DefaultConnection).
+var conexaoMigracoes = builder.Configuration.GetConnectionString("Migracoes");
+if (!string.IsNullOrWhiteSpace(conexaoMigracoes))
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
+    using var dbMigracao = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(conexaoMigracoes).Options);
+    dbMigracao.Database.Migrate();
+}
+else
+{
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
 }
 
 // Configure the HTTP request pipeline.
@@ -155,6 +189,8 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
+
+app.UseResponseCompression();
 
 app.UseHttpsRedirection();
 

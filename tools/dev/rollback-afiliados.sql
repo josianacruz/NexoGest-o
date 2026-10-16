@@ -1,4 +1,19 @@
 START TRANSACTION;
+DROP INDEX IF EXISTS "IX_Agendamentos_EmpresaId_DataHora_Status";
+
+CREATE INDEX IF NOT EXISTS "IX_Agendamentos_EmpresaId" ON "Agendamentos" ("EmpresaId");
+
+DELETE FROM "__EFMigrationsHistory"
+WHERE "MigrationId" = '20261016032124_AdicionaIndiceAgendamentosPorDia';
+
+ALTER TABLE "Empresas" DROP COLUMN IF EXISTS "WhatsApp";
+
+DELETE FROM "__EFMigrationsHistory"
+WHERE "MigrationId" = '20261016030833_AdicionaWhatsAppDaLoja';
+
+COMMIT;
+
+START TRANSACTION;
 ALTER TABLE "StoriesLoja" DROP COLUMN "MidiaId";
 
 DROP TABLE "MidiasLoja";

@@ -273,9 +273,9 @@ namespace NexoGestao.Api.Migrations
 
                     b.HasIndex("ClienteId");
 
-                    b.HasIndex("EmpresaId");
-
                     b.HasIndex("ServicoId");
+
+                    b.HasIndex("EmpresaId", "DataHora", "Status");
 
                     b.ToTable("Agendamentos");
                 });
@@ -621,6 +621,10 @@ namespace NexoGestao.Api.Migrations
 
                     b.Property<int?>("TipoNegocio")
                         .HasColumnType("integer");
+
+                    b.Property<string>("WhatsApp")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.HasKey("Id");
 

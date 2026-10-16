@@ -2,7 +2,7 @@
 
 Este roteiro vale para a publicação do módulo Afiliados, do worker de vídeo, do Radar, dos Stories da loja, da biblioteca de fotos e do nicho da loja. Nada aqui altera dados de
 clientes: as migrations só **criam tabelas novas** (Afiliados, vídeos, credenciais do worker, Radar, Stories da loja, biblioteca de fotos) e **duas colunas novas, vazias e opcionais**, em `Empresas` (`Nicho`) e `Produtos` (`AtributosJson`). O ensaio feito
-numa cópia local no estado da `main` aplicou as 9 migrations de Afiliados/Radar (a 10ª, `CriaStoriesDaLoja`, e a 11ª, `AdicionaMidiasNichoEAtributos`, só criam tabelas e colunas novas; o ensaio com elas também preservou todas as linhas existentes) sem alterar nenhuma linha nem coluna das tabelas
+numa cópia local no estado da `main` aplicou as 9 migrations de Afiliados/Radar (a 10ª, `CriaStoriesDaLoja`, a 11ª, `AdicionaMidiasNichoEAtributos`, a 12ª, `AdicionaWhatsAppDaLoja` (coluna nova e vazia em `Empresas`) e a 13ª, `AdicionaIndiceAgendamentosPorDia` (troca o índice de `Agendamentos` por um que também cobre data e status) só criam tabelas, colunas ou índices novos; o ensaio com elas também preservou todas as linhas existentes) sem alterar nenhuma linha nem coluna das tabelas
 que já existem (`tools/dev/testar-migrations-em-copia.py`).
 
 ## Ordem
@@ -31,7 +31,7 @@ que antes recebiam todos). Os demais módulos seguem exatamente como estão.
   *Promote to Production*; e `git revert` do merge na `main`. As tabelas novas ficam no banco sem uso (o código antigo
   as ignora), então voltar o código **não exige** mexer no banco.
 - **Banco (só se for preciso remover as tabelas novas)**: `tools/dev/rollback-afiliados.sql`. Ele apaga apenas as
-  tabelas e colunas do Afiliados e dos Stories e as linhas dessas 11 migrations em `__EFMigrationsHistory`. É destrutivo para os dados
+  tabelas e colunas do Afiliados e dos Stories e as linhas dessas 13 migrations em `__EFMigrationsHistory`. É destrutivo para os dados
   do Afiliados, dos Stories, das fotos da biblioteca e do nicho da loja; use só depois de ter o backup e de reverter o código.
 - **Restauração total**: `pg_restore` do arquivo gerado no passo 1 (ou restaurar a branch do Neon).
 
@@ -44,3 +44,23 @@ que antes recebiam todos). Os demais módulos seguem exatamente como estão.
   sem isso nada é disparado.
 - `login` e `registrar` ainda não têm limite de tentativas, e Gerente/Atendente não têm permissões próprias
   (pendências já conhecidas, fora deste deploy).
+
+## Desempenho (Render + Neon)
+
+O que já está no código e vai junto com o deploy:
+
+- **Compressão**: a API responde em Brotli/gzip (JSON de 3 a 10 vezes menor).
+- **Uma consulta por chamada** nos horários livres, na página pública da loja e na checagem de acesso do painel (antes eram de 3 a 7 idas ao banco por chamada).
+- **Índice** `(EmpresaId, DataHora, Status)` em `Agendamentos` e consulta por faixa de datas (usa o índice).
+- **Limite de requisições** mais folgado só para leitura pública (120 por minuto por IP); criar agendamento continua em 15 por minuto.
+- A página pública guarda a lista de serviços no aparelho (abre na hora na 2ª visita) e adianta os horários dos próximos dias.
+- PDF e imagem do Story são gerados no navegador da cliente; o servidor não faz nada disso.
+
+**Conexão com pooler do Neon (`-pooler`)** — é uma configuração do Render, não do código:
+
+1. No Neon: *Connect* > ligar **Connection pooling** > copiar a string (o endereço tem `-pooler`).
+2. No Render, em *Environment*, deixe `ConnectionStrings__DefaultConnection` com a string **com pooler** (consultas do dia a dia).
+3. Crie também `ConnectionStrings__Migracoes` com a string **direta** (sem `-pooler`). A API usa essa só para aplicar migrations ao subir; o pooler (PgBouncer) não combina com o bloqueio que o EF usa para migrar. Sem essa variável, tudo funciona como antes.
+4. Faça uma coisa de cada vez e confira o `/health` depois de cada troca. Para voltar atrás, basta colocar a string antiga.
+
+Limites do plano grátis que **não** dá para resolver só com código: o Render dorme depois de alguns minutos sem uso (a primeira chamada leva de 30 a 60 s) e o Neon suspende o banco ocioso (cerca de 1 s para acordar). Manter os dois acordados com "pings" gasta as horas grátis do Neon, então não foi feito.

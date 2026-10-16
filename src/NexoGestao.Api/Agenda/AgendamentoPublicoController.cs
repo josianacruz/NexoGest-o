@@ -65,6 +65,42 @@ public class AgendamentoPublicoController : ControllerBase
         return !doDia.Any(a => a.DataHora < fim && inicio < a.DataHora.AddMinutes(a.DuracaoMinutos));
     }
 
+    // Tudo que a página pública precisa para abrir, em UMA ida ao servidor e UMA consulta ao banco:
+    // nome da loja (com a frase), WhatsApp e a lista de serviços. Com ?completa=true devolve todos os serviços ATIVOS
+    // (tabela de preços, inclusive os que não aceitam autoagendamento); sem isso, só os que podem ser agendados online.
+    // A resposta pode ficar alguns segundos no navegador (mudanças da dona aparecem em até 1 minuto).
+    [EnableRateLimiting("publico-leitura")]
+    [HttpGet("pagina")]
+    public async Task<IActionResult> Pagina(int empresaId, [FromQuery] bool completa = false)
+    {
+        Context.EmpresaAtualId = empresaId; // os filtros por empresa valem para a lista de serviços
+
+        var dados = await Context.Empresas
+            .AsNoTracking()
+            .Where(e => e.Id == empresaId)
+            .Select(e => new
+            {
+                e.Nome,
+                e.WhatsApp,
+                TemConfiguracao = e.Modulos.Any(),
+                AgendaLigada = e.Modulos.Any(m => m.Modulo == Modulo.Agenda && m.Habilitado),
+                Servicos = Context.Servicos
+                    .Where(s => s.Ativo && (completa || s.PermiteAutoagendamento))
+                    .OrderBy(s => s.Nome)
+                    .Select(s => new { s.Id, s.Nome, s.DuracaoMinutos, s.Preco, s.PermiteAutoagendamento })
+                    .ToList(),
+            })
+            .FirstOrDefaultAsync();
+
+        // Empresa sem configuração de módulos (antiga) mantém a agenda liberada; com configuração, precisa estar ligada.
+        if (dados is null || (dados.TemConfiguracao && !dados.AgendaLigada))
+            return NotFound(new { mensagem = "Empresa não encontrada ou agendamento indisponível." });
+
+        Response.Headers.CacheControl = "public, max-age=30, stale-while-revalidate=300";
+        return Ok(new { dados.Nome, dados.WhatsApp, dados.Servicos });
+    }
+
+    [EnableRateLimiting("publico-leitura")]
     [HttpGet("servicos")]
     public async Task<IActionResult> ListarServicos(int empresaId)
     {
@@ -80,61 +116,86 @@ public class AgendamentoPublicoController : ControllerBase
         return Ok(servicos);
     }
 
+    // Horários livres de um dia para um serviço: UMA consulta ao banco traz serviço, regra do dia, janela padrão,
+    // módulo e os agendamentos do dia; o resto é conta em memória (ver HorariosLivres).
+    [EnableRateLimiting("publico-leitura")]
     [HttpGet("horarios")]
     public async Task<IActionResult> ListarHorarios(int empresaId, [FromQuery] int servicoId, [FromQuery] DateTime data)
     {
-        if (!await EmpresaComAgendaHabilitadaAsync(empresaId))
-            return NotFound(new { mensagem = "Empresa não encontrada ou agendamento indisponível." });
-
-        var servico = await Context.Servicos
-            .FirstOrDefaultAsync(s => s.Id == servicoId && s.Ativo && s.PermiteAutoagendamento);
-        if (servico is null)
-            return NotFound(new { mensagem = "Serviço não encontrado." });
+        Context.EmpresaAtualId = empresaId; // os filtros por empresa valem para tudo abaixo
 
         var dataBase = DateTime.SpecifyKind(data.Date, DateTimeKind.Utc);
+        var proximoDia = dataBase.AddDays(1);
+        var diaSemana = (int)dataBase.DayOfWeek;
 
-        var diaConfigurado = await Context.ConfiguracoesDiaSemana
-            .FirstOrDefaultAsync(d => d.DiaSemana == (int)dataBase.DayOfWeek);
+        var dados = await Context.Servicos
+            .AsNoTracking()
+            .Where(s => s.Id == servicoId && s.Ativo && s.PermiteAutoagendamento)
+            .Select(s => new
+            {
+                s.DuracaoMinutos,
+                TemConfiguracao = Context.ModulosEmpresa.Any(m => m.EmpresaId == empresaId),
+                AgendaLigada = Context.ModulosEmpresa.Any(m => m.EmpresaId == empresaId && m.Modulo == Modulo.Agenda && m.Habilitado),
+                Dia = Context.ConfiguracoesDiaSemana
+                    .Where(d => d.DiaSemana == diaSemana)
+                    .Select(d => new { d.Ativo, d.HoraInicio, d.HoraFim })
+                    .FirstOrDefault(),
+                Padrao = Context.ConfiguracoesAgenda
+                    .Where(c => c.EmpresaId == empresaId)
+                    .Select(c => new { c.HoraInicioAtendimento, c.HoraFimAtendimento })
+                    .FirstOrDefault(),
+                // faixa [dia, dia+1) em vez de "DataHora.Date": assim o índice (EmpresaId, DataHora) é usado
+                Ocupados = Context.Agendamentos
+                    .Where(a => a.Status != StatusAgendamento.Cancelado && a.DataHora >= dataBase && a.DataHora < proximoDia)
+                    .Select(a => new { a.DataHora, a.DuracaoMinutos })
+                    .ToList(),
+            })
+            .FirstOrDefaultAsync();
+
+        if (dados is null)
+            return NotFound(new { mensagem = "Serviço não encontrado." });
+        if (dados.TemConfiguracao && !dados.AgendaLigada)
+            return NotFound(new { mensagem = "Empresa não encontrada ou agendamento indisponível." });
 
         string horaInicio, horaFim;
-        if (diaConfigurado is not null)
+        if (dados.Dia is not null)
         {
-            if (!diaConfigurado.Ativo)
+            if (!dados.Dia.Ativo)
                 return Ok(Array.Empty<string>());
-            horaInicio = diaConfigurado.HoraInicio;
-            horaFim = diaConfigurado.HoraFim;
+            horaInicio = dados.Dia.HoraInicio;
+            horaFim = dados.Dia.HoraFim;
         }
         else
         {
-            var config = await Context.ConfiguracoesAgenda.FirstOrDefaultAsync(c => c.EmpresaId == empresaId);
-            horaInicio = string.IsNullOrWhiteSpace(config?.HoraInicioAtendimento) ? "08:00" : config.HoraInicioAtendimento;
-            horaFim = string.IsNullOrWhiteSpace(config?.HoraFimAtendimento) ? "18:00" : config.HoraFimAtendimento;
+            horaInicio = string.IsNullOrWhiteSpace(dados.Padrao?.HoraInicioAtendimento) ? "08:00" : dados.Padrao.HoraInicioAtendimento;
+            horaFim = string.IsNullOrWhiteSpace(dados.Padrao?.HoraFimAtendimento) ? "18:00" : dados.Padrao.HoraFimAtendimento;
         }
 
-        var inicioJanela = CombinarDataHora(dataBase, horaInicio);
-        var fimJanela = CombinarDataHora(dataBase, horaFim);
+        var ocupados = dados.Ocupados.Select(o => (o.DataHora, o.DuracaoMinutos));
+        return Ok(HorariosLivres(CombinarDataHora(dataBase, horaInicio), CombinarDataHora(dataBase, horaFim), dados.DuracaoMinutos, DateTime.UtcNow, ocupados));
+    }
 
-        var doDia = await Context.Agendamentos
-            .Where(a => a.Status != StatusAgendamento.Cancelado && a.DataHora.Date == dataBase.Date)
-            .Select(a => new { a.DataHora, a.DuracaoMinutos })
-            .ToListAsync();
+    // Conta pura (sem banco): horários que cabem na janela, a partir de agora e sem bater em agendamento existente.
+    // Os passos são do tamanho do próprio serviço (comportamento de sempre).
+    public static List<string> HorariosLivres(DateTime inicioJanela, DateTime fimJanela, int duracaoMinutos, DateTime agora, IEnumerable<(DateTime Inicio, int Minutos)> ocupados)
+    {
+        var lista = ocupados.ToList();
+        var livres = new List<string>();
+        if (duracaoMinutos <= 0)
+            return livres;
 
-        var duracao = servico.DuracaoMinutos;
-        var agora = DateTime.UtcNow;
-        var disponiveis = new List<string>();
-
-        for (var horario = inicioJanela; horario.AddMinutes(duracao) <= fimJanela; horario = horario.AddMinutes(duracao))
+        for (var horario = inicioJanela; horario.AddMinutes(duracaoMinutos) <= fimJanela; horario = horario.AddMinutes(duracaoMinutos))
         {
             if (horario < agora)
                 continue;
 
-            var fimSlot = horario.AddMinutes(duracao);
-            var ocupado = doDia.Any(a => a.DataHora < fimSlot && horario < a.DataHora.AddMinutes(a.DuracaoMinutos));
-            if (!ocupado)
-                disponiveis.Add(horario.ToString("HH:mm"));
-        }
+            var fimSlot = horario.AddMinutes(duracaoMinutos);
+            if (lista.Any(a => a.Inicio < fimSlot && horario < a.Inicio.AddMinutes(a.Minutos)))
+                continue;
 
-        return Ok(disponiveis);
+            livres.Add(horario.ToString("HH:mm"));
+        }
+        return livres;
     }
 
     [HttpPost("agendamento")]
@@ -167,8 +228,9 @@ public class AgendamentoPublicoController : ControllerBase
         await ConcorrenciaUtil.TravarChaveAsync(Context, $"agenda:{empresaId}:{inicio:yyyyMMdd}");
 
         // Casa pelo telefone normalizado (mesmos dígitos), evitando duplicar cliente.
-        var clientesDaEmpresa = await Context.Clientes.ToListAsync();
-        var cliente = clientesDaEmpresa.FirstOrDefault(c => TelefoneUtil.Normalizar(c.Telefone) == telefoneNormalizado);
+        var candidatos = await Context.Clientes.AsNoTracking().Select(c => new { c.Id, c.Telefone }).ToListAsync();
+        var idExistente = candidatos.FirstOrDefault(c => TelefoneUtil.Normalizar(c.Telefone) == telefoneNormalizado)?.Id;
+        var cliente = idExistente is null ? null : await Context.Clientes.FirstAsync(c => c.Id == idExistente);
 
         if (cliente is null)
         {

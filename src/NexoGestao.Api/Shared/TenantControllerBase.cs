@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NexoGestao.Api.Data;
 using NexoGestao.Api.Domain;
@@ -26,15 +26,8 @@ public abstract class TenantControllerBase : ControllerBase
     /// Usado em áreas sensíveis (ex.: Afiliados: links, comissões e credencial do worker),
     /// já que os papéis Gerente/Atendente ainda não têm permissões próprias.
     /// </summary>
-    protected async Task<int?> ObterEmpresaDonoAsync(int empresaIdSolicitada, Modulo? moduloRequerido = null)
-    {
-        var ehDono = await Context.MembrosEmpresa.AnyAsync(m =>
-            m.UsuarioId == UsuarioId && m.EmpresaId == empresaIdSolicitada && m.Papel == PapelUsuario.Dono);
-        if (!ehDono)
-            return null;
-
-        return await ObterEmpresaAutorizadaAsync(empresaIdSolicitada, moduloRequerido);
-    }
+    protected Task<int?> ObterEmpresaDonoAsync(int empresaIdSolicitada, Modulo? moduloRequerido = null) =>
+        AutorizarAsync(empresaIdSolicitada, moduloRequerido, soDono: true);
 
     /// <summary>
     /// Confirma que o usuário pertence à empresa e, quando <paramref name="moduloRequerido"/>
@@ -43,35 +36,45 @@ public abstract class TenantControllerBase : ControllerBase
     /// nenhuma configuração de módulos (criadas antes desse recurso) continuam com tudo
     /// liberado, pra não quebrar o que já existia.
     /// </summary>
-    protected async Task<int?> ObterEmpresaAutorizadaAsync(int empresaIdSolicitada, Modulo? moduloRequerido = null)
-    {
-        var pertence = await Context.MembrosEmpresa
-            .AnyAsync(m => m.UsuarioId == UsuarioId && m.EmpresaId == empresaIdSolicitada);
+    protected Task<int?> ObterEmpresaAutorizadaAsync(int empresaIdSolicitada, Modulo? moduloRequerido = null) =>
+        AutorizarAsync(empresaIdSolicitada, moduloRequerido, soDono: false);
 
-        if (!pertence)
+    // Toda a decisão sai de UMA consulta (antes eram até três idas ao banco em cada chamada da API, e esta checagem
+    // roda em praticamente todas): pertence à empresa? é Dono? a empresa tem módulos configurados? o módulo está ligado?
+    private async Task<int?> AutorizarAsync(int empresaIdSolicitada, Modulo? moduloRequerido, bool soDono)
+    {
+        var usuario = UsuarioId;
+        var exigeModulo = moduloRequerido is not null;
+        var modulo = moduloRequerido ?? default;
+
+        var linha = await Context.MembrosEmpresa
+            .AsNoTracking()
+            .Where(m => m.UsuarioId == usuario && m.EmpresaId == empresaIdSolicitada)
+            .Select(m => new
+            {
+                EhDono = m.Papel == PapelUsuario.Dono,
+                TemConfiguracao = Context.ModulosEmpresa.Any(mo => mo.EmpresaId == empresaIdSolicitada),
+                Habilitado = exigeModulo && Context.ModulosEmpresa.Any(mo => mo.EmpresaId == empresaIdSolicitada && mo.Modulo == modulo && mo.Habilitado),
+            })
+            .FirstOrDefaultAsync();
+
+        if (linha is null)
             return null;
 
-        Context.EmpresaAtualId = empresaIdSolicitada;
+        if (soDono && !linha.EhDono)
+            return null;
 
-        if (moduloRequerido is not null)
+        if (exigeModulo)
         {
-            var temConfiguracao = await Context.ModulosEmpresa
-                .AnyAsync(m => m.EmpresaId == empresaIdSolicitada);
-
             // Módulos de ligação explícita (Afiliados) não valem por padrão em empresa sem configuração de módulos.
-            if (!temConfiguracao && ModulosPadrao.SoComLigacaoExplicita.Contains(moduloRequerido.Value))
+            if (!linha.TemConfiguracao && ModulosPadrao.SoComLigacaoExplicita.Contains(modulo))
                 return null;
 
-            if (temConfiguracao)
-            {
-                var moduloHabilitado = await Context.ModulosEmpresa.AnyAsync(m =>
-                    m.EmpresaId == empresaIdSolicitada && m.Modulo == moduloRequerido && m.Habilitado);
-
-                if (!moduloHabilitado)
-                    return null;
-            }
+            if (linha.TemConfiguracao && !linha.Habilitado)
+                return null;
         }
 
+        Context.EmpresaAtualId = empresaIdSolicitada;
         return empresaIdSolicitada;
     }
 }

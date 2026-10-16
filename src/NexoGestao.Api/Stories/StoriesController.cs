@@ -107,7 +107,7 @@ public class StoriesController : TenantControllerBase
 // Leitura pública (sem login) para a página onde o cliente agenda. Só devolve o que está no ar, sem dados internos.
 [ApiController]
 [Route("api/publico/empresas/{empresaId:int}/stories")]
-[EnableRateLimiting("publico")]
+[EnableRateLimiting("publico-leitura")]
 public class StoriesPublicosController : ControllerBase
 {
     private readonly AppDbContext Context;

@@ -10,6 +10,14 @@ import { API_URL } from "../../../lib/api";
 import { separarNomeEslogan } from "../../../lib/modulos";
 import { NICHOS, type Nicho } from "../../_suave/CamposDoNicho";
 
+// 5511912345678 → (11) 91234-5678 (só para mostrar; a API guarda os dígitos)
+function formatarZap(digitos: string) {
+  const d = digitos.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return digitos;
+}
+
 const MAX_NOME = 60;
 const MAX_SLOGAN = 80;
 
@@ -29,6 +37,10 @@ export default function ConfiguracoesPage() {
   const [nome, setNome] = useState("");
   const [slogan, setSlogan] = useState("");
   const [nicho, setNicho] = useState<Nicho>("Outros");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [whatsappSalvo, setWhatsappSalvo] = useState("");
+  const [salvandoZap, setSalvandoZap] = useState(false);
+  const [avisoZap, setAvisoZap] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [salvandoNicho, setSalvandoNicho] = useState(false);
   const [avisoNicho, setAvisoNicho] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -61,6 +73,8 @@ export default function ConfiguracoesPage() {
         setComandasHabilitadas(e.comandasHabilitadas ?? true);
         setPapel(e.papel ?? "");
         setNicho((e.nicho as Nicho) ?? "Outros");
+        setWhatsapp(formatarZap(e.whatsapp ?? ""));
+        setWhatsappSalvo(e.whatsapp ?? "");
         const partes = separarNomeEslogan(e.nome);
         setNome(partes.nome);
         setSlogan(partes.slogan ?? "");
@@ -109,6 +123,32 @@ export default function ConfiguracoesPage() {
       setAviso("Nome salvo. Ele já aparece no menu e nas páginas e artes que você criar daqui para frente.");
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function salvarWhatsapp(ev: React.FormEvent) {
+    ev.preventDefault();
+    if (!empresaId || !ehDono || salvandoZap) return;
+    const token = localStorage.getItem("nexo_token");
+    if (!token) return;
+    setSalvandoZap(true);
+    setAvisoZap(null);
+    try {
+      const res = await fetch(`${API_URL}/api/empresas/${empresaId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ comandasHabilitadas, whatsapp }),
+      });
+      const dados = await res.json().catch(() => null);
+      if (!res.ok) {
+        setAvisoZap({ tipo: "erro", texto: dados?.mensagem ?? "Não foi possível salvar. Tente de novo." });
+        return;
+      }
+      setWhatsappSalvo(dados.whatsapp ?? "");
+      setWhatsapp(formatarZap(dados.whatsapp ?? ""));
+      setAvisoZap({ tipo: "ok", texto: dados.whatsapp ? "Salvo. O botão de WhatsApp já aparece na página de agendamento das clientes." : "WhatsApp removido da página de agendamento." });
+    } finally {
+      setSalvandoZap(false);
     }
   }
 
@@ -214,6 +254,30 @@ export default function ConfiguracoesPage() {
 
             <button type="submit" disabled={!ehDono || salvando || !alterado || tirarBarra(nome).length === 0} className={botaoPrimario}>
               {salvando ? "Salvando..." : "Salvar nome"}
+            </button>
+          </form>
+        </section>
+
+        <section className={`${cardStyle} p-5`}>
+          <h2 className="font-semibold mb-1">WhatsApp da loja</h2>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+            É o número que recebe a confirmação quando a cliente agenda pela sua página. Se ficar em branco, o botão de WhatsApp não aparece para ela.
+          </p>
+          <form onSubmit={salvarWhatsapp} className="grid max-w-md gap-3">
+            <div>
+              <label htmlFor="zap-loja" className={labelStyle}>
+                Número com DDD
+              </label>
+              <input id="zap-loja" className={`${inputStyle} w-full`} type="tel" inputMode="tel" autoComplete="off" placeholder="(11) 91234-5678" value={whatsapp} maxLength={20} disabled={!ehDono} onChange={(e) => setWhatsapp(e.target.value)} />
+            </div>
+            {avisoZap && (
+              <p role={avisoZap.tipo === "erro" ? "alert" : "status"} className={`rounded-2xl p-3 text-sm ${avisoZap.tipo === "erro" ? "bg-rose-100 text-rose-900 dark:bg-rose-400/20 dark:text-rose-100" : "bg-emerald-100 text-emerald-900 dark:bg-emerald-400/20 dark:text-emerald-100"}`}>
+                {avisoZap.texto}
+              </p>
+            )}
+            {!ehDono && <p className="text-sm text-slate-600 dark:text-slate-300">Só o Dono da loja pode mudar o WhatsApp.</p>}
+            <button type="submit" disabled={!ehDono || salvandoZap || whatsapp.replace(/\D/g, "") === whatsappSalvo.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "")} className={botaoPrimario}>
+              {salvandoZap ? "Salvando..." : "Salvar WhatsApp"}
             </button>
           </form>
         </section>

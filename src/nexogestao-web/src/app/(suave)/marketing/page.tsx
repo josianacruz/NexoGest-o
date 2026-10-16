@@ -13,6 +13,7 @@ export default function MarketingPage() {
   const [empresaNome, setEmpresaNome] = useState("");
   const [comandasHabilitadas, setComandasHabilitadas] = useState(true);
   const [temProdutos, setTemProdutos] = useState(true);
+  const [temServicos, setTemServicos] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export default function MarketingPage() {
         setEmpresaNome(empresas[0].nome);
         setComandasHabilitadas(empresas[0].comandasHabilitadas ?? true);
         setTemProdutos(temModulo(empresas[0].modulos ?? [], "Produtos"));
+        setTemServicos(temModulo(empresas[0].modulos ?? [], "Servicos"));
       }
     })();
   }, [router]);
@@ -67,16 +69,28 @@ export default function MarketingPage() {
                 Gere uma imagem de cardápio a partir dos seus produtos cadastrados.
               </p>
             </Link>
-          ) : (
+          ) : null}
+
+          {temServicos && (
             <>
               <Link
                 href="/marketing/tabela-servicos"
                 className={`${cardStyle} p-6 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md transition-all`}
               >
                 <div className="text-3xl mb-2">📋</div>
-                <h2 className="font-semibold mb-1">Tabela de serviços e valores</h2>
+                <h2 className="font-semibold mb-1">Cardápio de serviços</h2>
                 <p className="text-sm text-black/60 dark:text-white/60">
-                  Gere uma imagem com os seus serviços e preços cadastrados.
+                  Seus serviços e valores em imagem, PDF ou link para enviar às clientes.
+                </p>
+              </Link>
+              <Link
+                href="/marketing/story-servico"
+                className={`${cardStyle} p-6 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md transition-all`}
+              >
+                <div className="text-3xl mb-2">✨</div>
+                <h2 className="font-semibold mb-1">Story de um serviço</h2>
+                <p className="text-sm text-black/60 dark:text-white/60">
+                  Escolha o serviço, coloque um preço especial e baixe o Story pronto (1080 x 1920).
                 </p>
               </Link>
               <Link

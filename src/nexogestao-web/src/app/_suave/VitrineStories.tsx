@@ -7,7 +7,19 @@ import { Anel, VerStory, tipoDaApi, type StoryVista } from "./StoriesVisual";
 import { SUAVE } from "./tokens";
 
 // Faixa de novidades que o CLIENTE vê na página pública da loja. Sem login; só lê o que o Dono publicou.
-export default function VitrineStories({ empresaId, textoBotao = "Agendar um horário", aoAgendar }: { empresaId: number; textoBotao?: string; aoAgendar?: () => void }) {
+export default function VitrineStories({
+  empresaId,
+  textoBotao = "Agendar um horário",
+  aoAgendar,
+  mostrarNome = true,
+  classeBotao,
+}: {
+  empresaId: number;
+  textoBotao?: string;
+  aoAgendar?: () => void;
+  mostrarNome?: boolean; // a página que já mostra o nome da loja pode esconder o daqui
+  classeBotao?: string; // estilo do botão do visualizador (padrão: botão do visual suave)
+}) {
   const [nome, setNome] = useState<{ nome: string; slogan: string | null } | null>(null);
   const [lista, setLista] = useState<StoryVista[]>([]);
   const [vendo, setVendo] = useState<number | null>(null);
@@ -30,7 +42,7 @@ export default function VitrineStories({ empresaId, textoBotao = "Agendar um hor
 
   return (
     <section aria-label="Novidades da loja" className="mb-6">
-      {nome.nome && (
+      {mostrarNome && nome.nome && (
         <div className="mb-3">
           <p className="text-base font-bold">{nome.nome}</p>
           {nome.slogan && <p className={`text-xs ${SUAVE.textoSuave}`}>{nome.slogan}</p>}
@@ -59,7 +71,7 @@ export default function VitrineStories({ empresaId, textoBotao = "Agendar um hor
                       setVendo(null);
                       aoAgendar();
                     }}
-                    className={`${SUAVE.botaoPrimario} w-full`}
+                    className={classeBotao ?? `${SUAVE.botaoPrimario} w-full`}
                   >
                     {textoBotao}
                   </button>

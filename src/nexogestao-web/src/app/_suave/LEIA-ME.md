@@ -108,3 +108,12 @@ await api("/agendamentos", { method: "POST", body: JSON.stringify({
 - Configurações → "Tipo da loja": Alimentos, Moda e roupas, Beleza e serviços ou Outros (só o Dono muda). Sem escolha, vale o padrão do tipo de negócio com que a loja foi criada.
 - O cadastro de produto (`CamposDoNicho`) mostra: **Alimentos** = ingredientes, tamanhos (com preço) e adicionais (com preço); **Moda** = grade PP–XG e cores; **Beleza/Serviços** = duração em minutos; **Outros** = nada extra.
 - Os detalhes ficam em `Produto.AtributosJson`, validados pela API (limites: 20 adicionais, 8 tamanhos, 20 cores, grade só PP/P/M/G/GG/XG, duração de 5 a 600 min). Trocar de nicho não apaga o que já foi cadastrado.
+
+## 7. Geradores visuais do salão (estilo "minimalista chic") e páginas públicas
+
+- Identidade em `src/lib/chic.ts`: off-white `#FAF7F4`, chumbo `#2F3036`, rosa quartzo `#F2C9CD`/`#E8B4BA`, dourado `#C9A96E` (linhas) e `#8A6A2F` (texto); fontes Playfair Display (títulos) e Jost (texto).
+- **Marketing → Cardápio de serviços** (`/marketing/tabela-servicos`): imagem 1080 px, PDF vertical (105 x 187 mm) e link público `/tabela/<loja>`.
+- **Marketing → Story de um serviço** (`/marketing/story-servico`): serviço, preço promocional opcional ("de … por …", % de desconto), logo da biblioteca de fotos, @ do Instagram, chamada para ação, QR Code e link de agendamento; baixa PNG **1080 x 1920**.
+- **Páginas públicas** (grupo de rotas `(publico)`): `/agendar/<loja>` em 3 passos (serviço, dia e horário, nome e WhatsApp) com tela de sucesso (WhatsApp do salão, card 1080 x 1920 para o Story da cliente, PDF da tabela) e `/tabela/<loja>`. Sempre em modo claro, botões de 56 px, campos de 16 px.
+- Tudo é gerado **no navegador** (`html-to-image` para PNG, `jspdf` para PDF). As fontes das artes são embutidas uma vez só (`lib/exportarArte.ts`); sem isso a imagem demorava dezenas de segundos em telas com muitas fontes.
+- O WhatsApp da loja se cadastra em Configurações; sem ele o botão de WhatsApp não aparece na página pública.
