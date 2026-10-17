@@ -200,10 +200,10 @@ Para agendar o seu horário: ${links.agendar}` : ""}`;
               Copiar link do cardápio
             </button>
             <a href={linkZap} target="_blank" rel="noopener noreferrer" className={SUAVE.botaoSucesso}>
-              Enviar o link pelo WhatsApp
+              Enviar o link pelo WhatsApp (com a prévia da tabela)
             </a>
           </div>
-          <p className={`rounded-2xl p-3 text-xs ${SUAVE.seloNeutro}`}>O link do cardápio mostra <strong>todos os seus serviços ativos</strong>, mesmo os que não aceitam agendamento online, e leva a cliente para agendar. A imagem e o PDF mostram só os serviços marcados acima.</p>
+          <p className={`rounded-2xl p-3 text-xs ${SUAVE.seloNeutro}`}>Quando você envia o link pelo WhatsApp (no celular ou no computador), a conversa mostra sozinha um cartão com a foto da tabela e o nome do salão, e a cliente toca nele para abrir. O link do cardápio mostra <strong>todos os seus serviços ativos</strong>, mesmo os que não aceitam agendamento online, e leva a cliente para agendar. A imagem e o PDF mostram só os serviços marcados acima.</p>
           {erro && (
             <p role="alert" className={`rounded-2xl p-3 text-sm ${SUAVE.seloErro}`}>
               {erro}
