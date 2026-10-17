@@ -54,6 +54,12 @@ export default function TabelaServicosPage() {
   const escolhidos = servicos.filter((s) => selecionados.includes(s.id));
   const alternar = (id: number) => setSelecionados((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
 
+  // Texto que acompanha a imagem e o botão de WhatsApp: a tabela e o link para agendar.
+  const mensagem = () => `Oi! Veja a nossa tabela de serviços ✨${links.tabela ? `
+${links.tabela}` : ""}${links.agendar ? `
+
+Para agendar o seu horário: ${links.agendar}` : ""}`;
+
   async function baixarImagem(compartilhar = false) {
     if (!arteRef.current) return;
     setOcupado("imagem");
@@ -61,8 +67,16 @@ export default function TabelaServicosPage() {
     setAviso(null);
     try {
       const blob = await artePng(arteRef.current, 1080);
-      if (compartilhar && podeCompartilharImagem(blob, "tabela-de-servicos.png")) await compartilharImagem(blob, "tabela-de-servicos");
-      else {
+      if (compartilhar && podeCompartilharImagem(blob, "tabela-de-servicos.png")) {
+        // Alguns celulares (iPhone) mandam só a foto e ignoram o texto: o texto também fica copiado, é só colar na conversa.
+        try {
+          await navigator.clipboard?.writeText(mensagem());
+          setAviso("Mensagem com os links copiada: se ela não vier junto com a foto, é só colar na conversa.");
+        } catch {
+          /* sem permissão para copiar: segue sem a cópia */
+        }
+        await compartilharImagem(blob, "tabela-de-servicos", mensagem());
+      } else {
         baixarPng(blob, "tabela-de-servicos");
         setAviso("Imagem baixada. É só postar ou mandar para as clientes.");
       }
@@ -94,7 +108,7 @@ export default function TabelaServicosPage() {
 
   if (!empresa) return null;
 
-  const linkZap = links.tabela ? `https://wa.me/?text=${encodeURIComponent(`Oi! Veja a nossa tabela de serviços: ${links.tabela}`)}` : "#";
+  const linkZap = links.tabela ? `https://wa.me/?text=${encodeURIComponent(mensagem())}` : "#";
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
