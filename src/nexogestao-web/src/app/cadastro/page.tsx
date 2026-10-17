@@ -58,7 +58,11 @@ export default function CadastroPage() {
         body: JSON.stringify({ email: emailLimpo, senha }),
       });
       if (!resRegistro.ok) {
-        const erros: ErroIdentity[] | null = await resRegistro.json().catch(() => null);
+        const corpo: unknown = await resRegistro.json().catch(() => null);
+        // Cadastros fechados (limite de contas) e excesso de tentativas respondem com { mensagem }.
+        const mensagemDoServidor = corpo && !Array.isArray(corpo) ? (corpo as { mensagem?: string }).mensagem : undefined;
+        if (mensagemDoServidor) throw new Error(mensagemDoServidor);
+        const erros = Array.isArray(corpo) ? (corpo as ErroIdentity[]) : null;
         const primeiro = erros?.[0];
         const traduzido = primeiro?.code ? ERROS_SENHA[primeiro.code] : undefined;
         throw new Error(traduzido ?? primeiro?.description ?? "Não foi possível criar sua conta. Tente outro e-mail.");

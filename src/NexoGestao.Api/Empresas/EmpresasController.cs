@@ -70,6 +70,14 @@ public class EmpresasController : ControllerBase
 
         await _context.SaveChangesAsync();
 
+        // Avisa a administradora no celular (se Alertas__NtfyTopico estiver configurado): só nome, tipo e totais.
+        var alerta = HttpContext?.RequestServices?.GetService<AlertaAdmin>();
+        if (alerta is not null && alerta.Configurado)
+        {
+            var totalEmpresas = await _context.Empresas.CountAsync();
+            _ = alerta.EnviarAsync("Nova conta no NexoGestão", $"{empresa.Nome} ({empresa.TipoNegocio?.ToString() ?? "sem tipo"}). Agora são {totalEmpresas} empresas.");
+        }
+
         return Ok(new { empresa.Id, empresa.Nome });
     }
 

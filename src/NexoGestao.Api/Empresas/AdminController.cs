@@ -69,6 +69,73 @@ public class AdminController : ControllerBase
         }));
     }
 
+    // Uso do servidor: quanto do banco gratuito está ocupado e o que cada empresa consome (para você se antecipar antes
+    // de o limite estourar). Só números: nada de dados de clientes finais.
+    [HttpGet("uso")]
+    public async Task<IActionResult> Uso()
+    {
+        if (!EhAdmin)
+            return Forbid();
+
+        var agora = DateTime.UtcNow;
+        var clientes = await _context.Clientes.IgnoreQueryFilters().GroupBy(c => c.EmpresaId).Select(g => new { Id = g.Key, N = g.Count(), Ultima = g.Max(c => (DateTime?)c.DataCadastro) }).ToDictionaryAsync(x => x.Id);
+        var produtos = await _context.Produtos.IgnoreQueryFilters().GroupBy(p => p.EmpresaId).Select(g => new { Id = g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Id);
+        var servicos = await _context.Servicos.IgnoreQueryFilters().GroupBy(p => p.EmpresaId).Select(g => new { Id = g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Id);
+        var vendas = await _context.Vendas.IgnoreQueryFilters().GroupBy(v => v.EmpresaId).Select(g => new { Id = g.Key, N = g.Count(), Ultima = g.Max(v => (DateTime?)v.Data) }).ToDictionaryAsync(x => x.Id);
+        var agendamentos = await _context.Agendamentos.IgnoreQueryFilters().GroupBy(a => a.EmpresaId).Select(g => new { Id = g.Key, N = g.Count(), Ultima = g.Max(a => (DateTime?)a.DataCriacao) }).ToDictionaryAsync(x => x.Id);
+        var fotos = await _context.MidiasLoja.IgnoreQueryFilters().GroupBy(m => m.EmpresaId).Select(g => new { Id = g.Key, N = g.Count(), Bytes = g.Sum(m => (long)m.Dados.Length) }).ToDictionaryAsync(x => x.Id);
+
+        var empresas = await _context.Empresas.AsNoTracking().OrderByDescending(e => e.DataCriacao)
+            .Select(e => new
+            {
+                e.Id,
+                e.Nome,
+                e.TipoNegocio,
+                e.DataCriacao,
+                Donos = _context.MembrosEmpresa.Where(m => m.EmpresaId == e.Id && m.Papel == PapelUsuario.Dono)
+                    .Join(_context.Users, m => m.UsuarioId, u => u.Id, (m, u) => u.Email).ToList(),
+            })
+            .ToListAsync();
+
+        var linhas = empresas.Select(e =>
+        {
+            clientes.TryGetValue(e.Id, out var c);
+            vendas.TryGetValue(e.Id, out var v);
+            agendamentos.TryGetValue(e.Id, out var a);
+            fotos.TryGetValue(e.Id, out var f);
+            var ultima = new[] { c?.Ultima, v?.Ultima, a?.Ultima }.Max();
+            return new
+            {
+                e.Id,
+                e.Nome,
+                TipoNegocio = e.TipoNegocio?.ToString(),
+                e.DataCriacao,
+                DiasDeTesteRestantes = Math.Max(0, 14 - (int)(agora - e.DataCriacao).TotalDays),
+                e.Donos,
+                Clientes = c?.N ?? 0,
+                Produtos = produtos.TryGetValue(e.Id, out var p) ? p.N : 0,
+                Servicos = servicos.TryGetValue(e.Id, out var s) ? s.N : 0,
+                Vendas = v?.N ?? 0,
+                Agendamentos = a?.N ?? 0,
+                Fotos = f?.N ?? 0,
+                FotosBytes = f?.Bytes ?? 0L,
+                UltimaAtividade = ultima,
+            };
+        }).ToList();
+
+        return Ok(new
+        {
+            BancoBytes = await LimitesDoServidor.TamanhoDoBancoAsync(_context),
+            BancoLimiteBytes = LimitesDoServidor.BancoMaxBytes(_configuracao),
+            TotalEmpresas = linhas.Count,
+            TotalUsuarios = await _context.Users.CountAsync(),
+            MaxUsuarios = LimitesDoServidor.MaxUsuarios(_configuracao),
+            NovasEm7Dias = linhas.Count(l => l.DataCriacao > agora.AddDays(-7)),
+            AlertaNoCelularConfigurado = !string.IsNullOrWhiteSpace(_configuracao["Alertas:NtfyTopico"]),
+            Empresas = linhas,
+        });
+    }
+
     // Aplica um perfil de acesso (Salao, Loja, Alimentacao, ServicosGerais ou Completo): liga os módulos do perfil e desliga os demais.
     // Afiliados nunca é mexido aqui (continua de ligação explícita). Nada é apagado: só muda o que aparece e o que a API libera.
     [HttpPut("empresas/{empresaId:int}/perfil")]

@@ -84,6 +84,9 @@ builder.Services.Configure<NexoGestao.Api.Shared.ShopeeAffiliateOptions>(builder
 builder.Services.AddHttpClient<NexoGestao.Api.Shared.ShopeeAffiliateApiService>();
 builder.Services.AddScoped<NexoGestao.Api.Radar.RadarService>();
 builder.Services.AddHostedService<NexoGestao.Api.Radar.RadarAgendadorService>();
+// Aviso no celular (ntfy.sh, grátis) de novas contas e de banco enchendo; só funciona se Alertas__NtfyTopico existir.
+builder.Services.AddHttpClient<NexoGestao.Api.Shared.AlertaAdmin>();
+builder.Services.AddHostedService<NexoGestao.Api.Shared.MonitorDeUsoService>();
 
 // Lê só o 1º redirecionamento de links curtos de afiliada (s.shopee.com.br);
 // AllowAutoRedirect desligado de propósito pra nunca seguir além disso.

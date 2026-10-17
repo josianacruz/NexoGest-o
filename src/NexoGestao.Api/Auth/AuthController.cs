@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using NexoGestao.Api.Data;
 using NexoGestao.Api.Domain;
+using NexoGestao.Api.Shared;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -36,6 +37,15 @@ public class AuthController : ControllerBase
     [EnableRateLimiting("autenticacao")]
     public async Task<IActionResult> Registrar(RegisterRequest request)
     {
+        // Proteção do servidor gratuito: depois de N contas (Limites__MaxUsuarios, padrão 100) fecha novos cadastros.
+        if (LimitesDoServidor.CadastrosFechados(await _userManager.Users.CountAsync(), _configuration))
+        {
+            var alerta = HttpContext.RequestServices.GetService<AlertaAdmin>();
+            if (alerta is not null)
+                _ = alerta.EnviarAsync("Cadastros fechados", "Alguém tentou criar conta, mas o limite de contas foi atingido. Aumente Limites__MaxUsuarios no Render se quiser abrir mais vagas.");
+            return StatusCode(StatusCodes.Status403Forbidden, new { mensagem = "Os cadastros estão temporariamente fechados. Tente novamente em alguns dias." });
+        }
+
         var usuario = new IdentityUser { UserName = request.Email, Email = request.Email };
         var resultado = await _userManager.CreateAsync(usuario, request.Senha);
 

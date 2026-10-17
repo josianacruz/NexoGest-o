@@ -18,6 +18,32 @@ interface EmpresaAdmin {
   donos: string[];
 }
 
+interface UsoEmpresa {
+  id: number;
+  clientes: number;
+  produtos: number;
+  servicos: number;
+  vendas: number;
+  agendamentos: number;
+  fotos: number;
+  fotosBytes: number;
+  diasDeTesteRestantes: number;
+  ultimaAtividade: string | null;
+}
+
+interface UsoDoServidor {
+  bancoBytes: number | null;
+  bancoLimiteBytes: number;
+  totalEmpresas: number;
+  totalUsuarios: number;
+  maxUsuarios: number;
+  novasEm7Dias: number;
+  alertaNoCelularConfigurado: boolean;
+  empresas: UsoEmpresa[];
+}
+
+const mb = (bytes: number) => (bytes / 1024 / 1024).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+
 type PerfilAplicavel = "Salao" | "Loja" | "Alimentacao" | "ServicosGerais" | "Completo";
 
 // Perfis de acesso (mesma regra do servidor): o que cada tipo de cliente enxerga.
@@ -53,6 +79,7 @@ export default function AdminPage() {
   const [aviso, setAviso] = useState<string | null>(null);
   const [aplicando, setAplicando] = useState<{ empresa: EmpresaAdmin; perfil: PerfilAplicavel } | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [uso, setUso] = useState<UsoDoServidor | null>(null);
 
   const token = () => localStorage.getItem("nexo_token") ?? "";
 
@@ -63,6 +90,9 @@ export default function AdminPage() {
       if (!res.ok) return setErro("Não consegui carregar as empresas. Tente de novo.");
       setLista(await res.json());
       setErro(null);
+      // Uso do servidor (um extra: se falhar, o resto da tela continua funcionando)
+      const r2 = await apiFetch(`${API_URL}/api/admin/uso`, { headers: { Authorization: `Bearer ${token()}` } }).catch(() => null);
+      if (r2?.ok) setUso(await r2.json());
     } catch (e) {
       setErro(textoDoErro(e, "Não consegui carregar as empresas."));
     }
@@ -126,6 +156,8 @@ export default function AdminPage() {
         </p>
       )}
 
+      {uso && <PainelDeUso uso={uso} />}
+
       <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {lista.map((e) => (
           <li key={e.id} className={`${SUAVE.cartao} flex min-w-0 flex-col gap-3 p-4`}>
@@ -138,6 +170,8 @@ export default function AdminPage() {
             </div>
 
             <p className={`text-xs ${SUAVE.textoSuave}`}>{e.modulos.map((m) => ROTULO[m] ?? m).join(" · ") || "Nenhum módulo ligado"}</p>
+
+            {uso?.empresas.find((x) => x.id === e.id) && <UsoDaEmpresa u={uso.empresas.find((x) => x.id === e.id)!} />}
 
             <fieldset>
               <legend className={SUAVE.rotulo}>Perfil de acesso</legend>
@@ -184,5 +218,57 @@ export default function AdminPage() {
         </Folha>
       )}
     </main>
+  );
+}
+
+// Quanto do banco gratuito já foi usado, quantas contas existem e se o aviso no celular está ligado.
+function PainelDeUso({ uso }: { uso: UsoDoServidor }) {
+  const pct = uso.bancoBytes != null ? Math.min(100, (uso.bancoBytes / uso.bancoLimiteBytes) * 100) : null;
+  const cor = pct == null ? "bg-slate-300" : pct >= 90 ? "bg-rose-500" : pct >= 70 ? "bg-amber-500" : "bg-emerald-500";
+  return (
+    <section className={`${SUAVE.cartao} grid gap-3 p-4`} aria-label="Uso do servidor">
+      <h2 className="font-semibold">Uso do servidor</h2>
+      <div>
+        <div className="mb-1 flex justify-between text-sm">
+          <span>Banco de dados</span>
+          <span className="font-semibold">{uso.bancoBytes != null ? `${mb(uso.bancoBytes)} MB de ${mb(uso.bancoLimiteBytes)} MB (${pct!.toFixed(0)}%)` : "indisponível"}</span>
+        </div>
+        <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700" role="progressbar" aria-valuenow={Math.round(pct ?? 0)} aria-valuemin={0} aria-valuemax={100} aria-label="Banco de dados usado">
+          <div className={`h-full ${cor}`} style={{ width: `${pct ?? 0}%` }} />
+        </div>
+        {pct != null && pct >= 70 && <p className={`mt-1 text-xs ${pct >= 90 ? "text-rose-700 dark:text-rose-300" : "text-amber-700 dark:text-amber-300"}`}>O banco está enchendo. Veja quem mais usa abaixo antes de o limite estourar.</p>}
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className={`${SUAVE.seloNeutro} rounded-2xl p-2`}>
+          <p className="text-lg font-bold">{uso.totalEmpresas}</p>
+          <p className="text-xs">empresas</p>
+        </div>
+        <div className={`${SUAVE.seloNeutro} rounded-2xl p-2`}>
+          <p className="text-lg font-bold">
+            {uso.totalUsuarios}/{uso.maxUsuarios}
+          </p>
+          <p className="text-xs">contas (limite)</p>
+        </div>
+        <div className={`${SUAVE.seloNeutro} rounded-2xl p-2`}>
+          <p className="text-lg font-bold">{uso.novasEm7Dias}</p>
+          <p className="text-xs">novas em 7 dias</p>
+        </div>
+      </div>
+      <p className={`text-xs ${SUAVE.textoSuave}`}>
+        {uso.alertaNoCelularConfigurado
+          ? "Aviso no celular ligado: você recebe uma notificação a cada conta nova e quando o banco passa de 70% e de 90%."
+          : "Aviso no celular desligado. Para ligar: instale o app gratuito ntfy, assine um tópico com nome longo e aleatório e crie no Render a variável Alertas__NtfyTopico com esse nome."}{" "}
+        Quando as contas chegam ao limite, novos cadastros ficam fechados até você aumentar Limites__MaxUsuarios no Render.
+      </p>
+    </section>
+  );
+}
+
+function UsoDaEmpresa({ u }: { u: UsoEmpresa }) {
+  const ultima = u.ultimaAtividade ? new Date(u.ultimaAtividade).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "nunca";
+  return (
+    <p className={`text-xs ${SUAVE.textoFraco}`}>
+      {u.clientes} clientes · {u.vendas} vendas · {u.agendamentos} agendamentos · {u.fotos} fotos ({mb(u.fotosBytes)} MB) · última atividade {ultima} · teste: {u.diasDeTesteRestantes === 0 ? "terminou" : `${u.diasDeTesteRestantes} dias`}
+    </p>
   );
 }
