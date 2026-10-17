@@ -68,13 +68,6 @@ Para agendar o seu horário: ${links.agendar}` : ""}`;
     try {
       const blob = await artePng(arteRef.current, 1080);
       if (compartilhar && podeCompartilharImagem(blob, "tabela-de-servicos.png")) {
-        // Alguns celulares (iPhone) mandam só a foto e ignoram o texto: o texto também fica copiado, é só colar na conversa.
-        try {
-          await navigator.clipboard?.writeText(mensagem());
-          setAviso("Mensagem com os links copiada: se ela não vier junto com a foto, é só colar na conversa.");
-        } catch {
-          /* sem permissão para copiar: segue sem a cópia */
-        }
         await compartilharImagem(blob, "tabela-de-servicos", mensagem());
       } else {
         baixarPng(blob, "tabela-de-servicos");

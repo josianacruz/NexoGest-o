@@ -128,16 +128,9 @@ export default function StoryServicoPage() {
       const blob = await artePng(arteRef.current, 1080);
       const arquivo = `story-${servico.nome.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "servico"}`;
       if (modo === "compartilhar" && podeCompartilharImagem(blob, `${arquivo}.png`)) {
-        // Alguns celulares (iPhone) mandam só a foto e ignoram o texto: o texto também fica copiado, é só colar na conversa.
         const texto = `${servico.nome}${promoValida && !promoMaiorQueNormal ? ` por ${brl(precoPromo as number)}` : ""}
 
 Para agendar o seu horário: ${links.agendar}`;
-        try {
-          await navigator.clipboard?.writeText(texto);
-          setAviso("Mensagem com o link copiada: se ela não vier junto com a imagem, é só colar na conversa.");
-        } catch {
-          /* sem permissão para copiar: segue sem a cópia */
-        }
         await compartilharImagem(blob, arquivo, texto);
       } else {
         baixarPng(blob, arquivo);
