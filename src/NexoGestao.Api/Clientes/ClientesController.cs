@@ -77,6 +77,47 @@ public class ClientesController : TenantControllerBase
         return Ok(clientes);
     }
 
+    // Clientes que sumiram: já vieram (agendamento que valeu ou compra) e não voltam há mais de N dias, sem horário marcado
+    // pela frente. Só entram quem tem telefone, porque a ideia é chamar pelo WhatsApp.
+    [HttpGet("sumidos")]
+    public async Task<IActionResult> Sumidos(int empresaId, [FromQuery] int dias = 45)
+    {
+        var empresaAutorizada = await ObterEmpresaAutorizadaAsync(empresaId, Modulo.Clientes);
+        if (empresaAutorizada is null)
+            return Forbid();
+
+        dias = Math.Clamp(dias, 15, 365);
+        var agora = DateTime.UtcNow;
+        var corte = agora.AddDays(-dias);
+
+        var linhas = await Context.Clientes
+            .Where(c => c.Telefone != null && c.Telefone != "")
+            .Select(c => new
+            {
+                c.Id,
+                c.Nome,
+                c.Telefone,
+                UltimaAgenda = Context.Agendamentos
+                    .Where(a => a.ClienteId == c.Id && a.DataHora <= agora && a.Status != StatusAgendamento.Cancelado && a.Status != StatusAgendamento.Faltou)
+                    .Max(a => (DateTime?)a.DataHora),
+                ProximaAgenda = Context.Agendamentos
+                    .Where(a => a.ClienteId == c.Id && a.DataHora > agora && (a.Status == StatusAgendamento.Agendado || a.Status == StatusAgendamento.Confirmado))
+                    .Min(a => (DateTime?)a.DataHora),
+                UltimaVenda = Context.Vendas.Where(v => v.ClienteId == c.Id).Max(v => (DateTime?)v.Data),
+            })
+            .ToListAsync();
+
+        var sumidos = linhas
+            .Select(c => new { c.Id, c.Nome, c.Telefone, Ultima = new[] { c.UltimaAgenda, c.UltimaVenda }.Max(), c.ProximaAgenda })
+            .Where(c => c.Ultima != null && c.Ultima < corte && c.ProximaAgenda == null)
+            .OrderByDescending(c => c.Ultima)
+            .Take(100)
+            .Select(c => new { c.Id, c.Nome, c.Telefone, UltimaVisita = c.Ultima, DiasSemVir = (int)(agora - c.Ultima!.Value).TotalDays })
+            .ToList();
+
+        return Ok(sumidos);
+    }
+
     [HttpGet("{clienteId:int}/contas-receber")]
     public async Task<IActionResult> ContasReceberDoCliente(int empresaId, int clienteId)
     {

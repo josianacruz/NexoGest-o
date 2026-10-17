@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using NexoGestao.Api.Data;
@@ -32,6 +33,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("registrar")]
+    [EnableRateLimiting("autenticacao")]
     public async Task<IActionResult> Registrar(RegisterRequest request)
     {
         var usuario = new IdentityUser { UserName = request.Email, Email = request.Email };
@@ -44,6 +46,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("autenticacao")]
     public async Task<IActionResult> Login(LoginRequest request)
     {
         var usuario = await _userManager.FindByEmailAsync(request.Email);
@@ -63,6 +66,7 @@ public class AuthController : ControllerBase
     // mantém a pessoa logada depois de fechar e abrir o app/navegador, sem pedir email/senha de novo.
     // Rotação: o refresh token usado aqui é invalidado e um novo é devolvido; reusar o antigo nunca mais funciona.
     [HttpPost("refresh")]
+    [EnableRateLimiting("autenticacao-renovar")]
     public async Task<IActionResult> Refresh(RefreshRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.RefreshToken))

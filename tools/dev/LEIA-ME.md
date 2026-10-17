@@ -49,3 +49,8 @@ tabelas e colunas do módulo; não mexem em tabelas existentes). Por isso:
 2. Só então faça o merge na `main`, com aviso prévio.
 3. Em produção, a Vercel precisa ter `NEXT_PUBLIC_API_URL` apontando para a API de produção, e o
    ambiente Preview não pode apontar para a API de produção se for usado para testes.
+
+## Rotinas automáticas do GitHub (grátis)
+
+- `.github/workflows/verificar.yml`: a cada mudança na `dev` ou `main` roda os testes da API e confere o site (tipos e build). Já vale quando chega na `main`.
+- `.github/workflows/backup-diario.yml`: backup diário do Neon, **criptografado**, guardado 7 dias. **Está desligado**: só roda com a variável `BACKUP_ATIVO=true` e os segredos `NEXO_PROD_CONNECTION` e `BACKUP_SENHA`. O repositório é público, então nunca suba backup sem criptografia.

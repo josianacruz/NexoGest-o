@@ -353,7 +353,13 @@ export default function AgendarPage() {
                 Seu WhatsApp (com DDD)
               </label>
               <input id="celular" className={E.campo} type="tel" inputMode="tel" autoComplete="tel" placeholder="(11) 91234-5678" value={celular} onChange={(e) => setCelular(e.target.value)} maxLength={20} required />
-              <p className={`mt-1.5 text-xs ${E.suave}`}>Usamos só para falar sobre o seu horário.</p>
+              <p className={`mt-1.5 text-xs ${E.suave}`}>
+                Usamos só para falar sobre o seu horário. Ao confirmar, você concorda com a{" "}
+                <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-2">
+                  política de privacidade
+                </a>
+                .
+              </p>
             </div>
           </div>
           <div className="fixed inset-x-0 bottom-0 z-10 bg-gradient-to-t from-[#FAF7F4] via-[#FAF7F4] to-transparent px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-6">
@@ -364,6 +370,18 @@ export default function AgendarPage() {
             </div>
           </div>
         </form>
+      )}
+
+      {loja.whatsapp && (
+        <a
+          href={`https://wa.me/${loja.whatsapp}?text=${encodeURIComponent("Oi! Tenho uma dúvida sobre o agendamento 😊")}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Tirar dúvidas pelo WhatsApp"
+          className={`fixed right-4 z-20 inline-flex min-h-12 items-center gap-2 rounded-full bg-[#1F6B4A] px-4 text-sm font-semibold text-white shadow-lg transition active:scale-[0.98] ${passo === 3 ? "bottom-28" : "bottom-5"}`}
+        >
+          <span aria-hidden="true">💬</span> Dúvidas?
+        </a>
       )}
 
       {passo > 1 && (

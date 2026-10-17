@@ -5,6 +5,7 @@ import Link from "next/link";
 import { obterNomeDoUsuario } from "../../../lib/auth";
 import AgendamentoRapido, { type ClienteResumo } from "../../_suave/AgendamentoRapido";
 import AgendaDia from "../../_suave/AgendaDia";
+import ClientesComSaudade from "../../_suave/ClientesComSaudade";
 import LembretesDeAmanha from "../../_suave/LembretesDeAmanha";
 import ClientesSuave from "../../_suave/ClientesSuave";
 import { useEmpresa } from "../../_suave/EmpresaContext";
@@ -121,6 +122,8 @@ export default function InicioPage() {
       </section>
 
       <LembretesDeAmanha />
+
+      <ClientesComSaudade />
 
       <AgendaDia atualizar={atualizar} aoAgendar={(dia, hora) => abrirAgendamento(null, { dia, hora })} aoCarregarHoje={(total, proximo) => setResumo(total === 0 ? "Hoje a agenda está livre. Que tal chamar clientes para marcar?" : `Hoje você tem ${total} ${total === 1 ? "atendimento" : "atendimentos"}${proximo ? `. O próximo é às ${proximo}.` : "."}`)} />
 
