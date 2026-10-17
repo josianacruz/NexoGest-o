@@ -141,23 +141,64 @@ export function TelaRelatorios() {
 
 export function TelaClientes() {
   const clientes = [
-    { nome: "Maria Silva", info: "12 compras · última há 3 dias" },
-    { nome: "João Pedro", info: "5 compras · última há 1 semana" },
-    { nome: "Ana Souza", info: "21 compras · última hoje" },
+    { nome: "Maria Silva", info: "12 compras · última há 3 dias", fiado: null },
+    { nome: "João Pedro", info: "5 compras · última há 1 semana", fiado: "R$ 80,00" },
+    { nome: "Ana Souza", info: "21 compras · última hoje", fiado: "R$ 35,00" },
   ];
   return (
-    <div className="flex flex-col gap-2">
-      {clientes.map((c) => (
-        <div key={c.nome} className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-violet-200 text-sm font-bold text-violet-900 dark:bg-violet-300/25 dark:text-violet-100">
-            {c.nome.charAt(0)}
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-300/20 dark:bg-amber-300/10">
+        <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">Total em fiado</span>
+        <span className="text-sm font-bold text-amber-800 dark:text-amber-200">R$ 115,00</span>
+      </div>
+      <div className="flex flex-col gap-2">
+        {clientes.map((c) => (
+          <div key={c.nome} className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-violet-200 text-sm font-bold text-violet-900 dark:bg-violet-300/25 dark:text-violet-100">
+              {c.nome.charAt(0)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-slate-700 dark:text-slate-200">{c.nome}</p>
+              <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">{c.info}</p>
+            </div>
+            {c.fiado && (
+              <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-300/20 dark:text-amber-200">
+                Deve {c.fiado}
+              </span>
+            )}
           </div>
-          <div className="min-w-0">
-            <p className="truncate text-xs font-semibold text-slate-700 dark:text-slate-200">{c.nome}</p>
-            <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">{c.info}</p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function TelaCardapio() {
+  const itens = [
+    { nome: "Combo Lanche + Refri", preco: "R$ 32,90" },
+    { nome: "Corte + Barba", preco: "R$ 55,00" },
+    { nome: "Brinco Folheado a Ouro", preco: "R$ 24,90" },
+  ];
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-300/20 dark:bg-emerald-300/10">
+        <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">Link pronto para enviar</span>
+        <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-200">nexo.app/cardapio</span>
+      </div>
+      <div className="flex flex-col gap-2">
+        {itens.map((i) => (
+          <div key={i.nome} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-xs dark:border-slate-700">
+            <span className="truncate font-semibold text-slate-700 dark:text-slate-200">{i.nome}</span>
+            <span className="shrink-0 font-bold text-emerald-700 dark:text-emerald-400">{i.preco}</span>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
+      <button
+        type="button"
+        className="flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-3 py-2.5 text-xs font-semibold text-white"
+      >
+        Compartilhar no WhatsApp
+      </button>
     </div>
   );
 }
