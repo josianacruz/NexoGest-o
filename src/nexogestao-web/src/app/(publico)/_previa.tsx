@@ -10,7 +10,7 @@ import { separarNomeEslogan } from "../../lib/modulos";
 export interface DadosDaPrevia {
   nome: string;
   slogan: string | null;
-  servicos: { nome: string; preco: number }[];
+  servicos: { id?: number; nome: string; preco: number }[];
   promocoes: { servicoId: number; titulo: string; precoPromocional: number; precoNormal: number }[];
 }
 
@@ -37,7 +37,7 @@ export async function buscarDadosDaPrevia(empresaId: string, completa: boolean):
 export function metadadosDaPrevia(dados: DadosDaPrevia | null, tipo: "tabela" | "agendar"): Metadata {
   const nome = dados?.nome ?? "Seu salão";
   const titulo = tipo === "tabela" ? `${nome} · Tabela de serviços` : `${nome} · Agende seu horário`;
-  const descricao = tipo === "tabela" ? "Veja os serviços e os valores e agende o seu horário pelo celular." : "Escolha o serviço, o dia e o horário em poucos toques. Sem baixar nada.";
+  const descricao = tipo === "tabela" ? "Veja os serviços e os valores e agende o seu horário pelo celular." : "Veja os serviços e os valores e já agende o seu horário em poucos toques.";
   return { title: titulo, description: descricao, openGraph: { title: titulo, description: descricao, type: "website", locale: "pt_BR" } };
 }
 
@@ -93,27 +93,52 @@ export function imagemTabela(dados: DadosDaPrevia | null) {
   );
 }
 
+function ListaDeServicos({ servicos, max }: { servicos: { nome: string; preco: number }[]; max: number }) {
+  const lista = servicos.slice(0, max);
+  const resto = Math.max(0, servicos.length - lista.length);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {lista.map((s, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "baseline" }}>
+          <div style={{ fontSize: 34, fontWeight: 600, maxWidth: 800, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{s.nome}</div>
+          <div style={{ flex: 1, margin: "0 14px", borderBottom: `3px dashed ${LINHA}`, height: 18 }} />
+          <div style={{ fontSize: 34, fontWeight: 700, color: DOURADO }}>{brl(s.preco)}</div>
+        </div>
+      ))}
+      {resto > 0 && <div style={{ fontSize: 24, color: CINZA }}>{`e mais ${resto} ${resto === 1 ? "serviço" : "serviços"}`}</div>}
+    </div>
+  );
+}
+
+// Prévia do link de AGENDAMENTO: já mostra os serviços e os valores (e a promoção, se houver) e chama para agendar.
 export function imagemAgendar(dados: DadosDaPrevia | null) {
   const nome = dados?.nome ?? "Agende seu horário";
   const promo = dados?.promocoes?.[0];
+  const servicos = dados?.servicos ?? [];
+  const nomeDaPromo = promo ? servicos.find((x) => x.id === promo.servicoId)?.nome : undefined;
   return new ImageResponse(
     (
       <Moldura nome={nome} slogan={dados?.slogan ?? null} selo="Agende seu horário">
         {promo ? (
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ fontSize: 26, letterSpacing: 5, textTransform: "uppercase", color: DOURADO, fontWeight: 700 }}>{promo.titulo}</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 22, marginTop: 14 }}>
-              <div style={{ fontSize: 34, color: CINZA, textDecoration: "line-through" }}>{brl(promo.precoNormal)}</div>
-              <div style={{ fontSize: 84, fontWeight: 700 }}>{brl(promo.precoPromocional)}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", flexDirection: "column", maxWidth: 640 }}>
+                <div style={{ fontSize: 22, letterSpacing: 5, textTransform: "uppercase", color: DOURADO, fontWeight: 700 }}>{promo.titulo}</div>
+                <div style={{ fontSize: 40, fontWeight: 600, marginTop: 4, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{nomeDaPromo ?? "Serviço em promoção"}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
+                <div style={{ fontSize: 28, color: CINZA, textDecoration: "line-through" }}>{brl(promo.precoNormal)}</div>
+                <div style={{ fontSize: 60, fontWeight: 700 }}>{brl(promo.precoPromocional)}</div>
+              </div>
             </div>
-            <div style={{ fontSize: 28, color: CINZA, marginTop: 10 }}>Toque, escolha o horário e confirme em poucos toques</div>
+            <ListaDeServicos servicos={servicos.filter((x) => x.id !== promo.servicoId)} max={2} />
           </div>
+        ) : servicos.length === 0 ? (
+          <div style={{ fontSize: 48, fontWeight: 600, lineHeight: 1.15 }}>Escolha o serviço, o dia e o horário</div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ fontSize: 56, fontWeight: 600, lineHeight: 1.15 }}>Escolha o serviço, o dia e o horário</div>
-            <div style={{ fontSize: 30, color: CINZA }}>Em poucos toques, direto pelo celular. Sem baixar nada.</div>
-          </div>
+          <ListaDeServicos servicos={servicos} max={4} />
         )}
+        <div style={{ display: "flex", marginTop: 18, fontSize: 26, color: CINZA }}>Toque para escolher o horário e agendar</div>
       </Moldura>
     ),
     TAMANHO_PREVIA

@@ -1,11 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { brl } from "../../../../lib/chic";
-import { artePng, baixarPng, compartilharImagem, podeCompartilharImagem } from "../../../../lib/exportarArte";
 import { E } from "../../_estilo";
 import { dataDaChave, diaLongo, type Loja } from "../../_dados";
-import ArteComprovante from "./ArteComprovante";
 
 export interface Reserva {
   servico: string;
@@ -16,46 +13,14 @@ export interface Reserva {
   nome: string;
 }
 
-// Confirmação: resumo, botão do WhatsApp do salão e, SÓ se a cliente quiser, o comprovante em imagem para os Stories.
-// A arte não existe na tela até o toque: é montada fora da vista, "fotografada" e descartada.
+// Confirmação: resumo da reserva e botão do WhatsApp do salão (com a mensagem pronta).
 export default function Sucesso({ loja, reserva, aoNovo }: { loja: Loja; reserva: Reserva; aoNovo: () => void }) {
-  const [montar, setMontar] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<string | null>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
-
   const d = dataDaChave(reserva.dia);
   const diaSemana = d.toLocaleDateString("pt-BR", { weekday: "long" }).replace(/^./, (c) => c.toUpperCase());
-  const diaMes = d.toLocaleDateString("pt-BR", { day: "numeric", month: "long" });
   const dataCurta = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
   const mensagem = `Olá! Aqui é a ${reserva.nome}. Acabei de agendar ${reserva.servico} para ${diaSemana.toLowerCase()}, ${dataCurta}, às ${reserva.hora}. Posso contar com vocês? 💖`;
   const linkZap = loja.whatsapp ? `https://wa.me/${loja.whatsapp}?text=${encodeURIComponent(mensagem)}` : null;
-
-  useEffect(() => {
-    if (!montar) return;
-    let vivo = true;
-    (async () => {
-      try {
-        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-        if (!cardRef.current) throw new Error("Não consegui montar a imagem. Tente de novo.");
-        const blob = await artePng(cardRef.current, 1080); // 360 x 640 na tela → 1080 x 1920 no arquivo
-        if (!vivo) return;
-        if (podeCompartilharImagem(blob, "meu-comprovante.png")) await compartilharImagem(blob, "meu-comprovante");
-        else {
-          baixarPng(blob, "meu-comprovante");
-          setAviso("Imagem salva! Agora é só postar no seu Story. 💖");
-        }
-      } catch (e) {
-        if (vivo && !(e instanceof DOMException && e.name === "AbortError")) setErro(e instanceof Error ? e.message : "Não consegui gerar a imagem.");
-      } finally {
-        if (vivo) setMontar(false);
-      }
-    })();
-    return () => {
-      vivo = false;
-    };
-  }, [montar]);
 
   const temPromo = reserva.precoNormal !== undefined && reserva.precoNormal > reserva.preco;
 
@@ -98,30 +63,10 @@ export default function Sucesso({ loja, reserva, aoNovo }: { loja: Loja; reserva
         </a>
       )}
 
-      <button type="button" onClick={() => { setErro(null); setAviso(null); setMontar(true); }} disabled={montar} className={E.botaoContorno}>
-        {montar ? "Gerando imagem…" : "Baixar meu comprovante em imagem para os Stories"}
-      </button>
-
-      {erro && (
-        <p role="alert" className={E.erro}>
-          {erro}
-        </p>
-      )}
-      {aviso && (
-        <p role="status" className={E.ok}>
-          {aviso}
-        </p>
-      )}
-
       <button type="button" onClick={aoNovo} className={`min-h-12 text-center text-sm font-semibold ${E.suave} underline underline-offset-4`}>
         Fazer outro agendamento
       </button>
 
-      {montar && (
-        <div aria-hidden="true" style={{ position: "fixed", left: -10000, top: 0, pointerEvents: "none" }}>
-          <ArteComprovante ref={cardRef} d={{ nomeCliente: reserva.nome, servico: reserva.servico, diaSemana, diaMes, hora: reserva.hora, nomeSalao: loja.nome }} />
-        </div>
-      )}
     </div>
   );
 }

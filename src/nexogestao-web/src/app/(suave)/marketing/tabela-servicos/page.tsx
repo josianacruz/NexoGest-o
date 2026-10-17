@@ -28,7 +28,7 @@ export default function TabelaServicosPage() {
   const [aviso, setAviso] = useState<string | null>(null);
   const [podeCompartilhar, setPodeCompartilhar] = useState(false);
   const arteRef = useRef<HTMLDivElement>(null);
-  const qr = useQr(links.tabela || "https://nexogestao");
+  const qr = useQr(links.agendar || "https://nexogestao");
   const nome = useMemo(() => separarNomeEslogan(empresa?.nome ?? ""), [empresa?.nome]);
 
   useEffect(() => {
@@ -55,10 +55,9 @@ export default function TabelaServicosPage() {
   const alternar = (id: number) => setSelecionados((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
 
   // Texto que acompanha a imagem e o botão de WhatsApp: a tabela e o link para agendar.
-  const mensagem = () => `Oi! Veja a nossa tabela de serviços ✨${links.tabela ? `
-${links.tabela}` : ""}${links.agendar ? `
-
-Para agendar o seu horário: ${links.agendar}` : ""}`;
+  // O link de agendamento já mostra os serviços e os valores: a cliente vê a tabela e já agenda, no mesmo link.
+  const mensagem = () => `Oi! Veja a nossa tabela de serviços e já agende o seu horário ✨${links.agendar ? `
+${links.agendar}` : ""}`;
 
   async function baixarImagem(compartilhar = false) {
     if (!arteRef.current) return;
@@ -96,12 +95,12 @@ Para agendar o seu horário: ${links.agendar}` : ""}`;
   }
 
   function copiarLink() {
-    navigator.clipboard?.writeText(links.tabela).then(() => setAviso("Link do cardápio copiado. Cole no WhatsApp ou na bio do Instagram."));
+    navigator.clipboard?.writeText(links.agendar).then(() => setAviso("Link copiado. Quem abrir já vê os serviços e os valores e agenda no mesmo link. Cole no WhatsApp ou na bio do Instagram."));
   }
 
   if (!empresa) return null;
 
-  const linkZap = links.tabela ? `https://wa.me/?text=${encodeURIComponent(mensagem())}` : "#";
+  const linkZap = links.agendar ? `https://wa.me/?text=${encodeURIComponent(mensagem())}` : "#";
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
@@ -196,14 +195,14 @@ Para agendar o seu horário: ${links.agendar}` : ""}`;
                 Compartilhar direto no celular
               </button>
             )}
-            <button type="button" onClick={copiarLink} disabled={!links.tabela} className={SUAVE.botaoSecundario}>
-              Copiar link do cardápio
+            <button type="button" onClick={copiarLink} disabled={!links.agendar} className={SUAVE.botaoSecundario}>
+              Copiar link (tabela + agendamento)
             </button>
             <a href={linkZap} target="_blank" rel="noopener noreferrer" className={SUAVE.botaoSucesso}>
-              Enviar o link pelo WhatsApp (com a prévia da tabela)
+              Enviar pelo WhatsApp (tabela + agendamento)
             </a>
           </div>
-          <p className={`rounded-2xl p-3 text-xs ${SUAVE.seloNeutro}`}>Quando você envia o link pelo WhatsApp (no celular ou no computador), a conversa mostra sozinha um cartão com a foto da tabela e o nome do salão, e a cliente toca nele para abrir. O link do cardápio mostra <strong>todos os seus serviços ativos</strong>, mesmo os que não aceitam agendamento online, e leva a cliente para agendar. A imagem e o PDF mostram só os serviços marcados acima.</p>
+          <p className={`rounded-2xl p-3 text-xs ${SUAVE.seloNeutro}`}>O link enviado é o de agendamento: a conversa mostra sozinha um cartão com o nome do salão, os serviços e os valores, e a cliente toca nele, vê a tabela e já agenda (no celular ou no computador). O link do cardápio mostra <strong>todos os seus serviços ativos</strong>, mesmo os que não aceitam agendamento online, e leva a cliente para agendar. A imagem e o PDF mostram só os serviços marcados acima.</p>
           {erro && (
             <p role="alert" className={`rounded-2xl p-3 text-sm ${SUAVE.seloErro}`}>
               {erro}
