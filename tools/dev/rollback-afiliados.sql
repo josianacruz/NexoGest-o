@@ -1,4 +1,11 @@
 START TRANSACTION;
+-- Sessão com refresh token (migration 20261017164656_AdicionaRefreshToken): remove a tabela e o registro da migration.
+-- Quem estiver logado terá de entrar de novo com e-mail e senha.
+DROP TABLE IF EXISTS "RefreshTokens";
+
+DELETE FROM "__EFMigrationsHistory"
+WHERE "MigrationId" = '20261017164656_AdicionaRefreshToken';
+
 -- Promoções de serviço (migration 20261017054302_CriaPromocoesServico): remove a tabela e o registro da migration.
 DROP TABLE IF EXISTS "PromocoesServico";
 
