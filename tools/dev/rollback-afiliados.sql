@@ -1,4 +1,10 @@
 START TRANSACTION;
+-- Promoções de serviço (migration 20261017054302_CriaPromocoesServico): remove a tabela e o registro da migration.
+DROP TABLE IF EXISTS "PromocoesServico";
+
+DELETE FROM "__EFMigrationsHistory"
+WHERE "MigrationId" = '20261017054302_CriaPromocoesServico';
+
 DROP INDEX IF EXISTS "IX_Agendamentos_EmpresaId_DataHora_Status";
 
 CREATE INDEX IF NOT EXISTS "IX_Agendamentos_EmpresaId" ON "Agendamentos" ("EmpresaId");

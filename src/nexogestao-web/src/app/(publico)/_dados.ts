@@ -20,10 +20,24 @@ export async function mensagemDeErro(res: Response, padrao: string) {
 // Página da loja (nome, WhatsApp e serviços) numa única chamada, com cache no aparelho:
 // na segunda visita a tela abre na hora com o que ficou guardado e confere o servidor em segundo plano.
 // ---------------------------------------------------------------------------------------------------------
+export interface PromocaoPublica {
+  id: number;
+  servicoId: number;
+  titulo: string;
+  descricao: string | null;
+  precoPromocional: number;
+  precoNormal: number;
+  fimEm: string; // ISO (UTC)
+}
+
 export interface Pagina {
   loja: Loja;
   servicos: ServicoPublico[];
+  promocoes: PromocaoPublica[];
 }
+
+// Só as promoções que ainda valem agora (o guardado no aparelho pode ter passado da validade).
+export const promocoesNoAr = (promocoes: PromocaoPublica[] | undefined) => (promocoes ?? []).filter((p) => new Date(p.fimEm).getTime() > Date.now() && p.precoPromocional < p.precoNormal);
 
 const VALIDADE_PAGINA_MS = 6 * 60 * 60 * 1000; // depois de 6 h o guardado não é mais usado
 const chavePagina = (id: number, completa: boolean) => `nexo_pagina_${id}_${completa ? "tabela" : "agenda"}`;
@@ -53,7 +67,7 @@ export async function buscarPagina(empresaId: number, completa = false): Promise
   }
   const d = await res.json();
   const n = separarNomeEslogan(d.nome ?? "");
-  const pagina: Pagina = { loja: { nome: n.nome, slogan: n.slogan, whatsapp: d.whatsApp ?? d.whatsapp ?? null }, servicos: d.servicos ?? [] };
+  const pagina: Pagina = { loja: { nome: n.nome, slogan: n.slogan, whatsapp: d.whatsApp ?? d.whatsapp ?? null }, servicos: d.servicos ?? [], promocoes: d.promocoes ?? [] };
   try {
     localStorage.setItem(chavePagina(empresaId, completa), JSON.stringify({ quando: Date.now(), pagina }));
   } catch {

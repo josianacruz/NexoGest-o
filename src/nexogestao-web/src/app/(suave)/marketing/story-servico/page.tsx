@@ -13,13 +13,27 @@ import { SUAVE } from "../../../_suave/tokens";
 
 const CHAMADAS = ["Promoção da semana", "Novidade", "Agenda aberta", "Últimas vagas"];
 const ACOES = ["Agende pelo link", "Chame no WhatsApp", "Reserve seu horário"];
+const DURACOES = [3, 7, 14, 30];
 
-// Gerador de Story (1080 x 1920) de um serviço: escolhe o serviço, põe um preço promocional se quiser,
-// e a arte sai pronta com nome do salão, destaque, chamada para ação e o link de agendamento.
+interface PromocaoNoPainel {
+  id: number;
+  servicoNome: string;
+  precoNormal: number;
+  precoPromocional: number;
+  titulo: string;
+  fimEm: string;
+  noAr: boolean;
+}
+
+// Promoção e Story de um serviço: escolhe o serviço, põe o preço promocional e (1) baixa o Story 1080 x 1920 pronto e/ou
+// (2) publica a promoção no link de agendamento, onde a cliente vê o preço especial e agenda direto.
 export default function StoryServicoPage() {
   const { empresa, api } = useEmpresa();
   const links = useLinksDaLoja();
-  const [servicos, setServicos] = useState<ServicoPublico[]>([]);
+  const [servicos, setServicos] = useState<(ServicoPublico & { permiteAutoagendamento?: boolean })[]>([]);
+  const [promocoes, setPromocoes] = useState<PromocaoNoPainel[]>([]);
+  const [dias, setDias] = useState(7);
+  const [publicando, setPublicando] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [servicoId, setServicoId] = useState<number | null>(null);
   const [chamada, setChamada] = useState(CHAMADAS[0]);
@@ -50,6 +64,50 @@ export default function StoryServicoPage() {
       }
     })();
   }, [empresa?.id]);
+
+  async function carregarPromocoes() {
+    try {
+      const r = await api("/promocoes");
+      if (r.ok) setPromocoes((await r.json()).filter((p: PromocaoNoPainel) => p.noAr));
+    } catch {
+      /* a lista é só informativa */
+    }
+  }
+
+  useEffect(() => {
+    if (empresa) carregarPromocoes();
+  }, [empresa?.id]);
+
+  async function publicar() {
+    if (!servico || !promoValida || promoMaiorQueNormal || publicando) return;
+    setPublicando(true);
+    setErro(null);
+    setAviso(null);
+    try {
+      const r = await api("/promocoes", { method: "POST", body: JSON.stringify({ servicoId: servico.id, precoPromocional: precoPromo, dias, titulo: chamada, descricao: descricao.trim() || null }) });
+      const d = await r.json().catch(() => null);
+      if (r.status === 403) setErro("Só a dona da loja pode publicar promoções.");
+      else if (!r.ok) setErro(d?.mensagem ?? "Não consegui publicar a promoção.");
+      else {
+        setAviso(`Promoção no ar por ${dias} dias. As clientes já veem no link de agendamento.`);
+        await carregarPromocoes();
+      }
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não consegui publicar a promoção.");
+    } finally {
+      setPublicando(false);
+    }
+  }
+
+  async function encerrar(id: number) {
+    setErro(null);
+    setAviso(null);
+    const r = await api(`/promocoes/${id}/encerrar`, { method: "PUT" });
+    if (r.ok) {
+      setAviso("Promoção encerrada. Ela saiu do link de agendamento.");
+      await carregarPromocoes();
+    } else setErro(r.status === 403 ? "Só a dona da loja pode encerrar promoções." : "Não consegui encerrar a promoção.");
+  }
 
   useEffect(() => {
     setPodeCompartilhar(typeof navigator !== "undefined" && typeof navigator.share === "function");
@@ -93,8 +151,8 @@ export default function StoryServicoPage() {
       <Link href="/marketing" className="text-sm font-semibold text-violet-800 hover:underline dark:text-violet-200">
         ← Marketing
       </Link>
-      <h1 className="mb-1 mt-2 text-2xl font-bold tracking-tight">Story de um serviço</h1>
-      <p className={`mb-6 text-sm ${SUAVE.textoSuave}`}>Escolha o serviço, coloque um preço especial se quiser e baixe a arte pronta para o Story (1080 x 1920).</p>
+      <h1 className="mb-1 mt-2 text-2xl font-bold tracking-tight">Promoção e Story de um serviço</h1>
+      <p className={`mb-6 text-sm ${SUAVE.textoSuave}`}>Escolha o serviço e o preço especial. Baixe o Story pronto (1080 x 1920) e publique a promoção no link de agendamento para as clientes verem e agendarem.</p>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="grid content-start gap-5">
@@ -165,6 +223,44 @@ export default function StoryServicoPage() {
                 <input id="insta" className={SUAVE.campo} maxLength={30} placeholder="@seusalao" value={instagram} onChange={(e) => setInstagram(e.target.value.replace(/\s/g, ""))} />
               </div>
             </div>
+          </section>
+
+          <section className={`${SUAVE.cartao} grid gap-3 p-5`}>
+            <h2 className="font-semibold">Publicar no meu link de agendamento</h2>
+            <p className={`text-sm ${SUAVE.textoSuave}`}>A promoção aparece em destaque na página da cliente e o agendamento já sai com o preço especial. Termina sozinha ao fim do prazo.</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Duração da promoção">
+              {DURACOES.map((n) => (
+                <button key={n} type="button" aria-pressed={dias === n} onClick={() => setDias(n)} className={dias === n ? SUAVE.chipAtivo : SUAVE.chip}>
+                  {n} dias
+                </button>
+              ))}
+            </div>
+            {servico && servico.permiteAutoagendamento === false && <p className={`rounded-2xl p-3 text-sm ${SUAVE.seloAviso}`}>Esse serviço não aceita agendamento pelo link. Ligue “As clientes podem agendar pelo link” no cadastro do serviço para publicar a promoção.</p>}
+            <button type="button" onClick={publicar} disabled={publicando || !servico || !promoValida || promoMaiorQueNormal || servico.permiteAutoagendamento === false} className={SUAVE.botaoPrimario}>
+              {publicando ? "Publicando…" : "Publicar promoção no link"}
+            </button>
+            {!promoValida && <p className={`text-xs ${SUAVE.textoFraco}`}>Preencha o preço promocional acima para poder publicar.</p>}
+
+            {promocoes.length > 0 && (
+              <div className="mt-2 grid gap-2">
+                <p className={SUAVE.rotulo}>Promoções no ar</p>
+                <ul className="grid gap-2">
+                  {promocoes.map((p) => (
+                    <li key={p.id} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 dark:bg-slate-700/40">
+                      <div className="min-w-0 flex-1 text-sm">
+                        <p className="break-words font-semibold">{p.servicoNome}</p>
+                        <p className={SUAVE.textoSuave}>
+                          <span className="line-through">{brl(p.precoNormal)}</span> <strong>{brl(p.precoPromocional)}</strong> · até {new Date(p.fimEm).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                        </p>
+                      </div>
+                      <button type="button" onClick={() => encerrar(p.id)} className={SUAVE.botaoSecundario}>
+                        Encerrar
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </section>
 
           <section className={`${SUAVE.cartao} grid gap-2 p-5`}>

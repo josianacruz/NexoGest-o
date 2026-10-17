@@ -91,9 +91,9 @@ export default function MarketingPage() {
                 className={`${cardStyle} p-6 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md transition-all`}
               >
                 <div className="text-3xl mb-2">✨</div>
-                <h2 className="font-semibold mb-1">Story de um serviço</h2>
+                <h2 className="font-semibold mb-1">Promoção e Story de um serviço</h2>
                 <p className="text-sm text-black/60 dark:text-white/60">
-                  Escolha o serviço, coloque um preço especial e baixe o Story pronto (1080 x 1920).
+                  Preço especial no link de agendamento e Story pronto para postar (1080 x 1920).
                 </p>
               </Link>
               <Link

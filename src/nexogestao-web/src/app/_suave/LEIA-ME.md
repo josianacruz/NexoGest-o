@@ -22,6 +22,7 @@ _suave/
 ├─ Folha.tsx             → janela padrão (sobe de baixo no celular, centralizada no computador)
 ├─ StoriesVisual.tsx     → tipos, anéis e visualizador (usado pelo Dono e pelos clientes)
 ├─ Stories.tsx           → Stories do Dono (criar/apagar na API)
+├─ ../_comum/PreviewEscalado.tsx → prévia encolhida das artes (neutra: painel e páginas públicas usam)
 ├─ VitrineStories.tsx    → faixa de novidades que o CLIENTE vê em /agendar/<loja>
 ├─ AgendamentoRapido.tsx → modal "Agendar em 1 toque"
 ├─ AgendaDia.tsx         → agenda em cartões (horários livres tracejados, 1 toque agenda)

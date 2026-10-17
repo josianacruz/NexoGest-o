@@ -1,9 +1,9 @@
 "use client";
 
 import { forwardRef } from "react";
-import { CHIC, familiaCorpo, familiaTitulo, fonteCorpo, fonteTitulo, tamanhoNomeSalao } from "../../../lib/chic";
+import { CHIC, familiaCorpo, familiaTitulo, fonteCorpo, fonteTitulo, tamanhoNomeSalao } from "../../../../lib/chic";
 
-export interface DadosConfirmacao {
+export interface DadosComprovante {
   nomeCliente: string; // só o primeiro nome aparece
   servico: string;
   diaSemana: string; // "Sexta-feira"
@@ -14,7 +14,7 @@ export interface DadosConfirmacao {
 
 // Card do Story (360 x 640, exportado em 1080 x 1920) para a cliente postar a confirmação.
 // Deixa um espaço livre na parte de baixo para ela colar o adesivo de @ do salão no Instagram.
-const ArteConfirmacaoChic = forwardRef<HTMLDivElement, { d: DadosConfirmacao }>(function ArteConfirmacaoChic({ d }, ref) {
+const ArteComprovante = forwardRef<HTMLDivElement, { d: DadosComprovante }>(function ArteComprovante({ d }, ref) {
   const primeiroNome = d.nomeCliente.trim().split(/\s+/)[0] ?? "";
   const tam = d.servico.length > 40 ? 22 : d.servico.length > 24 ? 27 : 32;
   return (
@@ -33,10 +33,10 @@ const ArteConfirmacaoChic = forwardRef<HTMLDivElement, { d: DadosConfirmacao }>(
     >
       <div style={{ position: "absolute", inset: 12, border: `1px solid ${CHIC.douradoLinha}`, borderRadius: 22, pointerEvents: "none" }} />
 
-      <div style={{ fontSize: 11, letterSpacing: "0.3em", textTransform: "uppercase", color: CHIC.douradoTexto, fontWeight: 600 }}>Agendamento confirmado</div>
-      <div style={{ width: 34, height: 1, background: CHIC.douradoLinha, margin: "12px 0 18px" }} />
+      <div style={{ fontFamily: familiaTitulo, fontSize: 34, lineHeight: 1.1, fontWeight: 600, marginTop: 6 }}>Dia de beleza agendado!</div>
+      <div style={{ width: 34, height: 1, background: CHIC.douradoLinha, margin: "14px 0 14px" }} />
 
-      <div style={{ fontFamily: familiaTitulo, fontStyle: "italic", fontSize: 21, color: CHIC.cinza }}>{primeiroNome ? `${primeiroNome}, seu momento está reservado` : "Seu momento está reservado"}</div>
+      <div style={{ fontFamily: familiaTitulo, fontStyle: "italic", fontSize: 19, color: CHIC.cinza }}>{primeiroNome ? `${primeiroNome}, seu momento está reservado` : "Seu momento está reservado"}</div>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, width: "100%" }}>
         <div style={{ fontFamily: familiaTitulo, fontSize: tam, lineHeight: 1.1, fontWeight: 600, overflowWrap: "anywhere" }}>{d.servico}</div>
@@ -56,4 +56,4 @@ const ArteConfirmacaoChic = forwardRef<HTMLDivElement, { d: DadosConfirmacao }>(
   );
 });
 
-export default ArteConfirmacaoChic;
+export default ArteComprovante;

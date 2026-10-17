@@ -7,7 +7,6 @@ import { normalizarTelefone } from "../../../../lib/whatsapp";
 import VitrineStories from "../../../_suave/VitrineStories";
 import { E } from "../../_estilo";
 import {
-  baixarTabelaPdf,
   buscarPagina,
   carregarHorarios,
   confirmarAgendamento,
@@ -15,14 +14,18 @@ import {
   horariosEmCache,
   paginaEmCache,
   preBuscarHorarios,
+  promocoesNoAr,
   diaLongo,
   diaSemanaCurto,
   proximosDias,
   type Loja,
+  type PromocaoPublica,
 } from "../../_dados";
 import Sucesso, { type Reserva } from "./Sucesso";
 
 type Passo = 1 | 2 | 3;
+// Serviço com o preço que a cliente realmente paga: o promocional, se houver promoção no ar.
+type ServicoVenda = ServicoPublico & { promo?: PromocaoPublica };
 const CHAVE_CLIENTE = "nexo_cliente_publico"; // nome e celular ficam só neste aparelho, para a próxima reserva ser mais rápida
 
 // Agendamento público em 3 passos: serviço → dia e horário → nome e WhatsApp. Feito para o polegar.
@@ -31,12 +34,13 @@ export default function AgendarPage() {
   const empresaId = Number(params.empresaId);
 
   const [loja, setLoja] = useState<Loja | null>(null);
-  const [servicos, setServicos] = useState<ServicoPublico[]>([]);
+  const [servicosBase, setServicosBase] = useState<ServicoPublico[]>([]);
+  const [promocoes, setPromocoes] = useState<PromocaoPublica[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erroInicial, setErroInicial] = useState<string | null>(null);
 
   const [passo, setPasso] = useState<Passo>(1);
-  const [servico, setServico] = useState<ServicoPublico | null>(null);
+  const [servicoEscolhido, setServicoEscolhido] = useState<ServicoVenda | null>(null);
   const dias = useMemo(() => proximosDias(14), []);
   const [dia, setDia] = useState(dias[0]);
   const [horarios, setHorarios] = useState<string[] | null>(null);
@@ -47,7 +51,6 @@ export default function AgendarPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [reserva, setReserva] = useState<Reserva | null>(null);
-  const [baixandoPdf, setBaixandoPdf] = useState(false);
   const topo = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -56,13 +59,15 @@ export default function AgendarPage() {
     const guardada = paginaEmCache(empresaId);
     if (guardada) {
       setLoja(guardada.loja);
-      setServicos(guardada.servicos);
+      setServicosBase(guardada.servicos);
+      setPromocoes(promocoesNoAr(guardada.promocoes));
       setCarregando(false);
     }
     buscarPagina(empresaId)
       .then((p) => {
         setLoja(p.loja);
-        setServicos(p.servicos);
+        setServicosBase(p.servicos);
+        setPromocoes(promocoesNoAr(p.promocoes));
         setErroInicial(p.servicos.length === 0 ? "Nenhum serviço está disponível para agendamento online no momento." : null);
       })
       .catch((e: Error & { status?: number }) => {
@@ -81,6 +86,17 @@ export default function AgendarPage() {
       /* sem armazenamento: a pessoa digita */
     }
   }, [empresaId]);
+
+  const servicos: ServicoVenda[] = useMemo(
+    () =>
+      servicosBase.map((s) => {
+        const promo = promocoes.find((p) => p.servicoId === s.id);
+        return promo ? { ...s, promo } : s;
+      }),
+    [servicosBase, promocoes]
+  );
+  // se a página foi atualizada com o serviço já escolhido, usa a versão mais nova (preço e promoção)
+  const servico: ServicoVenda | null = servicoEscolhido ? (servicos.find((s) => s.id === servicoEscolhido.id) ?? servicoEscolhido) : null;
 
   // Horários do dia escolhido. Se já foram vistos há pouco (ou pré-buscados), aparecem na hora, sem esperar a rede.
   useEffect(() => {
@@ -134,21 +150,9 @@ export default function AgendarPage() {
       } catch {
         /* ignora */
       }
-      setReserva({ servico: servico.nome, preco: servico.preco, dia, hora, nome: nome.trim() });
+      setReserva({ servico: servico.nome, preco: servico.promo?.precoPromocional ?? servico.preco, precoNormal: servico.promo ? servico.preco : undefined, dia, hora, nome: nome.trim() });
     } finally {
       setEnviando(false);
-    }
-  }
-
-  async function pdf() {
-    if (!loja || baixandoPdf) return;
-    setBaixandoPdf(true);
-    try {
-      await baixarTabelaPdf(empresaId, loja, `${window.location.origin}/agendar/${empresaId}`);
-    } catch {
-      setErro("Não consegui gerar o PDF agora. Tente de novo.");
-    } finally {
-      setBaixandoPdf(false);
     }
   }
 
@@ -168,7 +172,7 @@ export default function AgendarPage() {
   if (reserva) {
     return (
       <main className="mx-auto w-full max-w-md px-5 pb-10 pt-8">
-        <Sucesso loja={loja} reserva={reserva} empresaId={empresaId} aoNovo={() => { setReserva(null); setHora(null); setServico(null); irPara(1); }} />
+        <Sucesso loja={loja} reserva={reserva} aoNovo={() => { setReserva(null); setHora(null); setServicoEscolhido(null); irPara(1); }} />
       </main>
     );
   }
@@ -210,6 +214,44 @@ export default function AgendarPage() {
       {/* PASSO 1: serviço */}
       {passo === 1 && (
         <section aria-label="Escolha o serviço">
+          {promocoes.length > 0 && (
+            <div className="mb-6" aria-label="Promoções no ar">
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#8A6A2F]">Promoções no ar</p>
+              <ul className="grid gap-3">
+                {promocoes.map((p) => {
+                  const s = servicos.find((x) => x.id === p.servicoId);
+                  if (!s) return null;
+                  const off = Math.round((1 - p.precoPromocional / p.precoNormal) * 100);
+                  return (
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        onPointerDown={() => preBuscarHorarios(empresaId, s.id, dia)}
+                        onClick={() => {
+                          setServicoEscolhido(s);
+                          setHora(null);
+                          irPara(2);
+                        }}
+                        className="relative w-full overflow-hidden rounded-3xl border border-[#C9A96E] bg-gradient-to-br from-[#F7DDE0] via-[#FAF7F4] to-white p-5 text-left shadow-[0_8px_26px_-14px_rgba(138,106,47,0.55)] transition active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8A6A2F]"
+                      >
+                        <span className="absolute right-4 top-4 rounded-full bg-[#2F3036] px-3 py-1 text-xs font-bold tracking-wide text-[#FAF7F4]">{off}% OFF</span>
+                        <span className="block pr-20 text-[11px] font-bold uppercase tracking-[0.22em] text-[#8A6A2F]">{p.titulo}</span>
+                        <span className={`${E.titulo} mt-1 block text-xl font-semibold leading-snug`}>{s.nome}</span>
+                        {p.descricao && <span className={`mt-0.5 block text-sm ${E.suave}`}>{p.descricao}</span>}
+                        <span className="mt-3 flex items-baseline gap-2">
+                          <span className={`text-sm line-through ${E.suave}`}>{brl(p.precoNormal)}</span>
+                          <span className={`${E.titulo} text-3xl font-semibold text-[#2F3036]`}>{brl(p.precoPromocional)}</span>
+                        </span>
+                        <span className={`mt-1 block text-xs ${E.suave}`}>
+                          Até {new Date(p.fimEm).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} · toque para escolher o horário
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
           <h2 className={`${E.titulo} mb-3 text-xl font-semibold`}>Qual serviço você quer?</h2>
           <ul className="grid gap-3">
             {servicos.map((s) => (
@@ -218,7 +260,7 @@ export default function AgendarPage() {
                   type="button"
                   onPointerDown={() => preBuscarHorarios(empresaId, s.id, dia)}
                   onClick={() => {
-                    setServico(s);
+                    setServicoEscolhido(s);
                     setHora(null);
                     irPara(2);
                   }}
@@ -228,14 +270,20 @@ export default function AgendarPage() {
                     <span className={`${E.titulo} block text-lg font-medium leading-snug`}>{s.nome}</span>
                     <span className={`text-sm ${E.suave}`}>{s.duracaoMinutos} min</span>
                   </span>
-                  <span className={`shrink-0 text-lg font-semibold ${E.dourado}`}>{brl(s.preco)}</span>
+                  <span className={`shrink-0 text-right font-semibold ${E.dourado}`}>
+                    {s.promo ? (
+                      <>
+                        <span className={`block text-xs font-normal line-through ${E.suave}`}>{brl(s.preco)}</span>
+                        <span className="text-lg">{brl(s.promo.precoPromocional)}</span>
+                      </>
+                    ) : (
+                      <span className="text-lg">{brl(s.preco)}</span>
+                    )}
+                  </span>
                 </button>
               </li>
             ))}
           </ul>
-          <button type="button" onClick={pdf} disabled={baixandoPdf} className={`${E.botaoContorno} mt-5`}>
-            {baixandoPdf ? "Gerando PDF…" : "Baixar tabela de preços (PDF)"}
-          </button>
         </section>
       )}
 
@@ -327,14 +375,14 @@ export default function AgendarPage() {
   );
 }
 
-function ResumoServico({ servico, quando, aoTrocar }: { servico: ServicoPublico; quando?: string; aoTrocar: () => void }) {
+function ResumoServico({ servico, quando, aoTrocar }: { servico: ServicoVenda; quando?: string; aoTrocar: () => void }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-2xl bg-[#F2C9CD]/60 px-4 py-3">
       <div className="min-w-0">
         <p className={`${E.titulo} truncate text-base font-semibold`}>{servico.nome}</p>
         <p className={`text-sm ${E.suave}`}>
           {quando ? `${quando} · ` : ""}
-          {servico.duracaoMinutos} min · {brl(servico.preco)}
+          {servico.duracaoMinutos} min · {servico.promo ? `${brl(servico.promo.precoPromocional)} (promoção)` : brl(servico.preco)}
         </p>
       </div>
       <button type="button" onClick={aoTrocar} className="min-h-12 shrink-0 px-2 text-sm font-semibold text-[#8A6A2F] underline underline-offset-4">
