@@ -8,6 +8,7 @@ using NexoGestao.Api.Shared;
 namespace NexoGestao.Api.Empresas;
 
 public record AplicarPerfilRequest(string Perfil);
+public record AlterarAcessoRequest(int? Dias, bool Ilimitado = false);
 
 // Console da administradora máster (Admin:Emails): vê todas as empresas e define o perfil de acesso de cada uma.
 // Qualquer outra pessoa recebe 403, mesmo logada.
@@ -92,6 +93,7 @@ public class AdminController : ControllerBase
                 e.Nome,
                 e.TipoNegocio,
                 e.DataCriacao,
+                e.AcessoAte,
                 Donos = _context.MembrosEmpresa.Where(m => m.EmpresaId == e.Id && m.Papel == PapelUsuario.Dono)
                     .Join(_context.Users, m => m.UsuarioId, u => u.Id, (m, u) => u.Email).ToList(),
             })
@@ -110,7 +112,8 @@ public class AdminController : ControllerBase
                 e.Nome,
                 TipoNegocio = e.TipoNegocio?.ToString(),
                 e.DataCriacao,
-                DiasDeTesteRestantes = Math.Max(0, 14 - (int)(agora - e.DataCriacao).TotalDays),
+                DiasDeTesteRestantes = TesteGratis.DiasRestantes(e.AcessoAte, agora),
+                SemLimite = e.AcessoAte == null,
                 e.Donos,
                 Clientes = c?.N ?? 0,
                 Produtos = produtos.TryGetValue(e.Id, out var p) ? p.N : 0,
@@ -134,6 +137,30 @@ public class AdminController : ControllerBase
             AlertaNoCelularConfigurado = !string.IsNullOrWhiteSpace(_configuracao["Alertas:NtfyTopico"]),
             Empresas = linhas,
         });
+    }
+
+    // Prazo de acesso da empresa: soma dias ao teste (a partir de hoje, ou do fim atual se ainda não venceu) ou libera sem limite.
+    [HttpPut("empresas/{empresaId:int}/acesso")]
+    public async Task<IActionResult> AlterarAcesso(int empresaId, AlterarAcessoRequest request)
+    {
+        if (!EhAdmin)
+            return Forbid();
+
+        var empresa = await _context.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId);
+        if (empresa is null)
+            return NotFound(new { mensagem = "Empresa não encontrada." });
+
+        var agora = DateTime.UtcNow;
+        if (request.Ilimitado)
+            empresa.AcessoAte = null;
+        else if (request.Dias is >= 1 and <= 3650)
+            empresa.AcessoAte = (empresa.AcessoAte is { } fim && fim > agora ? fim : agora).AddDays(request.Dias.Value);
+        else
+            return BadRequest(new { mensagem = "Informe de 1 a 3650 dias, ou libere sem limite." });
+
+        await _context.SaveChangesAsync();
+        HttpContext?.RequestServices?.GetService<Microsoft.Extensions.Caching.Memory.IMemoryCache>()?.Remove(TesteGratis.ChaveDeCache(empresaId));
+        return Ok(new { empresaId, empresa.AcessoAte, DiasRestantes = TesteGratis.DiasRestantes(empresa.AcessoAte, agora) });
     }
 
     // Aplica um perfil de acesso (Salao, Loja, Alimentacao, ServicosGerais ou Completo): liga os módulos do perfil e desliga os demais.

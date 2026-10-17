@@ -85,6 +85,7 @@ builder.Services.AddHttpClient<NexoGestao.Api.Shared.ShopeeAffiliateApiService>(
 builder.Services.AddScoped<NexoGestao.Api.Radar.RadarService>();
 builder.Services.AddHostedService<NexoGestao.Api.Radar.RadarAgendadorService>();
 // Aviso no celular (ntfy.sh, grátis) de novas contas e de banco enchendo; só funciona se Alertas__NtfyTopico existir.
+builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<NexoGestao.Api.Shared.AlertaAdmin>();
 builder.Services.AddHostedService<NexoGestao.Api.Shared.MonitorDeUsoService>();
 
@@ -242,6 +243,7 @@ app.UseCors("PermitirFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<NexoGestao.Api.Shared.TesteGratisMiddleware>(); // teste grátis terminado = 402 nas rotas da empresa
 app.UseRateLimiter();
 
 app.MapControllers();

@@ -10,6 +10,8 @@ public class Empresa
     public string? WhatsApp { get; set; } // só dígitos, com 55 na frente; aparece na página pública de agendamento
     public NichoLoja? Nicho { get; set; } // nulo = usa o padrão do TipoNegocio (ver Nichos.Efetivo)
     public DateTime DataCriacao { get; set; } = DateTime.UtcNow;
+    // Fim do teste grátis. Nulo = sem limite (empresas antigas e as liberadas pela administradora). Ver TesteGratis.
+    public DateTime? AcessoAte { get; set; }
 
     public ICollection<MembroEmpresa> Membros { get; set; } = new List<MembroEmpresa>();
     public ICollection<ModuloEmpresa> Modulos { get; set; } = new List<ModuloEmpresa>();

@@ -46,6 +46,8 @@ public class EmpresasController : ControllerBase
             Segmento = request.Segmento,
             ComandasHabilitadas = request.ComandasHabilitadas,
             TipoNegocio = request.TipoNegocio,
+            // Conta nova começa o teste grátis agora (a administradora nunca expira: ver TesteGratisMiddleware).
+            AcessoAte = DateTime.UtcNow.AddDays(TesteGratis.Dias(HttpContext?.RequestServices?.GetService<IConfiguration>())),
         };
         _context.Empresas.Add(empresa);
 
@@ -100,6 +102,7 @@ public class EmpresasController : ControllerBase
                     e.Nicho,
                     e.WhatsApp,
                     e.DataCriacao,
+                    e.AcessoAte,
                     Papel = _context.MembrosEmpresa.Where(m => m.EmpresaId == e.Id && m.UsuarioId == usuarioId).Select(m => m.Papel.ToString()).FirstOrDefault() ?? "Admin",
                     ModulosHabilitados = e.Modulos.Where(mo => mo.Habilitado).Select(mo => mo.Modulo).ToList(),
                     TemConfiguracaoDeModulos = e.Modulos.Any(),
@@ -117,6 +120,7 @@ public class EmpresasController : ControllerBase
                     m.Empresa.Nicho,
                     m.Empresa.WhatsApp,
                     m.Empresa.DataCriacao,
+                    m.Empresa.AcessoAte,
                     Papel = m.Papel.ToString(),
                     ModulosHabilitados = m.Empresa.Modulos.Where(mo => mo.Habilitado).Select(mo => mo.Modulo).ToList(),
                     TemConfiguracaoDeModulos = m.Empresa.Modulos.Any(),
@@ -126,6 +130,8 @@ public class EmpresasController : ControllerBase
         // Empresa sem nenhuma linha em ModulosEmpresa (criada antes desse recurso, ou
         // criada sem TipoNegocio) mantém tudo liberado — não quebra o que já existia.
         var todosOsModulos = ModulosPadrao.TodosOsModulos.Select(m => m.ToString()).ToList();
+        var agora = DateTime.UtcNow;
+        var contato = TesteGratis.WhatsAppDeContato(HttpContext?.RequestServices?.GetService<IConfiguration>());
         var resultado = empresas.Select(e =>
         {
             var reais = (e.TemConfiguracaoDeModulos ? e.ModulosHabilitados : ModulosPadrao.LiberadosSemConfiguracao.ToList()).ToList();
@@ -139,6 +145,10 @@ public class EmpresasController : ControllerBase
                 e.WhatsApp,
                 e.Papel,
                 EhAdmin = admin,
+                // Teste grátis: dias que restam (nulo = sem limite) e se ESTA pessoa está bloqueada (a administradora nunca é).
+                DiasRestantes = TesteGratis.DiasRestantes(e.AcessoAte, agora),
+                TesteExpirado = !admin && TesteGratis.Expirado(e.AcessoAte, agora),
+                ContatoSuporte = contato,
                 // Empresa nova, sem tipo de negócio e sem módulos definidos: o painel pergunta o tipo no primeiro acesso.
                 PrecisaEscolherTipo = e.Papel == "Dono" && e.TipoNegocio is null && !e.TemConfiguracaoDeModulos && e.DataCriacao > DateTime.UtcNow.AddDays(-3),
                 // O que a empresa realmente tem ligado (é o que a cliente enxerga)…
