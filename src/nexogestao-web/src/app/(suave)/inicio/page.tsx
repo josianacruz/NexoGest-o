@@ -70,7 +70,7 @@ export default function InicioPage() {
             <span className={`text-xs ${SUAVE.textoFraco}`}>2 toques</span>
           </button>
         )}
-        {empresa.papel === "Dono" && (
+        {empresa.podeAdministrar && (
           <button type="button" onClick={() => setCriarStory(true)} className={`${SUAVE.cartaoClicavel} flex flex-col items-start gap-2 p-4 text-left`}>
             <span className="text-2xl" aria-hidden="true">
               ✨

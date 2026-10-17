@@ -6,8 +6,10 @@ import Nav from "../../_components/Nav";
 import Modal from "../../_components/Modal";
 import PageHeader from "../../_components/PageHeader";
 import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../../_components/ui";
+import { avisarPagamento } from "../../../lib/pagamentoOk";
 import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
 import { abrirWhatsApp, mensagemAgendamentoConfirmacao } from "../../../lib/whatsapp";
+import { escolherEmpresa } from "../../../lib/empresaAtiva";
 
 interface Cliente {
   id: number;
@@ -270,7 +272,7 @@ export default function AgendaPage() {
         setErro("Você ainda não tem nenhuma empresa cadastrada.");
         return;
       }
-      const empresa = empresas[0];
+      const empresa = escolherEmpresa(empresas);
       setEmpresaId(empresa.id);
       setEmpresaNome(empresa.nome);
       setComandasHabilitadas(empresa.comandasHabilitadas ?? true);
@@ -455,6 +457,7 @@ export default function AgendaPage() {
       }
       const data = await res.json();
       if (data.avisoCobranca) setAvisoCobranca(data.avisoCobranca.mensagem);
+      if (status === "Concluido" && extra?.valorRecebido && extra.valorRecebido > 0) avisarPagamento({ titulo: "Atendimento concluído e pagamento recebido", valor: extra.valorRecebido, forma: extra.formaPagamento });
       setConcluindoId(null);
       await carregarAgendamentos(empresaId, inicioRange, fimRange);
     } finally {

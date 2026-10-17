@@ -11,6 +11,7 @@ import {
   mensagemLinkAgendamento,
   mensagemPromocaoPadrao,
 } from "../../../lib/whatsapp";
+import { avisarPagamento } from "../../../lib/pagamentoOk";
 import AgendamentoRapido, { type ClienteResumo } from "../../_suave/AgendamentoRapido";
 import { useEmpresa } from "../../_suave/EmpresaContext";
 import Folha from "../../_suave/Folha";
@@ -150,6 +151,7 @@ export default function ClientesPage() {
         setErroContas(await mensagemDeErro(res, "Não foi possível registrar o pagamento."));
         return;
       }
+      avisarPagamento({ valor: contas.find((c) => c.id === contaId)?.valorPendente, quem: contasDe.nome });
       await Promise.all([abrirContasSemAbrir(contasDe.id), carregar()]);
     } finally {
       setSalvando(false);

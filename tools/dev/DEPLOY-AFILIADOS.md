@@ -64,3 +64,10 @@ O que já está no código e vai junto com o deploy:
 4. Faça uma coisa de cada vez e confira o `/health` depois de cada troca. Para voltar atrás, basta colocar a string antiga.
 
 Limites do plano grátis que **não** dá para resolver só com código: o Render dorme depois de alguns minutos sem uso (a primeira chamada leva de 30 a 60 s) e o Neon suspende o banco ocioso (cerca de 1 s para acordar). Manter os dois acordados com "pings" gasta as horas grátis do Neon, então não foi feito.
+
+## Administradora máster (perfil Josiana) e perfis de acesso
+
+- Quem é administradora: os e-mails da variável **`Admin__Emails`** no Render (separados por vírgula; é o e-mail com que a pessoa entra no sistema). Sem a variável, ninguém é administrador. Tirar um e-mail da lista revoga o acesso na hora, mesmo com o login aberto no celular.
+- A administradora vê **todas as empresas** (seletor no topo do painel; empresas que não são dela aparecem como "suporte"), usa **todos os módulos** e tem o menu **Administração** (perfil de cada empresa e "Entrar neste ambiente"). A opção "Ver como a cliente" mostra só os módulos que a empresa realmente tem.
+- Perfis (aplicados pela administradora, empresa a empresa; nunca automaticamente): **Salão** = Clientes, Agenda, Serviços e tabela, Promoções e Stories; **Loja** = Clientes, Estoque (produtos), Vendas e caixa; **Completo** = todos (menos Afiliados). Antes de aplicar, a tela mostra o que vai deixar de aparecer; nenhum dado é apagado.
+- Ordem sugerida: 1) no Render, criar `Admin__Emails` com o seu e-mail; 2) entrar de novo no sistema; 3) abrir **Administração** e conferir as empresas ANTES de aplicar qualquer perfil (aplicar "Loja" ou "Salão" desliga os outros módulos dessa empresa, como Cobranças e Interesses).

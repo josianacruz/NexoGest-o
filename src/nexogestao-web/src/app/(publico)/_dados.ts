@@ -1,4 +1,4 @@
-import { API_URL } from "../../lib/api";
+import { API_URL, FalhaDeRede, apiFetch } from "../../lib/api";
 import type { ServicoPublico } from "../../lib/chic";
 import { baixarBlob, gerarPdfCardapio } from "../../lib/pdfCardapio";
 import { separarNomeEslogan } from "../../lib/modulos";
@@ -40,7 +40,7 @@ export function paginaEmCache(empresaId: number, completa = false): Pagina | nul
 }
 
 export async function buscarPagina(empresaId: number, completa = false): Promise<Pagina> {
-  const res = await fetch(`${base(empresaId)}/pagina${completa ? "?completa=true" : ""}`);
+  const res = await apiFetch(`${base(empresaId)}/pagina${completa ? "?completa=true" : ""}`);
   if (!res.ok) {
     if (res.status === 404) {
       try {
@@ -85,7 +85,7 @@ export function carregarHorarios(empresaId: number, servicoId: number, data: str
   const emAndamento = horariosPedidos.get(chave);
   if (emAndamento) return emAndamento; // já foi pedido (pré-busca): reaproveita a mesma resposta
   const pedido = (async () => {
-    const res = await fetch(`${base(empresaId)}/horarios?servicoId=${servicoId}&data=${data}`);
+    const res = await apiFetch(`${base(empresaId)}/horarios?servicoId=${servicoId}&data=${data}`);
     if (!res.ok) throw new Error(await mensagemDeErro(res, "Não foi possível buscar os horários. Tente novamente."));
     const horarios: string[] = await res.json();
     horariosGuardados.set(chave, { quando: Date.now(), horarios });
@@ -102,8 +102,13 @@ export function preBuscarHorarios(empresaId: number, servicoId: number, data: st
 }
 
 export async function confirmarAgendamento(empresaId: number, corpo: { servicoId: number; data: string; hora: string; nomeCliente: string; celular: string }) {
-  const res = await fetch(`${base(empresaId)}/agendamento`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
-  return { ok: res.ok, status: res.status, mensagem: res.ok ? null : await mensagemDeErro(res, "Não foi possível confirmar o agendamento.") };
+  try {
+    const res = await apiFetch(`${base(empresaId)}/agendamento`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+    return { ok: res.ok, status: res.status, mensagem: res.ok ? null : await mensagemDeErro(res, "Não foi possível confirmar o agendamento.") };
+  } catch (e) {
+    // Sem rede: nada foi enviado, então a cliente pode tocar de novo com segurança (os dados continuam na tela).
+    return { ok: false, status: 0, mensagem: e instanceof FalhaDeRede ? e.message : "Não foi possível confirmar o agendamento. Tente de novo." };
+  }
 }
 
 // Baixa a tabela de preços completa em PDF (gerado no celular da cliente; o servidor só entrega a lista).

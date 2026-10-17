@@ -7,7 +7,9 @@ import Modal from "../../_components/Modal";
 import PageHeader from "../../_components/PageHeader";
 import SearchInput from "../../_components/SearchInput";
 import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../../_components/ui";
+import { avisarPagamento } from "../../../lib/pagamentoOk";
 import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
+import { escolherEmpresa } from "../../../lib/empresaAtiva";
 
 interface Produto {
   id: number;
@@ -139,7 +141,7 @@ function VendasConteudo() {
       const empresas = await resEmpresas.json();
       if (empresas.length === 0) return;
 
-      const empresa = empresas[0];
+      const empresa = escolherEmpresa(empresas);
       setEmpresaId(empresa.id);
       setEmpresaNome(empresa.nome);
       setComandasHabilitadas(empresa.comandasHabilitadas ?? true);
@@ -334,6 +336,12 @@ function VendasConteudo() {
         );
       }
 
+      // Confirmação para o caixa: só depois que o servidor gravou. Venda no fiado sem entrada ainda não é pagamento.
+      const totalVenda = Number(data?.total ?? 0);
+      const recebido = totalVenda - Number(data?.saldoDevedor ?? 0);
+      if (formaPagamento === "Fiado" && recebido <= 0) avisarPagamento({ titulo: "Venda no fiado registrada", valor: totalVenda, detalhe: "Fica em Cobranças até receber." });
+      else avisarPagamento({ valor: recebido > 0 ? recebido : totalVenda || undefined, forma: formaPagamento });
+
       setCarrinho([]);
       setValorRecebido("");
       setParcelas("1");
@@ -400,6 +408,7 @@ function VendasConteudo() {
         return;
       }
 
+      avisarPagamento({ valor, forma: formaPagamentoQuitacao[vendaId] ?? "Pix", quem: vendas.find((v) => v.id === vendaId)?.clienteNome ?? undefined });
       setValorPagamento({ ...valorPagamento, [vendaId]: "" });
       await carregarTudo();
     } finally {

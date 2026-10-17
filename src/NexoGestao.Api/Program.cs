@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
+using NexoGestao.Api.Shared;
 using System.IO.Compression;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -52,8 +53,10 @@ builder.Services.AddResponseCompression(options =>
 builder.Services.Configure<BrotliCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
 builder.Services.Configure<GzipCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Conexão com o banco: acrescenta (sem sobrescrever o que já estiver na string) ajustes de estabilidade para o Neon,
+// que suspende o banco ocioso e derruba as conexões abertas. Ver ConexaoBanco.
+var conexaoPadrao = ConexaoBanco.Ajustar(builder.Configuration.GetConnectionString("DefaultConnection"));
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(conexaoPadrao));
 
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>();
@@ -164,7 +167,7 @@ var app = builder.Build();
 var conexaoMigracoes = builder.Configuration.GetConnectionString("Migracoes");
 if (!string.IsNullOrWhiteSpace(conexaoMigracoes))
 {
-    using var dbMigracao = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(conexaoMigracoes).Options);
+    using var dbMigracao = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(ConexaoBanco.Ajustar(conexaoMigracoes)).Options);
     dbMigracao.Database.Migrate();
 }
 else
@@ -192,6 +195,25 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 
 app.UseResponseCompression();
 
+// Falha de conexão com o banco (Neon acordando, rede oscilando): em vez de "erro 500" genérico, responde 503 com uma
+// mensagem clara e "Retry-After". As telas tentam de novo sozinhas nas leituras e mantêm o que a pessoa digitou.
+app.Use(async (contexto, proximo) =>
+{
+    try
+    {
+        await proximo();
+    }
+    catch (Exception ex) when (ConexaoBanco.EhFalhaDeConexao(ex) && !contexto.Response.HasStarted)
+    {
+        app.Logger.LogWarning(ex, "Falha de conexão com o banco em {Metodo} {Caminho}", contexto.Request.Method, contexto.Request.Path);
+        contexto.Response.Clear();
+        contexto.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+        contexto.Response.Headers.RetryAfter = "3";
+        contexto.Response.ContentType = "application/json";
+        await contexto.Response.WriteAsync("{\"mensagem\":\"O servidor está se reconectando ao banco de dados. Tente de novo em alguns segundos. O que você digitou não foi perdido.\"}");
+    }
+});
+
 app.UseHttpsRedirection();
 
 app.UseCors("PermitirFrontend");
@@ -202,5 +224,21 @@ app.UseRateLimiter();
 
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok("ok"));
+
+// Saúde "de verdade": faz uma consulta mínima ao banco e mede o tempo. Serve para monitorar (ex.: um verificador de
+// disponibilidade gratuito) e para conferir a conexão servidor-banco depois de qualquer troca de configuração.
+app.MapGet("/health/db", async (AppDbContext db, CancellationToken ct) =>
+{
+    var relogio = System.Diagnostics.Stopwatch.StartNew();
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync("SELECT 1", ct);
+        return Results.Ok(new { banco = "ok", ms = relogio.ElapsedMilliseconds });
+    }
+    catch (Exception ex) when (ConexaoBanco.EhFalhaDeConexao(ex) || ex is OperationCanceledException)
+    {
+        return Results.Json(new { banco = "indisponivel", ms = relogio.ElapsedMilliseconds }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
 
 app.Run();

@@ -35,7 +35,7 @@ export default function Stories({
   const [aviso, setAviso] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
 
-  const ehDono = empresa?.papel === "Dono";
+  const ehDono = !!empresa?.podeAdministrar; // Dono da loja ou administradora máster
   const link = empresa && typeof window !== "undefined" ? `${window.location.origin}/agendar/${empresa.id}` : "";
 
   // A foto de uma novidade no ar é pública (os clientes a veem), então o endereço dela é o público.

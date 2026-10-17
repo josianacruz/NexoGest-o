@@ -41,8 +41,19 @@ public abstract class TenantControllerBase : ControllerBase
 
     // Toda a decisão sai de UMA consulta (antes eram até três idas ao banco em cada chamada da API, e esta checagem
     // roda em praticamente todas): pertence à empresa? é Dono? a empresa tem módulos configurados? o módulo está ligado?
+    // Administrador máster (Admin:Emails): acesso a qualquer empresa, a todos os módulos, como Dono — para testes e suporte.
+    protected bool EhAdminMaster => AdminMaster.Eh(User, HttpContext?.RequestServices?.GetService<IConfiguration>());
+
     private async Task<int?> AutorizarAsync(int empresaIdSolicitada, Modulo? moduloRequerido, bool soDono)
     {
+        if (EhAdminMaster)
+        {
+            if (!await Context.Empresas.AnyAsync(e => e.Id == empresaIdSolicitada))
+                return null;
+            Context.EmpresaAtualId = empresaIdSolicitada;
+            return empresaIdSolicitada;
+        }
+
         var usuario = UsuarioId;
         var exigeModulo = moduloRequerido is not null;
         var modulo = moduloRequerido ?? default;

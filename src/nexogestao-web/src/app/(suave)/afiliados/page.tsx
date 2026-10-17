@@ -8,6 +8,7 @@ import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, car
 import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
 import WorkerPanel from "./WorkerPanel";
 import RadarPanel from "./RadarPanel";
+import { escolherEmpresa } from "../../../lib/empresaAtiva";
 
 interface Conteudo {
   id: number;
@@ -274,7 +275,7 @@ export default function AfiliadosPage() {
         setErro("Você ainda não tem nenhuma empresa cadastrada.");
         return;
       }
-      const primeiraEmpresa = empresas[0];
+      const primeiraEmpresa = escolherEmpresa(empresas);
       setEmpresaId(primeiraEmpresa.id);
       setEmpresaNome(primeiraEmpresa.nome);
 

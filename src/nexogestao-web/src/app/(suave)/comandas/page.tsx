@@ -7,7 +7,9 @@ import Drawer from "../../_components/Drawer";
 import PageHeader from "../../_components/PageHeader";
 import SearchInput from "../../_components/SearchInput";
 import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, botaoPerigo, cardStyle } from "../../_components/ui";
+import { avisarPagamento } from "../../../lib/pagamentoOk";
 import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
+import { escolherEmpresa } from "../../../lib/empresaAtiva";
 
 interface Produto {
   id: number;
@@ -90,7 +92,7 @@ export default function ComandasPage() {
       const empresas = await resEmpresas.json();
       if (empresas.length === 0) return;
 
-      const empresa = empresas[0];
+      const empresa = escolherEmpresa(empresas);
       setEmpresaId(empresa.id);
       setEmpresaNome(empresa.nome);
       setComandasHabilitadas(empresa.comandasHabilitadas ?? true);
@@ -329,6 +331,12 @@ export default function ComandasPage() {
         setErro(await mensagemDeErro(res, "Não foi possível fechar a comanda."));
         return;
       }
+
+      const data = await res.json().catch(() => null);
+      const totalComanda = Number(data?.total ?? 0);
+      const recebido = totalComanda - Number(data?.saldoDevedor ?? 0);
+      if (formaPagamento === "Fiado" && recebido <= 0) avisarPagamento({ titulo: "Comanda no fiado registrada", valor: totalComanda, detalhe: "Fica em Cobranças até receber." });
+      else avisarPagamento({ valor: recebido > 0 ? recebido : totalComanda || undefined, forma: formaPagamento });
 
       fecharDrawer();
       await carregarTudo();

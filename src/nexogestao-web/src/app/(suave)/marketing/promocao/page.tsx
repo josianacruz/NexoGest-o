@@ -7,6 +7,7 @@ import PageHeader from "../../../_components/PageHeader";
 import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, cardStyle, ARTE_COR_BASE } from "../../../_components/ui";
 import { API_URL } from "../../../../lib/api";
 import { temModulo } from "../../../../lib/modulos";
+import { escolherEmpresa } from "../../../../lib/empresaAtiva";
 
 interface Produto {
   id: number;
@@ -104,14 +105,14 @@ export default function CriarPromocaoPage() {
       }
       const empresas = await resEmpresas.json();
       if (empresas.length === 0) return;
-      setEmpresaNome(empresas[0].nome);
-      setComandasHabilitadas(empresas[0].comandasHabilitadas ?? true);
+      setEmpresaNome(escolherEmpresa(empresas).nome);
+      setComandasHabilitadas(escolherEmpresa(empresas).comandasHabilitadas ?? true);
 
-      const usaProdutos = temModulo(empresas[0].modulos ?? [], "Produtos");
+      const usaProdutos = temModulo(escolherEmpresa(empresas).modulos ?? [], "Produtos");
       setTemProdutos(usaProdutos);
 
       const resItens = await fetch(
-        `${API_URL}/api/empresas/${empresas[0].id}/${usaProdutos ? "produtos" : "servicos"}`,
+        `${API_URL}/api/empresas/${escolherEmpresa(empresas).id}/${usaProdutos ? "produtos" : "servicos"}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setProdutos(await resItens.json());

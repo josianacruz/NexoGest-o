@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Nav from "../../_components/Nav";
-import Modal from "../../_components/Modal";
-import PageHeader from "../../_components/PageHeader";
-import { inputStyle, labelStyle, botaoPrimario, botaoTexto, cardStyle } from "../../_components/ui";
-import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
+import { useCallback, useEffect, useState } from "react";
+import { MODULO_INDISPONIVEL_MSG, moduloIndisponivel, textoDoErro } from "../../../lib/api";
+import { apagarRascunho, lerRascunho, useRascunho } from "../../../lib/rascunho";
+import { useEmpresa } from "../../_suave/EmpresaContext";
+import Folha from "../../_suave/Folha";
+import { SUAVE, brl } from "../../_suave/tokens";
 
 interface Servico {
   id: number;
@@ -16,271 +15,251 @@ interface Servico {
   permiteAutoagendamento: boolean;
 }
 
-async function mensagemDeErro(res: Response, padrao: string) {
-  const data = await res.json().catch(() => null);
-  return data?.mensagem ?? padrao;
+interface Form {
+  nome: string;
+  duracao: string;
+  preco: string;
+  online: boolean;
 }
 
-const formVazio = { nome: "", duracaoMinutos: "30", preco: "", permiteAutoagendamento: false };
+const formVazio: Form = { nome: "", duracao: "30", preco: "", online: true };
+const DURACOES = [15, 30, 45, 60, 90, 120];
+const CHAVE_NOVO = "servico-novo";
 
+async function mensagemDeErro(res: Response, padrao: string) {
+  const d = await res.json().catch(() => null);
+  return d?.mensagem ?? padrao;
+}
+
+const numero = (t: string) => Number(t.replace(",", "."));
+
+// Cadastro de serviços: cartões (nada de tabela larga no celular), formulário em janela que sobe de baixo,
+// rascunho automático e mensagens claras quando a internet falha.
 export default function ServicosPage() {
-  const [empresaId, setEmpresaId] = useState<number | null>(null);
-  const [empresaNome, setEmpresaNome] = useState("");
-  const [comandasHabilitadas, setComandasHabilitadas] = useState(true);
+  const { empresa, api } = useEmpresa();
   const [servicos, setServicos] = useState<Servico[]>([]);
-  const [erro, setErro] = useState<string | null>(null);
-  const [salvando, setSalvando] = useState(false);
   const [carregando, setCarregando] = useState(true);
-  const [modalAberto, setModalAberto] = useState<"novo" | "editar" | null>(null);
-  const [servicoEditando, setServicoEditando] = useState<Servico | null>(null);
-  const [form, setForm] = useState(formVazio);
-  const router = useRouter();
+  const [erroGeral, setErroGeral] = useState<string | null>(null);
 
-  function getToken() {
-    return typeof window !== "undefined" ? localStorage.getItem("nexo_token") : null;
-  }
+  const [aberto, setAberto] = useState<"novo" | Servico | null>(null);
+  const [form, setForm] = useState<Form>(formVazio);
+  const [recuperado, setRecuperado] = useState(false);
+  const [erroForm, setErroForm] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const [removendo, setRemovendo] = useState<Servico | null>(null);
 
-  async function carregarTudo() {
-    const token = getToken();
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+  const chaveRascunho = aberto === "novo" ? CHAVE_NOVO : aberto ? `servico-${aberto.id}` : CHAVE_NOVO;
+  useRascunho(chaveRascunho, form, aberto !== null, (f) => aberto === "novo" ? !f.nome.trim() && !f.preco.trim() : false);
 
+  const carregar = useCallback(async () => {
     try {
-      const resEmpresas = await fetch(`${API_URL}/api/empresas/minhas`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (resEmpresas.status === 401) {
-        router.push("/login");
-        return;
-      }
-      const empresas = await resEmpresas.json();
-      if (empresas.length === 0) {
-        setErro("Você ainda não tem nenhuma empresa cadastrada.");
-        return;
-      }
-      const empresa = empresas[0];
-      setEmpresaId(empresa.id);
-      setEmpresaNome(empresa.nome);
-      setComandasHabilitadas(empresa.comandasHabilitadas ?? true);
-
-      const resServicos = await fetch(`${API_URL}/api/empresas/${empresa.id}/servicos`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (moduloIndisponivel(resServicos)) {
-        setErro(MODULO_INDISPONIVEL_MSG);
-        return;
-      }
-      setServicos(await resServicos.json());
+      const res = await api("/servicos");
+      if (moduloIndisponivel(res)) setErroGeral(MODULO_INDISPONIVEL_MSG);
+      else if (res.ok) {
+        setServicos(await res.json());
+        setErroGeral(null);
+      } else setErroGeral("Não consegui carregar os serviços. Tente de novo.");
+    } catch (e) {
+      setErroGeral(textoDoErro(e, "Não consegui carregar os serviços."));
     } finally {
       setCarregando(false);
     }
-  }
+  }, [api]);
 
   useEffect(() => {
-    carregarTudo();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (empresa) carregar();
+  }, [empresa?.id]);
 
   function abrirNovo() {
-    setErro(null);
-    setForm(formVazio);
-    setModalAberto("novo");
+    setErroForm(null);
+    const r = lerRascunho<Form>(CHAVE_NOVO);
+    setForm(r ?? formVazio);
+    setRecuperado(!!r);
+    setAberto("novo");
   }
 
   function abrirEdicao(s: Servico) {
-    setErro(null);
-    setServicoEditando(s);
-    setForm({
-      nome: s.nome,
-      duracaoMinutos: String(s.duracaoMinutos),
-      preco: String(s.preco),
-      permiteAutoagendamento: s.permiteAutoagendamento,
-    });
-    setModalAberto("editar");
+    setErroForm(null);
+    const r = lerRascunho<Form>(`servico-${s.id}`);
+    setForm(r ?? { nome: s.nome, duracao: String(s.duracaoMinutos), preco: String(s.preco).replace(".", ","), online: s.permiteAutoagendamento });
+    setRecuperado(!!r);
+    setAberto(s);
   }
 
-  function fecharModal() {
-    setModalAberto(null);
-    setServicoEditando(null);
+  function descartarRascunho() {
+    apagarRascunho(chaveRascunho);
+    setRecuperado(false);
+    if (aberto === "novo") setForm(formVazio);
+    else if (aberto) setForm({ nome: aberto.nome, duracao: String(aberto.duracaoMinutos), preco: String(aberto.preco).replace(".", ","), online: aberto.permiteAutoagendamento });
   }
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
-    if (salvando || !empresaId) return;
-    const token = getToken();
-    if (!token) return;
-
-    const editando = modalAberto === "editar" && servicoEditando;
-    const url = editando
-      ? `${API_URL}/api/empresas/${empresaId}/servicos/${servicoEditando!.id}`
-      : `${API_URL}/api/empresas/${empresaId}/servicos`;
+    if (salvando || !aberto) return;
+    const duracao = Math.round(numero(form.duracao));
+    const preco = numero(form.preco);
+    if (form.nome.trim().length < 2) return setErroForm("Escreva o nome do serviço.");
+    if (!Number.isFinite(duracao) || duracao < 5 || duracao > 600) return setErroForm("A duração precisa ser entre 5 e 600 minutos.");
+    if (!Number.isFinite(preco) || preco < 0) return setErroForm("Confira o preço.");
 
     setSalvando(true);
+    setErroForm(null);
     try {
-      const res = await fetch(url, {
+      const editando = aberto !== "novo";
+      const res = await api(editando ? `/servicos/${(aberto as Servico).id}` : "/servicos", {
         method: editando ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          nome: form.nome,
-          duracaoMinutos: Number(form.duracaoMinutos),
-          preco: Number(form.preco),
-          permiteAutoagendamento: form.permiteAutoagendamento,
-        }),
+        body: JSON.stringify({ nome: form.nome.trim(), duracaoMinutos: duracao, preco, permiteAutoagendamento: form.online }),
       });
-
       if (!res.ok) {
-        setErro(await mensagemDeErro(res, "Não foi possível salvar o serviço."));
+        setErroForm(await mensagemDeErro(res, "Não foi possível salvar o serviço."));
         return;
       }
-
-      fecharModal();
-      await carregarTudo();
+      apagarRascunho(chaveRascunho); // salvou: o rascunho não é mais necessário
+      setAberto(null);
+      await carregar();
+    } catch (err) {
+      setErroForm(textoDoErro(err, "Não foi possível salvar o serviço. Tente de novo."));
     } finally {
       setSalvando(false);
     }
   }
 
-  async function remover(servico: Servico) {
-    if (salvando || !empresaId) return;
-    if (!window.confirm(`Remover o serviço "${servico.nome}"?`)) return;
-    const token = getToken();
-    if (!token) return;
-
+  async function remover() {
+    if (!removendo || salvando) return;
     setSalvando(true);
     try {
-      const res = await fetch(`${API_URL}/api/empresas/${empresaId}/servicos/${servico.id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api(`/servicos/${removendo.id}`, { method: "DELETE" });
       if (!res.ok) {
-        setErro(await mensagemDeErro(res, "Não foi possível remover o serviço."));
-        return;
+        setErroGeral(await mensagemDeErro(res, "Não foi possível remover o serviço."));
+      } else {
+        setRemovendo(null);
+        await carregar();
       }
-      await carregarTudo();
+    } catch (err) {
+      setErroGeral(textoDoErro(err, "Não foi possível remover o serviço."));
     } finally {
       setSalvando(false);
     }
   }
+
+  if (!empresa) return null;
 
   return (
-    <>
-      <Nav empresaNome={empresaNome} comandasHabilitadas={comandasHabilitadas} />
-      <main className="max-w-5xl mx-auto px-4 sm:px-5 py-8 w-full min-w-0">
-        <PageHeader
-          titulo="Serviços"
-          acao={
-            <button onClick={abrirNovo} className={botaoPrimario}>
-              + Novo serviço
-            </button>
-          }
-        />
-
-        {erro && !modalAberto && <p className="text-sm text-red-600 mb-4">{erro}</p>}
-
-        <div className={`${cardStyle} overflow-x-auto`}>
-          <table className="w-full text-sm min-w-[480px]">
-            <thead>
-              <tr className="text-left text-black/60 dark:text-white/60 border-b border-black/10 dark:border-white/10">
-                <th className="py-2.5 px-4 font-medium">Nome</th>
-                <th className="py-2.5 px-4 font-medium">Duração</th>
-                <th className="py-2.5 px-4 font-medium">Preço</th>
-                <th className="py-2.5 px-4 font-medium">Autoagendamento</th>
-                <th className="py-2.5 px-4 font-medium text-center">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {servicos.map((s) => (
-                <tr key={s.id} className="border-b border-black/5 dark:border-white/5 last:border-0">
-                  <td className="py-2.5 px-4">{s.nome}</td>
-                  <td className="py-2.5 px-4">{s.duracaoMinutos} min</td>
-                  <td className="py-2.5 px-4">R$ {s.preco.toFixed(2)}</td>
-                  <td className="py-2.5 px-4">{s.permiteAutoagendamento ? "Sim" : "Não"}</td>
-                  <td className="py-2.5 px-4 text-center">
-                    <div className="flex items-center justify-center gap-3">
-                      <button onClick={() => abrirEdicao(s)} className={botaoTexto}>
-                        Editar
-                      </button>
-                      <button onClick={() => remover(s)} className="text-red-600 hover:underline text-sm font-medium">
-                        Remover
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {servicos.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-6 px-4 text-center text-black/60 dark:text-white/55">
-                    {carregando ? "Carregando..." : "Nenhum serviço cadastrado."}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+    <main className="mx-auto w-full max-w-5xl space-y-5 px-4 py-6 sm:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Serviços</h1>
+          <p className={`text-sm ${SUAVE.textoSuave}`}>{carregando ? "Carregando…" : `${servicos.length} ${servicos.length === 1 ? "serviço" : "serviços"}`}</p>
         </div>
-      </main>
+        <button type="button" onClick={abrirNovo} className={SUAVE.botaoPrimario}>
+          + Novo serviço
+        </button>
+      </div>
 
-      {modalAberto && (
-        <Modal
-          titulo={modalAberto === "novo" ? "Novo serviço" : `Editar ${servicoEditando?.nome}`}
-          onFechar={fecharModal}
-        >
-          <form onSubmit={salvar} className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <label className={labelStyle}>Nome</label>
-              <input
-                value={form.nome}
-                onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                required
-                autoFocus
-                className={inputStyle}
-              />
+      {erroGeral && (
+        <p role="alert" className={`rounded-2xl p-3 text-sm ${SUAVE.seloErro}`}>
+          {erroGeral}
+        </p>
+      )}
+
+      {!carregando && !erroGeral && servicos.length === 0 && <p className={`${SUAVE.cartao} p-5 text-sm ${SUAVE.textoSuave}`}>Nenhum serviço ainda. Toque em “+ Novo serviço” para cadastrar o primeiro.</p>}
+
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {servicos.map((s) => (
+          <li key={s.id} className={`${SUAVE.cartaoClicavel} flex min-w-0 flex-col gap-3 p-4`}>
+            <div className="min-w-0">
+              <p className="break-words font-semibold">{s.nome}</p>
+              <p className={`text-sm ${SUAVE.textoSuave}`}>
+                {s.duracaoMinutos} min · {brl(s.preco)}
+              </p>
             </div>
-            <div className="flex gap-3">
-              <div className="flex flex-col gap-1 flex-1">
-                <label className={labelStyle}>Duração (minutos)</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={form.duracaoMinutos}
-                  onChange={(e) => setForm({ ...form, duracaoMinutos: e.target.value })}
-                  required
-                  className={inputStyle}
-                />
-              </div>
-              <div className="flex flex-col gap-1 flex-1">
-                <label className={labelStyle}>Preço</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={form.preco}
-                  onChange={(e) => setForm({ ...form, preco: e.target.value })}
-                  required
-                  className={inputStyle}
-                />
-              </div>
+            <span className={`${SUAVE.selo} w-fit ${s.permiteAutoagendamento ? SUAVE.seloInfo : SUAVE.seloNeutro}`}>{s.permiteAutoagendamento ? "Agenda online" : "Só no painel"}</span>
+            <div className="mt-auto flex gap-2">
+              <button type="button" onClick={() => abrirEdicao(s)} className={`${SUAVE.botaoSecundario} flex-1 !py-2.5`}>
+                Editar
+              </button>
+              <button type="button" onClick={() => setRemovendo(s)} className={`${SUAVE.botaoSecundario} !py-2.5`} aria-label={`Remover ${s.nome}`}>
+                Remover
+              </button>
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.permiteAutoagendamento}
-                onChange={(e) => setForm({ ...form, permiteAutoagendamento: e.target.checked })}
-              />
-              Permitir autoagendamento
+          </li>
+        ))}
+      </ul>
+
+      {aberto && (
+        <Folha titulo={aberto === "novo" ? "Novo serviço" : `Editar ${aberto.nome}`} aoFechar={() => setAberto(null)}>
+          <form onSubmit={salvar} className="grid gap-4">
+            {recuperado && (
+              <div className={`flex flex-wrap items-center gap-2 rounded-2xl p-3 text-sm ${SUAVE.seloInfo}`}>
+                <span className="flex-1">Recuperamos o que você tinha digitado.</span>
+                <button type="button" onClick={descartarRascunho} className="font-bold underline">
+                  Começar do zero
+                </button>
+              </div>
+            )}
+            <div>
+              <label htmlFor="srv-nome" className={SUAVE.rotulo}>
+                Nome do serviço
+              </label>
+              <input id="srv-nome" className={SUAVE.campo} value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} maxLength={80} placeholder="Ex.: Escova + hidratação" autoFocus autoComplete="off" />
+            </div>
+
+            <fieldset>
+              <legend className={SUAVE.rotulo}>Duração</legend>
+              <div className="flex flex-wrap gap-2">
+                {DURACOES.map((d) => (
+                  <button key={d} type="button" aria-pressed={form.duracao === String(d)} onClick={() => setForm({ ...form, duracao: String(d) })} className={form.duracao === String(d) ? SUAVE.chipAtivo : SUAVE.chip}>
+                    {d} min
+                  </button>
+                ))}
+              </div>
+              <input aria-label="Duração em minutos" className={`${SUAVE.campo} mt-2 !w-36`} inputMode="numeric" value={form.duracao} onChange={(e) => setForm({ ...form, duracao: e.target.value.replace(/\D/g, "").slice(0, 3) })} placeholder="Outro valor" />
+            </fieldset>
+
+            <div>
+              <label htmlFor="srv-preco" className={SUAVE.rotulo}>
+                Preço (R$)
+              </label>
+              <input id="srv-preco" className={SUAVE.campo} inputMode="decimal" value={form.preco} onChange={(e) => setForm({ ...form, preco: e.target.value.replace(/[^\d,.]/g, "") })} placeholder="80,00" autoComplete="off" />
+            </div>
+
+            <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl bg-slate-50 p-3 text-sm dark:bg-slate-900/40">
+              <input type="checkbox" className="h-6 w-6 shrink-0 accent-violet-500" checked={form.online} onChange={(e) => setForm({ ...form, online: e.target.checked })} />
+              <span>
+                <span className="block font-semibold">As clientes podem agendar pelo link</span>
+                <span className={`block text-xs ${SUAVE.textoSuave}`}>Desmarque para serviços que você só marca pelo painel.</span>
+              </span>
             </label>
-            {erro && <p className="text-sm text-red-600">{erro}</p>}
-            <div className="flex justify-end gap-2 mt-1">
-              <button type="button" onClick={fecharModal} className="h-10 px-3 text-sm rounded-lg hover:bg-black/5 dark:hover:bg-white/10">
+
+            {erroForm && (
+              <p role="alert" className={`rounded-2xl p-3 text-sm ${SUAVE.seloErro}`}>
+                {erroForm}
+              </p>
+            )}
+            <button type="submit" disabled={salvando} className={SUAVE.botaoPrimario}>
+              {salvando ? "Salvando…" : "Salvar serviço"}
+            </button>
+          </form>
+        </Folha>
+      )}
+
+      {removendo && (
+        <Folha titulo="Remover serviço?" aoFechar={() => setRemovendo(null)}>
+          <div className="grid gap-4">
+            <p className={`text-sm ${SUAVE.textoSuave}`}>
+              “{removendo.nome}” deixa de aparecer na agenda e no link das clientes. Os agendamentos que já existem continuam no histórico.
+            </p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setRemovendo(null)} className={`${SUAVE.botaoSecundario} flex-1`}>
                 Cancelar
               </button>
-              <button type="submit" disabled={salvando} className={botaoPrimario}>
-                {salvando ? "Salvando..." : "Salvar serviço"}
+              <button type="button" onClick={remover} disabled={salvando} className={`${SUAVE.botaoPrimario} flex-1`}>
+                {salvando ? "Removendo…" : "Remover"}
               </button>
             </div>
-          </form>
-        </Modal>
+          </div>
+        </Folha>
       )}
-    </>
+    </main>
   );
 }

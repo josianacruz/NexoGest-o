@@ -6,6 +6,7 @@ import Nav from "../../../_components/Nav";
 import PageHeader from "../../../_components/PageHeader";
 import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle, ARTE_COR_BASE } from "../../../_components/ui";
 import { API_URL } from "../../../../lib/api";
+import { escolherEmpresa } from "../../../../lib/empresaAtiva";
 
 function formatarDataBr(data: string) {
   if (!data) return "";
@@ -228,9 +229,9 @@ function DivulgarHorarioConteudo() {
       }
       const empresas = await resEmpresas.json();
       if (empresas.length === 0) return;
-      setEmpresaId(empresas[0].id);
-      setEmpresaNome(empresas[0].nome);
-      setComandasHabilitadas(empresas[0].comandasHabilitadas ?? true);
+      setEmpresaId(escolherEmpresa(empresas).id);
+      setEmpresaNome(escolherEmpresa(empresas).nome);
+      setComandasHabilitadas(escolherEmpresa(empresas).comandasHabilitadas ?? true);
     })();
   }, [router]);
 

@@ -31,7 +31,7 @@ export const SUAVE = {
 
   // Campos
   campo:
-    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-4 focus:ring-violet-200/60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-violet-400/20",
+    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base sm:text-sm text-slate-800 placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-4 focus:ring-violet-200/60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-violet-400/20",
   rotulo: "mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300",
 
   // Opções em formato de pastilha (cliente, serviço, dia, horário)

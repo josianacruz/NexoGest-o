@@ -7,6 +7,7 @@ import Modal from "../../_components/Modal";
 import PageHeader from "../../_components/PageHeader";
 import { inputStyle, labelStyle, botaoSecundario, cardStyle } from "../../_components/ui";
 import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
+import { escolherEmpresa } from "../../../lib/empresaAtiva";
 
 type Periodo = "hoje" | "semana" | "mes" | "personalizado";
 
@@ -126,7 +127,7 @@ export default function RelatoriosPage() {
       const empresas = await resEmpresas.json();
       if (empresas.length === 0) return;
 
-      const empresa = empresas[0];
+      const empresa = escolherEmpresa(empresas);
       setEmpresaId(empresa.id);
       setEmpresaNome(empresa.nome);
       setComandasHabilitadas(empresa.comandasHabilitadas ?? true);

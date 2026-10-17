@@ -6,6 +6,7 @@ import Nav from "../../_components/Nav";
 import PageHeader from "../../_components/PageHeader";
 import { cardStyle } from "../../_components/ui";
 import { API_URL } from "../../../lib/api";
+import { escolherEmpresa } from "../../../lib/empresaAtiva";
 
 interface Notificacao {
   id: number;
@@ -46,11 +47,11 @@ export default function NotificacoesPage() {
       }
       const empresas = await resEmpresas.json();
       if (empresas.length === 0) return;
-      setEmpresaId(empresas[0].id);
-      setEmpresaNome(empresas[0].nome);
-      setComandasHabilitadas(empresas[0].comandasHabilitadas ?? true);
+      setEmpresaId(escolherEmpresa(empresas).id);
+      setEmpresaNome(escolherEmpresa(empresas).nome);
+      setComandasHabilitadas(escolherEmpresa(empresas).comandasHabilitadas ?? true);
 
-      const resNotificacoes = await fetch(`${API_URL}/api/empresas/${empresas[0].id}/notificacoes`, {
+      const resNotificacoes = await fetch(`${API_URL}/api/empresas/${escolherEmpresa(empresas).id}/notificacoes`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (resNotificacoes.ok) setNotificacoes(await resNotificacoes.json());

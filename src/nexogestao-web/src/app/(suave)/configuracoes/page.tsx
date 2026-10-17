@@ -9,6 +9,7 @@ import { inputStyle, labelStyle, botaoPrimario, cardStyle } from "../../_compone
 import { API_URL } from "../../../lib/api";
 import { separarNomeEslogan } from "../../../lib/modulos";
 import { NICHOS, type Nicho } from "../../_suave/CamposDoNicho";
+import { escolherEmpresa } from "../../../lib/empresaAtiva";
 
 // 5511912345678 → (11) 91234-5678 (só para mostrar; a API guarda os dígitos)
 function formatarZap(digitos: string) {
@@ -67,11 +68,11 @@ export default function ConfiguracoesPage() {
           setErro("Você ainda não tem nenhuma empresa cadastrada.");
           return;
         }
-        const e = empresas[0];
+        const e = escolherEmpresa(empresas);
         setEmpresaId(e.id);
         setEmpresaNome(e.nome);
         setComandasHabilitadas(e.comandasHabilitadas ?? true);
-        setPapel(e.papel ?? "");
+        setPapel(e.ehAdmin ? "Dono" : (e.papel ?? "")); // administradora máster edita como Dono
         setNicho((e.nicho as Nicho) ?? "Outros");
         setWhatsapp(formatarZap(e.whatsapp ?? ""));
         setWhatsappSalvo(e.whatsapp ?? "");

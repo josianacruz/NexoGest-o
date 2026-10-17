@@ -6,8 +6,10 @@ import Nav from "../../_components/Nav";
 import Modal from "../../_components/Modal";
 import PageHeader from "../../_components/PageHeader";
 import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle } from "../../_components/ui";
+import { avisarPagamento } from "../../../lib/pagamentoOk";
 import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
 import { abrirWhatsApp, mensagemLembreteVencimento, mensagemCobrancaVencida } from "../../../lib/whatsapp";
+import { escolherEmpresa } from "../../../lib/empresaAtiva";
 
 const FORMAS_PAGAMENTO = [
   { valor: "Pix", label: "PIX" },
@@ -96,7 +98,7 @@ export default function CobrancasPage() {
       const empresas = await resEmpresas.json();
       if (empresas.length === 0) return;
 
-      const empresa = empresas[0];
+      const empresa = escolherEmpresa(empresas);
       setEmpresaId(empresa.id);
       setEmpresaNome(empresa.nome);
       setComandasHabilitadas(empresa.comandasHabilitadas ?? true);
@@ -178,6 +180,7 @@ export default function CobrancasPage() {
         return;
       }
 
+      avisarPagamento({ valor, forma: formaPagamentoModal, quem: contaPagamento.clienteNome });
       setContaPagamento(null);
       await carregarTudo(filtro);
     } finally {

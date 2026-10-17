@@ -8,6 +8,7 @@ import PageHeader from "../../_components/PageHeader";
 import { botaoSecundario, botaoPrimario, cardStyle, labelStyle } from "../../_components/ui";
 import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
 import { abrirWhatsApp, mensagemInteresseProduto } from "../../../lib/whatsapp";
+import { escolherEmpresa } from "../../../lib/empresaAtiva";
 
 interface VendaResumo {
   id: number;
@@ -102,11 +103,11 @@ export default function InteressesPage() {
         setErro("Você ainda não tem nenhuma empresa cadastrada.");
         return;
       }
-      setEmpresaId(empresas[0].id);
-      setEmpresaNome(empresas[0].nome);
-      setComandasHabilitadas(empresas[0].comandasHabilitadas ?? true);
+      setEmpresaId(escolherEmpresa(empresas).id);
+      setEmpresaNome(escolherEmpresa(empresas).nome);
+      setComandasHabilitadas(escolherEmpresa(empresas).comandasHabilitadas ?? true);
 
-      const url = `${API_URL}/api/empresas/${empresas[0].id}/interesses${status ? `?status=${status}` : ""}`;
+      const url = `${API_URL}/api/empresas/${escolherEmpresa(empresas).id}/interesses${status ? `?status=${status}` : ""}`;
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (moduloIndisponivel(res)) {
         setErro(MODULO_INDISPONIVEL_MSG);

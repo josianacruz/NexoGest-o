@@ -1,87 +1,146 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { API_URL } from "../../lib/api";
+import { API_URL, apiFetch, textoDoErro } from "../../lib/api";
 import ThemeToggle from "../_components/ThemeToggle";
+import AvisoDeConexao from "../_components/AvisoDeConexao";
+import { SUAVE } from "../_suave/tokens";
+
+const CHAVE_EMAIL = "nexo_email_lembrado"; // só o e-mail fica neste aparelho; a senha nunca é guardada pelo sistema
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [lembrar, setLembrar] = useState(true);
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
   const router = useRouter();
 
-  async function handleSubmit(e: React.FormEvent) {
+  // Já preenche o e-mail de quem entrou antes neste aparelho.
+  useEffect(() => {
+    try {
+      const salvo = localStorage.getItem(CHAVE_EMAIL);
+      if (salvo) setEmail(salvo);
+    } catch {
+      /* sem armazenamento: digita */
+    }
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (carregando) return;
     setErro(null);
     setCarregando(true);
     try {
-      const res = await fetch(`${API_URL}/api/auth/login`, {
+      const res = await apiFetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, senha }),
+        body: JSON.stringify({ email: email.trim(), senha }),
       });
-      if (!res.ok) {
-        throw new Error("Email ou senha inválidos.");
-      }
+      if (res.status === 429) throw new Error("Muitas tentativas. Aguarde um instante e tente de novo.");
+      if (!res.ok) throw new Error("E-mail ou senha inválidos.");
       const data = await res.json();
       localStorage.setItem("nexo_token", data.token);
+      try {
+        if (lembrar) localStorage.setItem(CHAVE_EMAIL, email.trim());
+        else localStorage.removeItem(CHAVE_EMAIL);
+      } catch {
+        /* ignora */
+      }
+
+      // Pede ao navegador/gerenciador de senhas do aparelho para oferecer "Salvar senha?". O sistema não guarda a senha:
+      // quem guarda (e protege) é o próprio celular. Em navegadores sem essa função, o aviso normal do navegador aparece
+      // porque o formulário está identificado como login (autocomplete username/current-password).
+      try {
+        const W = window as unknown as { PasswordCredential?: new (d: { id: string; password: string; name?: string }) => Credential };
+        if (W.PasswordCredential && navigator.credentials?.store) {
+          await navigator.credentials.store(new W.PasswordCredential({ id: email.trim(), password: senha, name: email.trim() }));
+        }
+      } catch {
+        /* a pessoa recusou ou o navegador não suporta: segue o login */
+      }
       router.push("/inicio");
-    } catch (err: any) {
-      setErro(err.message);
+    } catch (err) {
+      setErro(textoDoErro(err, err instanceof Error ? err.message : "Não foi possível entrar. Tente de novo."));
     } finally {
       setCarregando(false);
     }
   }
 
   return (
-    <main className="relative min-h-screen flex items-center justify-center px-4">
-      <ThemeToggle className="absolute top-4 right-4" />
-      <div className="w-full max-w-sm bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-8 shadow-sm">
-        <h1 className="text-xl font-semibold tracking-tight mb-1">NexoGestão</h1>
-        <p className="text-sm text-black/60 dark:text-white/60 mb-6">Entre para continuar</p>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value.toLowerCase())}
-              required
-              className="px-3 py-2 rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-black/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">Senha</label>
-            <div className="relative">
+    <main className={`relative min-h-dvh ${SUAVE.pagina}`}>
+      <AvisoDeConexao />
+      <ThemeToggle suave className="absolute right-4 top-4" />
+      <div className="flex min-h-dvh items-center justify-center px-4 py-10">
+        <div className={`${SUAVE.cartao} w-full max-w-sm p-7`}>
+          <h1 className="text-2xl font-bold tracking-tight">NexoGestão</h1>
+          <p className={`mb-6 mt-1 text-sm ${SUAVE.textoSuave}`}>Entre para continuar</p>
+
+          {/* name/id/autoComplete + method=post: é o que faz o navegador reconhecer o login e oferecer para guardar a senha */}
+          <form onSubmit={handleSubmit} method="post" action="#" className="grid gap-4" autoComplete="on">
+            <div>
+              <label htmlFor="email" className={SUAVE.rotulo}>
+                E-mail
+              </label>
               <input
-                type={mostrarSenha ? "text" : "password"}
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
+                id="email"
+                name="email"
+                type="email"
+                inputMode="email"
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                value={email}
+                onChange={(e) => setEmail(e.target.value.toLowerCase())}
                 required
-                className="w-full px-3 py-2 pr-10 rounded-md border border-black/15 dark:border-white/15 bg-white dark:bg-black/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className={SUAVE.campo}
               />
-              <button
-                type="button"
-                onClick={() => setMostrarSenha((v) => !v)}
-                aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-black/60 dark:text-white/55 hover:text-black/70 dark:hover:text-white/70"
-              >
-                {mostrarSenha ? "🙈" : "👁️"}
-              </button>
             </div>
-          </div>
-          {erro && <p className="text-sm text-red-600">{erro}</p>}
-          <button
-            type="submit"
-            disabled={carregando}
-            className="mt-2 px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {carregando ? "Entrando..." : "Entrar"}
-          </button>
-        </form>
+            <div>
+              <label htmlFor="senha" className={SUAVE.rotulo}>
+                Senha
+              </label>
+              <div className="relative">
+                <input
+                  id="senha"
+                  name="senha"
+                  type={mostrarSenha ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  required
+                  className={`${SUAVE.campo} !pr-14`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarSenha((v) => !v)}
+                  aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+                  className="absolute right-1 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-xl text-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                >
+                  {mostrarSenha ? "🙈" : "👁️"}
+                </button>
+              </div>
+            </div>
+
+            <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+              <input type="checkbox" className="h-5 w-5 accent-violet-500" checked={lembrar} onChange={(e) => setLembrar(e.target.checked)} />
+              Lembrar meu e-mail neste aparelho
+            </label>
+
+            {erro && (
+              <p role="alert" className={`rounded-2xl p-3 text-sm ${SUAVE.seloErro}`}>
+                {erro}
+              </p>
+            )}
+            <button type="submit" disabled={carregando} className={SUAVE.botaoPrimario}>
+              {carregando ? "Entrando…" : "Entrar"}
+            </button>
+            <p className={`text-center text-xs ${SUAVE.textoFraco}`}>Depois de entrar, o celular pergunta se você quer guardar a senha.</p>
+          </form>
+        </div>
       </div>
     </main>
   );

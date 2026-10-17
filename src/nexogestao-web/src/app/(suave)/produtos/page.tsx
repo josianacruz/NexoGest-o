@@ -13,6 +13,7 @@ import { blobParaDataUrl } from "../../../lib/imagem";
 import BibliotecaRapida, { type MidiaResumo } from "../../_suave/BibliotecaRapida";
 import CamposDoNicho, { atributosDaApi, atributosParaApi, atributosVazios, resumoDosAtributos, type AtributosForm, type Nicho } from "../../_suave/CamposDoNicho";
 import { useEmpresa } from "../../_suave/EmpresaContext";
+import { escolherEmpresa } from "../../../lib/empresaAtiva";
 
 interface Produto {
   id: number;
@@ -95,7 +96,7 @@ export default function ProdutosPage() {
         setErro("Você ainda não tem nenhuma empresa cadastrada.");
         return;
       }
-      const primeiraEmpresa = empresas[0];
+      const primeiraEmpresa = escolherEmpresa(empresas);
       setEmpresaId(primeiraEmpresa.id);
       setEmpresaNome(primeiraEmpresa.nome);
       setComandasHabilitadas(primeiraEmpresa.comandasHabilitadas ?? true);

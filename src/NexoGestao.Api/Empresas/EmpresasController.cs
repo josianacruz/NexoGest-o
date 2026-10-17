@@ -26,6 +26,8 @@ public class EmpresasController : ControllerBase
         _context = context;
     }
 
+    private bool EhAdminMaster => AdminMaster.Eh(User, HttpContext?.RequestServices?.GetService<IConfiguration>());
+
     private string UsuarioId =>
         User.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub)
@@ -73,36 +75,64 @@ public class EmpresasController : ControllerBase
     [HttpGet("minhas")]
     public async Task<IActionResult> Minhas()
     {
-        var empresas = await _context.MembrosEmpresa
-            .Where(m => m.UsuarioId == UsuarioId)
-            .Select(m => new
-            {
-                m.Empresa.Id,
-                m.Empresa.Nome,
-                m.Empresa.ComandasHabilitadas,
-                TipoNegocio = m.Empresa.TipoNegocio,
-                m.Empresa.Nicho,
-                m.Empresa.WhatsApp,
-                Papel = m.Papel.ToString(),
-                ModulosHabilitados = m.Empresa.Modulos.Where(mo => mo.Habilitado).Select(mo => mo.Modulo).ToList(),
-                TemConfiguracaoDeModulos = m.Empresa.Modulos.Any(),
-            })
-            .ToListAsync();
+        var admin = EhAdminMaster;
+        var usuarioId = UsuarioId;
+
+        // Administrador máster: todas as empresas do sistema (a dela primeiro; as demais com papel "Admin" = modo suporte).
+        // Usuário comum: só as empresas de que é membro.
+        var empresas = admin
+            ? await _context.Empresas
+                .Select(e => new
+                {
+                    e.Id,
+                    e.Nome,
+                    e.ComandasHabilitadas,
+                    e.TipoNegocio,
+                    e.Nicho,
+                    e.WhatsApp,
+                    Papel = _context.MembrosEmpresa.Where(m => m.EmpresaId == e.Id && m.UsuarioId == usuarioId).Select(m => m.Papel.ToString()).FirstOrDefault() ?? "Admin",
+                    ModulosHabilitados = e.Modulos.Where(mo => mo.Habilitado).Select(mo => mo.Modulo).ToList(),
+                    TemConfiguracaoDeModulos = e.Modulos.Any(),
+                })
+                .OrderBy(e => e.Papel == "Admin").ThenBy(e => e.Nome)
+                .ToListAsync()
+            : await _context.MembrosEmpresa
+                .Where(m => m.UsuarioId == usuarioId)
+                .Select(m => new
+                {
+                    m.Empresa.Id,
+                    m.Empresa.Nome,
+                    m.Empresa.ComandasHabilitadas,
+                    m.Empresa.TipoNegocio,
+                    m.Empresa.Nicho,
+                    m.Empresa.WhatsApp,
+                    Papel = m.Papel.ToString(),
+                    ModulosHabilitados = m.Empresa.Modulos.Where(mo => mo.Habilitado).Select(mo => mo.Modulo).ToList(),
+                    TemConfiguracaoDeModulos = m.Empresa.Modulos.Any(),
+                })
+                .ToListAsync();
 
         // Empresa sem nenhuma linha em ModulosEmpresa (criada antes desse recurso, ou
         // criada sem TipoNegocio) mantém tudo liberado — não quebra o que já existia.
-        var resultado = empresas.Select(e => new
+        var todosOsModulos = ModulosPadrao.TodosOsModulos.Select(m => m.ToString()).ToList();
+        var resultado = empresas.Select(e =>
         {
-            e.Id,
-            e.Nome,
-            e.ComandasHabilitadas,
-            TipoNegocio = e.TipoNegocio?.ToString(),
-            Nicho = (e.Nicho ?? Nichos.Padrao(e.TipoNegocio)).ToString(),
-            e.WhatsApp,
-            e.Papel,
-            Modulos = (e.TemConfiguracaoDeModulos ? e.ModulosHabilitados : ModulosPadrao.LiberadosSemConfiguracao.ToList())
-                .Select(m => m.ToString())
-                .ToList(),
+            var reais = (e.TemConfiguracaoDeModulos ? e.ModulosHabilitados : ModulosPadrao.LiberadosSemConfiguracao.ToList()).ToList();
+            return new
+            {
+                e.Id,
+                e.Nome,
+                e.ComandasHabilitadas,
+                TipoNegocio = e.TipoNegocio?.ToString(),
+                Nicho = (e.Nicho ?? Nichos.Padrao(e.TipoNegocio)).ToString(),
+                e.WhatsApp,
+                e.Papel,
+                EhAdmin = admin,
+                // O que a empresa realmente tem ligado (é o que a cliente enxerga)…
+                ModulosDaEmpresa = reais.Select(m => m.ToString()).ToList(),
+                // …e o que ESTA pessoa pode usar: tudo, para o administrador máster; o mesmo da empresa, para os demais.
+                Modulos = admin ? todosOsModulos : reais.Select(m => m.ToString()).ToList(),
+            };
         });
 
         return Ok(resultado);
@@ -114,7 +144,7 @@ public class EmpresasController : ControllerBase
         var membro = await _context.MembrosEmpresa
             .FirstOrDefaultAsync(m => m.UsuarioId == UsuarioId && m.EmpresaId == empresaId);
 
-        if (membro is null || membro.Papel != PapelUsuario.Dono)
+        if (!EhAdminMaster && (membro is null || membro.Papel != PapelUsuario.Dono))
             return Forbid();
 
         var empresa = await _context.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId);
@@ -156,7 +186,7 @@ public class EmpresasController : ControllerBase
         var membro = await _context.MembrosEmpresa
             .FirstOrDefaultAsync(m => m.UsuarioId == UsuarioId && m.EmpresaId == empresaId);
 
-        if (membro is null || membro.Papel != PapelUsuario.Dono)
+        if (!EhAdminMaster && (membro is null || membro.Papel != PapelUsuario.Dono))
             return Forbid();
 
         foreach (var item in request.Modulos)

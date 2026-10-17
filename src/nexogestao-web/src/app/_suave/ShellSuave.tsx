@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import AvisoDeConexao from "../_components/AvisoDeConexao";
+import PagamentoConfirmado from "../_components/PagamentoConfirmado";
 import ThemeToggle from "../_components/ThemeToggle";
 import { separarNomeEslogan } from "../../lib/modulos";
 import { EmpresaProvider, useEmpresa, type Avisos } from "./EmpresaContext";
@@ -56,7 +58,7 @@ const GRUPOS: { titulo: string; itens: Item[] }[] = [
 
 function Menu({ recolhido, aoNavegar }: { recolhido: boolean; aoNavegar?: () => void }) {
   const pathname = usePathname();
-  const { empresa, avisos } = useEmpresa();
+  const { empresa, avisos, ehAdmin } = useEmpresa();
   const modulos = empresa?.modulos ?? [];
 
   return (
@@ -98,13 +100,35 @@ function Menu({ recolhido, aoNavegar }: { recolhido: boolean; aoNavegar?: () => 
           </div>
         );
       })}
+      {ehAdmin && (
+        <div>
+          {!recolhido && <p className={SUAVE.grupoMenu}>Plataforma</p>}
+          {recolhido && <div className="my-2 h-px bg-slate-200 dark:bg-slate-700" />}
+          <ul>
+            <li>
+              <Link
+                href="/admin"
+                onClick={aoNavegar}
+                title={recolhido ? "Administração" : undefined}
+                aria-current={pathname === "/admin" ? "page" : undefined}
+                className={`${pathname === "/admin" ? SUAVE.itemMenuAtivo : SUAVE.itemMenu} ${recolhido ? "justify-center px-0" : ""}`}
+              >
+                <span aria-hidden="true" className="text-lg leading-none">
+                  🛡️
+                </span>
+                {!recolhido ? <span className="flex-1">Administração</span> : <span className="sr-only">Administração</span>}
+              </Link>
+            </li>
+          </ul>
+        </div>
+      )}
     </nav>
   );
 }
 
 function Estrutura({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { empresa, carregando, erro } = useEmpresa();
+  const { empresa, empresas, ehAdmin, modoSuporte, verComoCliente, alternarVerComoCliente, trocarEmpresa, carregando, erro } = useEmpresa();
   const [recolhido, setRecolhido] = useState(false);
   const [gavetaAberta, setGavetaAberta] = useState(false);
 
@@ -169,7 +193,9 @@ function Estrutura({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-slate-50/85 px-4 py-3 backdrop-blur dark:border-slate-700 dark:bg-slate-900/85 sm:px-6">
+        <AvisoDeConexao />
+        <PagamentoConfirmado />
+        <header className="sticky top-0 z-30 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-200 bg-slate-50/85 px-4 py-3 backdrop-blur dark:border-slate-700 dark:bg-slate-900/85 sm:px-6">
           <button
             type="button"
             onClick={() => setGavetaAberta(true)}
@@ -178,9 +204,33 @@ function Estrutura({ children }: { children: React.ReactNode }) {
           >
             ☰
           </button>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold">{nome?.nome ?? "NexoGestão"}</p>
-            {nome?.slogan && <p className={`truncate text-xs ${SUAVE.textoFraco}`}>{nome.slogan}</p>}
+          <div className={`min-w-0 flex-1 ${empresas.length > 1 ? "order-last basis-full sm:order-none sm:basis-0" : ""}`}>
+            {empresas.length > 1 ? (
+              // Seletor de empresa/ambiente: aparece para a administradora (todas as empresas) e para quem tem mais de uma.
+              <>
+                <label htmlFor="seletor-empresa" className="sr-only">
+                  Empresa em uso
+                </label>
+                <select
+                  id="seletor-empresa"
+                  value={empresa?.id ?? ""}
+                  onChange={(e) => trocarEmpresa(Number(e.target.value))}
+                  className="h-11 w-full truncate rounded-2xl sm:max-w-[16rem] border border-slate-200 bg-white px-3 text-base font-semibold text-slate-800 sm:text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                >
+                  {empresas.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {separarNomeEslogan(e.nome).nome}
+                      {e.papel === "Admin" ? " (suporte)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : (
+              <>
+                <p className="truncate text-sm font-semibold">{nome?.nome ?? "NexoGestão"}</p>
+                {nome?.slogan && <p className={`truncate text-xs ${SUAVE.textoFraco}`}>{nome.slogan}</p>}
+              </>
+            )}
           </div>
           <ThemeToggle suave />
           <button type="button" onClick={sair} className={`${SUAVE.botaoSecundario} !px-4 !py-2`}>
@@ -188,6 +238,15 @@ function Estrutura({ children }: { children: React.ReactNode }) {
           </button>
         </header>
 
+        {ehAdmin && empresa && (
+          <div role="status" className={`flex flex-wrap items-center gap-x-4 gap-y-1 border-b px-4 py-2 text-sm sm:px-6 ${modoSuporte ? "border-violet-300 bg-violet-100 text-violet-950 dark:border-violet-300/40 dark:bg-violet-300/20 dark:text-violet-50" : "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}>
+            <span className="font-semibold">{modoSuporte ? `Modo suporte: você está em “${nome?.nome}”` : "Administradora"}</span>
+            <label className="flex min-h-11 cursor-pointer items-center gap-2">
+              <input type="checkbox" className="h-5 w-5 accent-violet-500" checked={verComoCliente} onChange={alternarVerComoCliente} />
+              Ver como a cliente (só os módulos dela)
+            </label>
+          </div>
+        )}
         {/* Cada tela traz o próprio <main> (largura e margens). */}
         <div className="w-full flex-1">
           {carregando ? <main className={`mx-auto max-w-5xl px-4 py-6 ${SUAVE.textoSuave}`}>Carregando…</main> : erro ? <main className="mx-auto max-w-5xl px-4 py-6 text-rose-700 dark:text-rose-300">{erro}</main> : children}

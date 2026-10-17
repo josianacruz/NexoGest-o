@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { preconnect } from "react-dom";
 import { API_URL } from "../../lib/api";
 import { CHIC, familiaCorpo, fonteCorpo, fonteTitulo } from "../../lib/chic";
+import AvisoDeConexao from "../_components/AvisoDeConexao";
 import TravaModoClaro from "./TravaModoClaro";
 
 // Páginas públicas dos clientes da loja (agendar, tabela de preços): visual "minimalista chic" fixo,
@@ -29,6 +30,7 @@ export default function PublicoLayout({ children }: { children: React.ReactNode 
     <div className={`${fonteTitulo.variable} ${fonteCorpo.variable} min-h-dvh`} style={{ background: CHIC.fundo, color: CHIC.chumbo, fontFamily: familiaCorpo, colorScheme: "light" }}>
       <script dangerouslySetInnerHTML={{ __html: SCRIPT_CLARO }} />
       <TravaModoClaro />
+      <AvisoDeConexao estilo="chic" />
       {children}
     </div>
   );

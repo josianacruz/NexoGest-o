@@ -8,6 +8,7 @@ import { MODULOS_MENU, temModulo } from "../../lib/modulos";
 import { EMPRESAS_TEMA_CLARO, definirPadraoClaroDaEmpresa } from "../../lib/tema";
 import ThemeToggle from "./ThemeToggle";
 import { useEmpresaOpcional } from "../_suave/EmpresaContext";
+import { escolherEmpresa } from "../../lib/empresaAtiva";
 
 
 // Nas telas do visual suave o menu é o lateral (ShellSuave); este menu do topo só aparece nas telas ainda não migradas.
@@ -51,14 +52,14 @@ function NavAntigo({
         const empresas = await resEmpresas.json();
         if (empresas.length === 0) return;
 
-        setModulos(empresas[0].modulos ?? []);
+        setModulos(escolherEmpresa(empresas).modulos ?? []);
 
         // Padrão claro só pra essas empresas (por Id, nunca por nome); nunca sobrescreve a escolha da pessoa.
-        definirPadraoClaroDaEmpresa(EMPRESAS_TEMA_CLARO.includes(empresas[0].id));
+        definirPadraoClaroDaEmpresa(EMPRESAS_TEMA_CLARO.includes(escolherEmpresa(empresas).id));
 
-        if (temModulo(empresas[0].modulos ?? [], "Agenda")) {
+        if (temModulo(escolherEmpresa(empresas).modulos ?? [], "Agenda")) {
           const resNotificacoes = await fetch(
-            `${API_URL}/api/empresas/${empresas[0].id}/notificacoes/nao-lidas`,
+            `${API_URL}/api/empresas/${escolherEmpresa(empresas).id}/notificacoes/nao-lidas`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
           if (resNotificacoes.ok) {
@@ -67,18 +68,18 @@ function NavAntigo({
           }
         }
 
-        if (temModulo(empresas[0].modulos ?? [], "Interesses")) {
+        if (temModulo(escolherEmpresa(empresas).modulos ?? [], "Interesses")) {
           const resInteresses = await fetch(
-            `${API_URL}/api/empresas/${empresas[0].id}/interesses?status=Novo`,
+            `${API_URL}/api/empresas/${escolherEmpresa(empresas).id}/interesses?status=Novo`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
           if (resInteresses.ok) setInteressesNovos((await resInteresses.json()).length ?? 0);
         }
 
-        if (!temModulo(empresas[0].modulos ?? [], "Cobrancas")) return;
+        if (!temModulo(escolherEmpresa(empresas).modulos ?? [], "Cobrancas")) return;
 
         const resResumo = await fetch(
-          `${API_URL}/api/empresas/${empresas[0].id}/contas-receber/resumo`,
+          `${API_URL}/api/empresas/${escolherEmpresa(empresas).id}/contas-receber/resumo`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!resResumo.ok) return;

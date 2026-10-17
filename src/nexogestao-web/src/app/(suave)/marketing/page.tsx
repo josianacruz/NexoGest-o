@@ -8,6 +8,7 @@ import PageHeader from "../../_components/PageHeader";
 import { cardStyle } from "../../_components/ui";
 import { API_URL } from "../../../lib/api";
 import { temModulo } from "../../../lib/modulos";
+import { escolherEmpresa } from "../../../lib/empresaAtiva";
 
 export default function MarketingPage() {
   const [empresaNome, setEmpresaNome] = useState("");
@@ -32,10 +33,10 @@ export default function MarketingPage() {
       }
       const empresas = await res.json();
       if (empresas.length > 0) {
-        setEmpresaNome(empresas[0].nome);
-        setComandasHabilitadas(empresas[0].comandasHabilitadas ?? true);
-        setTemProdutos(temModulo(empresas[0].modulos ?? [], "Produtos"));
-        setTemServicos(temModulo(empresas[0].modulos ?? [], "Servicos"));
+        setEmpresaNome(escolherEmpresa(empresas).nome);
+        setComandasHabilitadas(escolherEmpresa(empresas).comandasHabilitadas ?? true);
+        setTemProdutos(temModulo(escolherEmpresa(empresas).modulos ?? [], "Produtos"));
+        setTemServicos(temModulo(escolherEmpresa(empresas).modulos ?? [], "Servicos"));
       }
     })();
   }, [router]);
