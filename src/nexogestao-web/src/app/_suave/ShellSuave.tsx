@@ -7,6 +7,7 @@ import AvisoDeConexao from "../_components/AvisoDeConexao";
 import PagamentoConfirmado from "../_components/PagamentoConfirmado";
 import ThemeToggle from "../_components/ThemeToggle";
 import { separarNomeEslogan } from "../../lib/modulos";
+import { encerrarSessao } from "../../lib/auth";
 import { observarTabelas } from "../../lib/tabelasEmCartoes";
 import { EmpresaProvider, useEmpresa, type Avisos } from "./EmpresaContext";
 import { SUAVE } from "./tokens";
@@ -156,7 +157,7 @@ function Estrutura({ children }: { children: React.ReactNode }) {
   }
 
   function sair() {
-    localStorage.removeItem("nexo_token");
+    encerrarSessao();
     router.push("/login");
   }
 

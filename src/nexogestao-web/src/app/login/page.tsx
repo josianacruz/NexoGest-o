@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL, apiFetch, textoDoErro } from "../../lib/api";
+import { salvarSessao } from "../../lib/auth";
 import ThemeToggle from "../_components/ThemeToggle";
 import AvisoDeConexao from "../_components/AvisoDeConexao";
 import { SUAVE } from "../_suave/tokens";
@@ -42,7 +43,7 @@ export default function LoginPage() {
       if (res.status === 429) throw new Error("Muitas tentativas. Aguarde um instante e tente de novo.");
       if (!res.ok) throw new Error("E-mail ou senha inválidos.");
       const data = await res.json();
-      localStorage.setItem("nexo_token", data.token);
+      salvarSessao(data.token, data.refreshToken);
       try {
         if (lembrar) localStorage.setItem(CHAVE_EMAIL, email.trim());
         else localStorage.removeItem(CHAVE_EMAIL);

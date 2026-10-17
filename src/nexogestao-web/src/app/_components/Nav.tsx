@@ -9,6 +9,7 @@ import { EMPRESAS_TEMA_CLARO, definirPadraoClaroDaEmpresa } from "../../lib/tema
 import ThemeToggle from "./ThemeToggle";
 import { useEmpresaOpcional } from "../_suave/EmpresaContext";
 import { escolherEmpresa } from "../../lib/empresaAtiva";
+import { encerrarSessao } from "../../lib/auth";
 
 
 // Nas telas do visual suave o menu é o lateral (ShellSuave); este menu do topo só aparece nas telas ainda não migradas.
@@ -92,7 +93,7 @@ function NavAntigo({
   }, []);
 
   function sair() {
-    localStorage.removeItem("nexo_token");
+    encerrarSessao();
     router.push("/login");
   }
 

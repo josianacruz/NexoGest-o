@@ -1,14 +1,20 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using NexoGestao.Api.Data;
+using NexoGestao.Api.Domain;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace NexoGestao.Api.Auth;
 
 public record RegisterRequest(string Email, string Senha);
 public record LoginRequest(string Email, string Senha);
+public record RefreshRequest(string RefreshToken);
+public record LogoutRequest(string RefreshToken);
 
 [ApiController]
 [Route("api/auth")]
@@ -16,11 +22,13 @@ public class AuthController : ControllerBase
 {
     private readonly UserManager<IdentityUser> _userManager;
     private readonly IConfiguration _configuration;
+    private readonly AppDbContext _context;
 
-    public AuthController(UserManager<IdentityUser> userManager, IConfiguration configuration)
+    public AuthController(UserManager<IdentityUser> userManager, IConfiguration configuration, AppDbContext context)
     {
         _userManager = userManager;
         _configuration = configuration;
+        _context = context;
     }
 
     [HttpPost("registrar")]
@@ -47,7 +55,74 @@ public class AuthController : ControllerBase
             return Unauthorized(new { mensagem = "Email ou senha inválidos." });
 
         var token = GerarToken(usuario);
-        return Ok(new { token });
+        var refreshToken = await CriarRefreshTokenAsync(usuario.Id);
+        return Ok(new { token, refreshToken });
+    }
+
+    // Troca um refresh token (de longa duração, guardado no aparelho) por um access token novo — é isso que
+    // mantém a pessoa logada depois de fechar e abrir o app/navegador, sem pedir email/senha de novo.
+    // Rotação: o refresh token usado aqui é invalidado e um novo é devolvido; reusar o antigo nunca mais funciona.
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh(RefreshRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+            return Unauthorized();
+
+        var hash = HashDoToken(request.RefreshToken);
+        var registro = await _context.RefreshTokens.FirstOrDefaultAsync(r => r.TokenHash == hash);
+        if (registro is null || registro.RevogadoEm != null || registro.ExpiraEm < DateTime.UtcNow)
+            return Unauthorized();
+
+        var usuario = await _userManager.FindByIdAsync(registro.UsuarioId);
+        if (usuario is null)
+            return Unauthorized();
+
+        var novoRefreshToken = await CriarRefreshTokenAsync(usuario.Id);
+        registro.RevogadoEm = DateTime.UtcNow;
+        registro.SubstituidoPorHash = HashDoToken(novoRefreshToken);
+        await _context.SaveChangesAsync();
+
+        var token = GerarToken(usuario);
+        return Ok(new { token, refreshToken = novoRefreshToken });
+    }
+
+    // Encerramento explícito ("Sair"): revoga o refresh token no servidor para que ele não possa mais
+    // ser usado, mesmo que ainda esteja salvo em algum aparelho.
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout(LogoutRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+            return Ok();
+
+        var hash = HashDoToken(request.RefreshToken);
+        var registro = await _context.RefreshTokens.FirstOrDefaultAsync(r => r.TokenHash == hash);
+        if (registro is not null && registro.RevogadoEm is null)
+        {
+            registro.RevogadoEm = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok();
+    }
+
+    private static string HashDoToken(string token) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+
+    private async Task<string> CriarRefreshTokenAsync(string usuarioId)
+    {
+        var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64))
+            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+
+        var dias = int.TryParse(_configuration["Jwt:RefreshTokenDias"], out var d) ? d : 30;
+        _context.RefreshTokens.Add(new RefreshToken
+        {
+            UsuarioId = usuarioId,
+            TokenHash = HashDoToken(token),
+            ExpiraEm = DateTime.UtcNow.AddDays(dias),
+        });
+        await _context.SaveChangesAsync();
+
+        return token;
     }
 
     private string GerarToken(IdentityUser usuario)

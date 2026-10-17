@@ -44,6 +44,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<StoryLoja> StoriesLoja => Set<StoryLoja>();
     public DbSet<MidiaLoja> MidiasLoja => Set<MidiaLoja>();
     public DbSet<PromocaoServico> PromocoesServico => Set<PromocaoServico>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -110,5 +111,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         builder.Entity<MidiaLoja>().Property(m => m.ContentType).HasMaxLength(30);
         builder.Entity<MidiaLoja>().Property(m => m.Hash).HasMaxLength(64);
         builder.Entity<Produto>().Property(p => p.AtributosJson).HasMaxLength(4000);
+        builder.Entity<RefreshToken>().HasIndex(r => r.TokenHash).IsUnique();
+        builder.Entity<RefreshToken>().HasIndex(r => r.UsuarioId);
     }
 }

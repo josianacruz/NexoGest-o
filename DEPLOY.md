@@ -58,7 +58,8 @@ Crie uma conta em cada um, se ainda não tiver:
    | `Jwt__Key` | uma chave secreta longa e aleatória (pode gerar em https://generate-secret.vercel.app/32) |
    | `Jwt__Issuer` | `NexoGestao` |
    | `Jwt__Audience` | `NexoGestaoUsuarios` |
-   | `Jwt__ExpiresInMinutes` | `60` |
+   | `Jwt__ExpiresInMinutes` | `30` (o access token; quem mantém a pessoa logada depois disso é o refresh token, ver abaixo) |
+   | `Jwt__RefreshTokenDias` | opcional, padrão `30` se não definir — por quantos dias a pessoa continua logada sem precisar digitar email/senha de novo |
    | `Cors__AllowedOrigins` | por enquanto deixe `http://localhost:3000` — você atualiza no passo 4 depois de ter a URL do Vercel |
    | `ASPNETCORE_ENVIRONMENT` | `Production` |
 
