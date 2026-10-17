@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import AvisoDeConexao from "../_components/AvisoDeConexao";
 import PagamentoConfirmado from "../_components/PagamentoConfirmado";
+import EscolherTipoDeNegocio from "./EscolherTipoDeNegocio";
 import ThemeToggle from "../_components/ThemeToggle";
 import { separarNomeEslogan } from "../../lib/modulos";
 import { encerrarSessao } from "../../lib/auth";
@@ -200,6 +201,7 @@ function Estrutura({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <AvisoDeConexao />
         <PagamentoConfirmado />
+        <EscolherTipoDeNegocio />
         <header className="sticky top-0 z-30 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-200 bg-slate-50/85 px-4 py-3 backdrop-blur dark:border-slate-700 dark:bg-slate-900/85 sm:px-6">
           <button
             type="button"

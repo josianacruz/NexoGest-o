@@ -13,6 +13,7 @@ public record CriarEmpresaRequest(string Nome, string? Segmento, bool ComandasHa
 public record AtualizarEmpresaRequest(bool ComandasHabilitadas, string? Nome = null, string? Nicho = null, string? WhatsApp = null);
 public record ModuloConfigDto(string Modulo, bool Habilitado);
 public record AtualizarModulosRequest(List<ModuloConfigDto> Modulos);
+public record EscolherTipoRequest(string Perfil);
 
 [ApiController]
 [Route("api/empresas")]
@@ -90,6 +91,7 @@ public class EmpresasController : ControllerBase
                     e.TipoNegocio,
                     e.Nicho,
                     e.WhatsApp,
+                    e.DataCriacao,
                     Papel = _context.MembrosEmpresa.Where(m => m.EmpresaId == e.Id && m.UsuarioId == usuarioId).Select(m => m.Papel.ToString()).FirstOrDefault() ?? "Admin",
                     ModulosHabilitados = e.Modulos.Where(mo => mo.Habilitado).Select(mo => mo.Modulo).ToList(),
                     TemConfiguracaoDeModulos = e.Modulos.Any(),
@@ -106,6 +108,7 @@ public class EmpresasController : ControllerBase
                     m.Empresa.TipoNegocio,
                     m.Empresa.Nicho,
                     m.Empresa.WhatsApp,
+                    m.Empresa.DataCriacao,
                     Papel = m.Papel.ToString(),
                     ModulosHabilitados = m.Empresa.Modulos.Where(mo => mo.Habilitado).Select(mo => mo.Modulo).ToList(),
                     TemConfiguracaoDeModulos = m.Empresa.Modulos.Any(),
@@ -128,6 +131,8 @@ public class EmpresasController : ControllerBase
                 e.WhatsApp,
                 e.Papel,
                 EhAdmin = admin,
+                // Empresa nova, sem tipo de negócio e sem módulos definidos: o painel pergunta o tipo no primeiro acesso.
+                PrecisaEscolherTipo = e.Papel == "Dono" && e.TipoNegocio is null && !e.TemConfiguracaoDeModulos && e.DataCriacao > DateTime.UtcNow.AddDays(-3),
                 // O que a empresa realmente tem ligado (é o que a cliente enxerga)…
                 ModulosDaEmpresa = reais.Select(m => m.ToString()).ToList(),
                 // …e o que ESTA pessoa pode usar: tudo, para o administrador máster; o mesmo da empresa, para os demais.
@@ -175,6 +180,30 @@ public class EmpresasController : ControllerBase
         await _context.SaveChangesAsync();
 
         return Ok(new { empresa.Id, empresa.Nome, empresa.ComandasHabilitadas, Nicho = Nichos.Efetivo(empresa).ToString(), empresa.WhatsApp });
+    }
+
+    // Primeiro acesso: o Dono escolhe o tipo do negócio e o menu passa a mostrar só o que esse tipo usa.
+    // Vale uma vez (enquanto a empresa não tem tipo); mudanças depois disso ficam com a administradora (Administração).
+    [HttpPut("{empresaId:int}/tipo-de-negocio")]
+    public async Task<IActionResult> EscolherTipo(int empresaId, EscolherTipoRequest request)
+    {
+        var membro = await _context.MembrosEmpresa
+            .FirstOrDefaultAsync(m => m.UsuarioId == UsuarioId && m.EmpresaId == empresaId);
+        if (!EhAdminMaster && (membro is null || membro.Papel != PapelUsuario.Dono))
+            return Forbid();
+
+        var perfil = PerfisDeAcesso.EscolhiveisPelaDona.FirstOrDefault(p => string.Equals(p, request.Perfil, StringComparison.OrdinalIgnoreCase));
+        if (perfil is null)
+            return BadRequest(new { mensagem = "Tipo de negócio inválido. Escolha Beleza, Alimentação, Varejo ou Serviços gerais." });
+
+        var empresa = await _context.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId);
+        if (empresa is null)
+            return NotFound();
+        if (!EhAdminMaster && empresa.TipoNegocio is not null)
+            return Conflict(new { mensagem = "O tipo do negócio já foi escolhido. Para mudar, fale com o suporte." });
+
+        await AplicadorDePerfil.AplicarAsync(_context, empresa, perfil);
+        return Ok(new { empresaId, Perfil = perfil });
     }
 
     // Endpoint preparado para o futuro painel administrativo da plataforma definir os

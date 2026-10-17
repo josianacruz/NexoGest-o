@@ -15,6 +15,7 @@ export interface EmpresaAtual {
   podeAdministrar: boolean; // Dono da empresa ou administradora máster
   comandasHabilitadas: boolean;
   nicho: "Alimentos" | "Moda" | "BelezaServicos" | "Outros";
+  precisaEscolherTipo: boolean; // empresa nova que ainda não escolheu o tipo de negócio (primeiro acesso)
 }
 
 export interface EmpresaDaLista {
@@ -67,6 +68,7 @@ interface EmpresaApi {
   modulosDaEmpresa?: string[];
   comandasHabilitadas?: boolean;
   nicho?: EmpresaAtual["nicho"];
+  precisaEscolherTipo?: boolean;
 }
 
 // Carrega a empresa em uso uma vez para todo o painel (menu, stories, agenda e clientes usam o mesmo contexto).
@@ -132,6 +134,7 @@ export function EmpresaProvider({ children }: { children: React.ReactNode }) {
       podeAdministrar: !!e.ehAdmin || e.papel === "Dono",
       comandasHabilitadas: e.comandasHabilitadas ?? true,
       nicho: e.nicho ?? "Outros",
+      precisaEscolherTipo: !!e.precisaEscolherTipo && e.papel === "Dono",
     };
   }, [brutas, ativaId, verComoCliente]);
 

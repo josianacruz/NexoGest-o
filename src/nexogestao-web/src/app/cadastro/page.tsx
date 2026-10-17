@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { API_URL, apiFetch, textoDoErro } from "../../lib/api";
 import { definirEmpresaAtiva } from "../../lib/empresaAtiva";
+import { TIPOS_DE_NEGOCIO } from "../../lib/tiposDeNegocio";
 import { salvarSessao } from "../../lib/auth";
 import ThemeToggle from "../_components/ThemeToggle";
 import AvisoDeConexao from "../_components/AvisoDeConexao";
@@ -31,6 +32,7 @@ const ERROS_SENHA: Record<string, string> = {
 
 export default function CadastroPage() {
   const [nomeNegocio, setNomeNegocio] = useState("");
+  const [tipo, setTipo] = useState<number | null>(null);
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
@@ -41,6 +43,10 @@ export default function CadastroPage() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (carregando) return;
+    if (tipo === null) {
+      setErro("Escolha o tipo do seu negócio.");
+      return;
+    }
     setErro(null);
     setCarregando(true);
     try {
@@ -70,7 +76,7 @@ export default function CadastroPage() {
       const resEmpresa = await apiFetch(`${API_URL}/api/empresas`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ nome: nomeNegocio.trim() }),
+        body: JSON.stringify({ nome: nomeNegocio.trim(), tipoNegocio: tipo }),
       });
       if (!resEmpresa.ok) throw new Error("Sua conta foi criada, mas não foi possível configurar seu negócio. Tente novamente em instantes.");
       const empresa = await resEmpresa.json();
@@ -111,6 +117,32 @@ export default function CadastroPage() {
                 className={SUAVE.campo}
               />
             </div>
+            <fieldset>
+              <legend className={SUAVE.rotulo}>Qual é o tipo do seu negócio?</legend>
+              <div role="radiogroup" aria-label="Tipo de negócio" className="grid gap-2">
+                {TIPOS_DE_NEGOCIO.map((t) => {
+                  const ativo = tipo === t.tipoNegocio;
+                  return (
+                    <button
+                      key={t.perfil}
+                      type="button"
+                      role="radio"
+                      aria-checked={ativo}
+                      onClick={() => setTipo(t.tipoNegocio)}
+                      className={`flex min-h-14 items-center gap-3 rounded-2xl border p-3 text-left transition ${ativo ? "border-violet-300 bg-violet-100 ring-2 ring-violet-300 dark:border-violet-300/40 dark:bg-violet-300/20" : "border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700"}`}
+                    >
+                      <span className="text-2xl" aria-hidden="true">
+                        {t.icone}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold">{t.nome}</span>
+                        <span className={`block text-xs ${SUAVE.textoSuave}`}>{t.exemplos}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
             <div>
               <label htmlFor="email" className={SUAVE.rotulo}>
                 E-mail

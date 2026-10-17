@@ -13,18 +13,19 @@ interface EmpresaAdmin {
   tipoNegocio: string | null;
   nicho: string;
   dataCriacao: string;
-  perfil: "Salao" | "Loja" | "Alimentacao" | "Completo" | "Personalizado";
+  perfil: "Salao" | "Loja" | "Alimentacao" | "ServicosGerais" | "Completo" | "Personalizado";
   modulos: string[];
   donos: string[];
 }
 
-type PerfilAplicavel = "Salao" | "Loja" | "Alimentacao" | "Completo";
+type PerfilAplicavel = "Salao" | "Loja" | "Alimentacao" | "ServicosGerais" | "Completo";
 
 // Perfis de acesso (mesma regra do servidor): o que cada tipo de cliente enxerga.
 const PERFIS: Record<PerfilAplicavel, { nome: string; descricao: string; modulos: string[] }> = {
-  Salao: { nome: "Salão de beleza", descricao: "Agenda, agendamento público, serviços e tabela, promoções e Stories, clientes.", modulos: ["Clientes", "Agenda", "Servicos", "Marketing"] },
-  Loja: { nome: "Loja / varejo", descricao: "Estoque (produtos), vendas e caixa, clientes.", modulos: ["Clientes", "Produtos", "Vendas"] },
-  Alimentacao: { nome: "Alimentação", descricao: "Comandas, cardápio, estoque, vendas e caixa, clientes. Sem agenda.", modulos: ["Clientes", "Produtos", "Vendas", "Comandas", "Marketing"] },
+  Salao: { nome: "Beleza", descricao: "Agenda e agendamento público, clientes, serviços e tabela, cobranças, promoções e Stories, relatórios.", modulos: ["Clientes", "Agenda", "Servicos", "Cobrancas", "Marketing", "Financeiro"] },
+  Alimentacao: { nome: "Alimentação", descricao: "Comandas, cardápio, estoque, vendas e caixa, clientes, cobranças, marketing, relatórios. Sem agenda.", modulos: ["Clientes", "Produtos", "Vendas", "Comandas", "Cobrancas", "Marketing", "Financeiro"] },
+  Loja: { nome: "Varejo", descricao: "Estoque, vendas e caixa, clientes, cobranças, interesses, marketing, relatórios.", modulos: ["Clientes", "Produtos", "Vendas", "Cobrancas", "Marketing", "Interesses", "Financeiro"] },
+  ServicosGerais: { nome: "Serviços gerais", descricao: "Agenda, clientes, serviços, vendas, cobranças, marketing, relatórios.", modulos: ["Clientes", "Agenda", "Servicos", "Vendas", "Cobrancas", "Marketing", "Financeiro"] },
   Completo: { nome: "Completo", descricao: "Todos os módulos (menos Afiliados, que é ligado à parte).", modulos: ["Clientes", "Produtos", "Vendas", "Comandas", "Cobrancas", "Agenda", "Servicos", "Marketing", "Financeiro", "Interesses"] },
 };
 
@@ -42,7 +43,7 @@ const ROTULO: Record<string, string> = {
   Afiliados: "Afiliados",
 };
 
-const NOME_PERFIL: Record<string, string> = { Salao: "Salão", Loja: "Loja", Alimentacao: "Alimentação", Completo: "Completo", Personalizado: "Personalizado" };
+const NOME_PERFIL: Record<string, string> = { Salao: "Beleza", Loja: "Varejo", Alimentacao: "Alimentação", ServicosGerais: "Serviços gerais", Completo: "Completo", Personalizado: "Personalizado" };
 
 // Console da administradora máster: todas as empresas, o perfil de cada uma e atalho para entrar no ambiente dela.
 export default function AdminPage() {

@@ -69,7 +69,7 @@ public class AdminController : ControllerBase
         }));
     }
 
-    // Aplica um perfil de acesso (Salao, Loja, Alimentacao ou Completo): liga os módulos do perfil e desliga os demais.
+    // Aplica um perfil de acesso (Salao, Loja, Alimentacao, ServicosGerais ou Completo): liga os módulos do perfil e desliga os demais.
     // Afiliados nunca é mexido aqui (continua de ligação explícita). Nada é apagado: só muda o que aparece e o que a API libera.
     [HttpPut("empresas/{empresaId:int}/perfil")]
     public async Task<IActionResult> AplicarPerfil(int empresaId, AplicarPerfilRequest request)
@@ -78,28 +78,13 @@ public class AdminController : ControllerBase
             return Forbid();
 
         if (request.Perfil is null || !PerfisDeAcesso.Modulos.TryGetValue(request.Perfil, out var doPerfil))
-            return BadRequest(new { mensagem = "Perfil inválido. Use Salao, Loja, Alimentacao ou Completo." });
+            return BadRequest(new { mensagem = "Perfil inválido. Use Salao, Loja, Alimentacao, ServicosGerais ou Completo." });
 
         var empresa = await _context.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId);
         if (empresa is null)
             return NotFound(new { mensagem = "Empresa não encontrada." });
 
-        var existentes = await _context.ModulosEmpresa.Where(m => m.EmpresaId == empresaId).ToListAsync();
-        foreach (var modulo in ModulosPadrao.TodosOsModulos.Where(m => m != Modulo.Afiliados))
-        {
-            var ligar = doPerfil.Contains(modulo);
-            var linha = existentes.FirstOrDefault(m => m.Modulo == modulo);
-            if (linha is null)
-                _context.ModulosEmpresa.Add(new ModuloEmpresa { EmpresaId = empresaId, Modulo = modulo, Habilitado = ligar });
-            else
-                linha.Habilitado = ligar;
-        }
-
-        var nicho = PerfisDeAcesso.NichoDoPerfil(request.Perfil);
-        if (nicho is not null)
-            empresa.Nicho = nicho;
-
-        await _context.SaveChangesAsync();
+        await AplicadorDePerfil.AplicarAsync(_context, empresa, request.Perfil);
 
         var ligados = await _context.ModulosEmpresa.Where(m => m.EmpresaId == empresaId && m.Habilitado).Select(m => m.Modulo).ToListAsync();
         return Ok(new { empresaId, Perfil = PerfisDeAcesso.Inferir(ligados), Modulos = ligados.Select(m => m.ToString()).ToList() });

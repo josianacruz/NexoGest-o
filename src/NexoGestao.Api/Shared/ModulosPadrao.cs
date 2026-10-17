@@ -16,27 +16,13 @@ public static class ModulosPadrao
 
     public static IEnumerable<Modulo> LiberadosSemConfiguracao => TodosOsModulos.Where(m => !SoComLigacaoExplicita.Contains(m));
 
+    // Módulos de cada tipo de negócio: vêm dos perfis (PerfisDeAcesso), para existir uma lista só.
     public static readonly IReadOnlyDictionary<TipoNegocio, Modulo[]> PorTipoNegocio = new Dictionary<TipoNegocio, Modulo[]>
     {
-        [TipoNegocio.Alimentacao] = new[]
-        {
-            Modulo.Clientes, Modulo.Produtos, Modulo.Vendas, Modulo.Comandas, Modulo.Cobrancas, Modulo.Marketing, Modulo.Financeiro,
-        },
-        [TipoNegocio.Comercio] = new[]
-        {
-            Modulo.Clientes, Modulo.Produtos, Modulo.Vendas, Modulo.Cobrancas, Modulo.Marketing, Modulo.Interesses, Modulo.Financeiro,
-        },
-        [TipoNegocio.Beleza] = new[]
-        {
-            Modulo.Clientes, Modulo.Agenda, Modulo.Servicos, Modulo.Cobrancas, Modulo.Marketing, Modulo.Financeiro,
-        },
-        [TipoNegocio.Saude] = new[]
-        {
-            Modulo.Clientes, Modulo.Agenda, Modulo.Servicos, Modulo.Cobrancas, Modulo.Financeiro,
-        },
-        [TipoNegocio.Servicos] = new[]
-        {
-            Modulo.Clientes, Modulo.Agenda, Modulo.Servicos, Modulo.Cobrancas, Modulo.Marketing, Modulo.Financeiro,
-        },
+        [TipoNegocio.Alimentacao] = PerfisDeAcesso.Modulos["Alimentacao"],
+        [TipoNegocio.Comercio] = PerfisDeAcesso.Modulos["Loja"],
+        [TipoNegocio.Beleza] = PerfisDeAcesso.Modulos["Salao"],
+        [TipoNegocio.Saude] = PerfisDeAcesso.Modulos["Salao"],
+        [TipoNegocio.Servicos] = PerfisDeAcesso.Modulos["ServicosGerais"],
     };
 }

@@ -219,13 +219,13 @@ public class PermissoesTests
 
         var r = Assert.IsType<OkObjectResult>(await admin.AplicarPerfil(1, new AplicarPerfilRequest("Salao")));
         var ligados = await db.ModulosEmpresa.IgnoreQueryFilters().Where(m => m.EmpresaId == 1 && m.Habilitado).Select(m => m.Modulo).ToListAsync();
-        Assert.Equal(new[] { Modulo.Clientes, Modulo.Agenda, Modulo.Servicos, Modulo.Marketing, Modulo.Afiliados }.OrderBy(x => x), ligados.OrderBy(x => x));
+        Assert.Equal(new[] { Modulo.Clientes, Modulo.Agenda, Modulo.Servicos, Modulo.Cobrancas, Modulo.Marketing, Modulo.Financeiro, Modulo.Afiliados }.OrderBy(x => x), ligados.OrderBy(x => x));
         Assert.Contains("\"Perfil\":\"Salao\"", Json(r.Value));
         Assert.Equal(NichoLoja.BelezaServicos, (await db.Empresas.IgnoreQueryFilters().SingleAsync(e => e.Id == 1)).Nicho);
 
         Assert.IsType<OkObjectResult>(await admin.AplicarPerfil(2, new AplicarPerfilRequest("loja")));
         var loja = await db.ModulosEmpresa.IgnoreQueryFilters().Where(m => m.EmpresaId == 2 && m.Habilitado).Select(m => m.Modulo).ToListAsync();
-        Assert.Equal(new[] { Modulo.Clientes, Modulo.Produtos, Modulo.Vendas }.OrderBy(x => x), loja.OrderBy(x => x));
+        Assert.Equal(new[] { Modulo.Clientes, Modulo.Produtos, Modulo.Vendas, Modulo.Cobrancas, Modulo.Marketing, Modulo.Interesses, Modulo.Financeiro }.OrderBy(x => x), loja.OrderBy(x => x));
         Assert.DoesNotContain(Modulo.Comandas, loja);   // comanda é de comida, não de loja nem de salão
     }
 
@@ -237,7 +237,7 @@ public class PermissoesTests
 
         var r = Assert.IsType<OkObjectResult>(await admin.AplicarPerfil(2, new AplicarPerfilRequest("Alimentacao")));
         var ligados = await db.ModulosEmpresa.IgnoreQueryFilters().Where(m => m.EmpresaId == 2 && m.Habilitado).Select(m => m.Modulo).ToListAsync();
-        Assert.Equal(new[] { Modulo.Clientes, Modulo.Produtos, Modulo.Vendas, Modulo.Comandas, Modulo.Marketing }.OrderBy(x => x), ligados.OrderBy(x => x));
+        Assert.Equal(new[] { Modulo.Clientes, Modulo.Produtos, Modulo.Vendas, Modulo.Comandas, Modulo.Cobrancas, Modulo.Marketing, Modulo.Financeiro }.OrderBy(x => x), ligados.OrderBy(x => x));
         Assert.DoesNotContain(Modulo.Agenda, ligados);
         Assert.DoesNotContain(Modulo.Servicos, ligados);
         Assert.Contains("\"Perfil\":\"Alimentacao\"", Json(r.Value));
@@ -246,6 +246,73 @@ public class PermissoesTests
         // Salão e Loja nunca enxergam comandas
         Assert.DoesNotContain(Modulo.Comandas, PerfisDeAcesso.Modulos["Salao"]);
         Assert.DoesNotContain(Modulo.Comandas, PerfisDeAcesso.Modulos["Loja"]);
+    }
+
+    [Fact]
+    public void Cada_tipo_de_negocio_nasce_com_os_modulos_do_seu_perfil_e_so_alimentacao_tem_comandas()
+    {
+        Assert.Equal(PerfisDeAcesso.Modulos["Salao"], ModulosPadrao.PorTipoNegocio[TipoNegocio.Beleza]);
+        Assert.Equal(PerfisDeAcesso.Modulos["Loja"], ModulosPadrao.PorTipoNegocio[TipoNegocio.Comercio]);
+        Assert.Equal(PerfisDeAcesso.Modulos["Alimentacao"], ModulosPadrao.PorTipoNegocio[TipoNegocio.Alimentacao]);
+        Assert.Equal(PerfisDeAcesso.Modulos["ServicosGerais"], ModulosPadrao.PorTipoNegocio[TipoNegocio.Servicos]);
+
+        foreach (var (perfil, modulos) in PerfisDeAcesso.Modulos.Where(p => p.Key is not ("Alimentacao" or "Completo")))
+            Assert.DoesNotContain(Modulo.Comandas, modulos);
+        foreach (var perfil in new[] { "Alimentacao", "Loja" })
+        {
+            Assert.DoesNotContain(Modulo.Agenda, PerfisDeAcesso.Modulos[perfil]);
+            Assert.DoesNotContain(Modulo.Servicos, PerfisDeAcesso.Modulos[perfil]);
+        }
+        Assert.DoesNotContain(Modulo.Afiliados, PerfisDeAcesso.Modulos.Values.SelectMany(m => m)); // Afiliados nunca vem sozinho
+    }
+
+    [Fact]
+    public async Task Dono_escolhe_o_tipo_no_primeiro_acesso_uma_vez_so_e_sem_virar_administrador()
+    {
+        var db = await Cenario();
+        db.Empresas.Add(new Empresa { Id = 3, Nome = "Recém-criada" });
+        db.MembrosEmpresa.Add(new MembroEmpresa { UsuarioId = "nova", EmpresaId = 3, Papel = PapelUsuario.Dono });
+        db.MembrosEmpresa.Add(new MembroEmpresa { UsuarioId = "atendente", EmpresaId = 3, Papel = PapelUsuario.Atendente });
+        await db.SaveChangesAsync();
+
+        // quem não é Dono, e quem não é da empresa, não escolhe
+        Assert.IsType<ForbidResult>(await Empresas(db, Usuario("atendente", "a@x.com"), null).EscolherTipo(3, new EscolherTipoRequest("Salao")));
+        Assert.IsType<ForbidResult>(await Empresas(db, Usuario("estranho", "e@x.com"), null).EscolherTipo(3, new EscolherTipoRequest("Salao")));
+
+        // "Completo" e nomes inventados são só da administradora / inválidos
+        var dono = Empresas(db, Usuario("nova", "n@x.com"), null);
+        Assert.IsType<BadRequestObjectResult>(await dono.EscolherTipo(3, new EscolherTipoRequest("Completo")));
+        Assert.IsType<BadRequestObjectResult>(await dono.EscolherTipo(3, new EscolherTipoRequest("Xyz")));
+
+        Assert.IsType<OkObjectResult>(await dono.EscolherTipo(3, new EscolherTipoRequest("alimentacao")));
+        var ligados = await db.ModulosEmpresa.IgnoreQueryFilters().Where(m => m.EmpresaId == 3 && m.Habilitado).Select(m => m.Modulo).ToListAsync();
+        Assert.Equal(PerfisDeAcesso.Modulos["Alimentacao"].OrderBy(x => x), ligados.OrderBy(x => x));
+        var empresa = await db.Empresas.IgnoreQueryFilters().SingleAsync(e => e.Id == 3);
+        Assert.Equal(TipoNegocio.Alimentacao, empresa.TipoNegocio);
+        Assert.Equal(NichoLoja.Alimentos, empresa.Nicho);
+
+        // segunda tentativa (trocar de ideia) é recusada: mudança só pela administradora
+        Assert.IsType<ConflictObjectResult>(await dono.EscolherTipo(3, new EscolherTipoRequest("Salao")));
+    }
+
+    [Fact]
+    public async Task Minhas_so_pede_o_tipo_para_empresa_nova_sem_tipo_e_sem_modulos()
+    {
+        var db = await Cenario();
+        db.Empresas.Add(new Empresa { Id = 3, Nome = "Nova", DataCriacao = DateTime.UtcNow });
+        db.Empresas.Add(new Empresa { Id = 4, Nome = "Antiga", DataCriacao = DateTime.UtcNow.AddDays(-30) });
+        db.MembrosEmpresa.Add(new MembroEmpresa { UsuarioId = "nova", EmpresaId = 3, Papel = PapelUsuario.Dono });
+        db.MembrosEmpresa.Add(new MembroEmpresa { UsuarioId = "nova", EmpresaId = 4, Papel = PapelUsuario.Dono });
+        await db.SaveChangesAsync();
+
+        var lista = Json(Assert.IsType<OkObjectResult>(await Empresas(db, Usuario("nova", "n@x.com"), null).Minhas()).Value);
+        var nova = lista.IndexOf("\"Id\":3", StringComparison.Ordinal);
+        var antiga = lista.IndexOf("\"Id\":4", StringComparison.Ordinal);
+        Assert.True(nova >= 0 && antiga >= 0);
+        var trechoNova = lista.Substring(nova, antiga > nova ? antiga - nova : lista.Length - nova);
+        var trechoAntiga = lista.Substring(antiga, nova > antiga ? nova - antiga : lista.Length - antiga);
+        Assert.Contains("\"PrecisaEscolherTipo\":true", trechoNova);
+        Assert.Contains("\"PrecisaEscolherTipo\":false", trechoAntiga);
     }
 
     [Fact]
@@ -263,9 +330,10 @@ public class PermissoesTests
     }
 
     [Theory]
-    [InlineData("Clientes,Agenda,Servicos,Marketing", "Salao")]
-    [InlineData("Clientes,Produtos,Vendas", "Loja")]
-    [InlineData("Clientes,Produtos,Vendas,Comandas,Marketing", "Alimentacao")]
+    [InlineData("Clientes,Agenda,Servicos,Cobrancas,Marketing,Financeiro", "Salao")]
+    [InlineData("Clientes,Produtos,Vendas,Cobrancas,Marketing,Interesses,Financeiro", "Loja")]
+    [InlineData("Clientes,Produtos,Vendas,Comandas,Cobrancas,Marketing,Financeiro", "Alimentacao")]
+    [InlineData("Clientes,Agenda,Servicos,Vendas,Cobrancas,Marketing,Financeiro", "ServicosGerais")]
     [InlineData("Clientes,Agenda", "Personalizado")]
     public void Perfil_e_reconhecido_pelo_conjunto_de_modulos(string modulos, string esperado) =>
         Assert.Equal(esperado, PerfisDeAcesso.Inferir(modulos.Split(',').Select(Enum.Parse<Modulo>)));
