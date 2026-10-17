@@ -75,8 +75,9 @@ export default function ConfiguracoesPage() {
         setComandasHabilitadas(e.comandasHabilitadas ?? true);
         setPapel(e.ehAdmin ? "Dono" : (e.papel ?? "")); // administradora máster edita como Dono
         setNicho((e.nicho as Nicho) ?? "Outros");
-        setWhatsapp(formatarZap(e.whatsapp ?? ""));
-        setWhatsappSalvo(e.whatsapp ?? "");
+        const zapSalvo: string = e.whatsApp ?? e.whatsapp ?? "";
+        setWhatsapp(formatarZap(zapSalvo));
+        setWhatsappSalvo(zapSalvo);
         const partes = separarNomeEslogan(e.nome);
         setNome(partes.nome);
         setSlogan(partes.slogan ?? "");
@@ -146,9 +147,10 @@ export default function ConfiguracoesPage() {
         setAvisoZap({ tipo: "erro", texto: dados?.mensagem ?? "Não foi possível salvar. Tente de novo." });
         return;
       }
-      setWhatsappSalvo(dados.whatsapp ?? "");
-      setWhatsapp(formatarZap(dados.whatsapp ?? ""));
-      setAvisoZap({ tipo: "ok", texto: dados.whatsapp ? "Salvo. O botão de WhatsApp já aparece na página de agendamento das clientes." : "WhatsApp removido da página de agendamento." });
+      const zapNovo: string = dados.whatsApp ?? dados.whatsapp ?? "";
+      setWhatsappSalvo(zapNovo);
+      setWhatsapp(formatarZap(zapNovo));
+      setAvisoZap({ tipo: "ok", texto: zapNovo ? "Salvo. O botão de WhatsApp já aparece na página de agendamento das clientes." : "WhatsApp removido da página de agendamento." });
     } finally {
       setSalvandoZap(false);
     }
