@@ -69,7 +69,7 @@ public class AdminController : ControllerBase
         }));
     }
 
-    // Aplica um perfil de acesso (Salao, Loja ou Completo): liga os módulos do perfil e desliga os demais.
+    // Aplica um perfil de acesso (Salao, Loja, Alimentacao ou Completo): liga os módulos do perfil e desliga os demais.
     // Afiliados nunca é mexido aqui (continua de ligação explícita). Nada é apagado: só muda o que aparece e o que a API libera.
     [HttpPut("empresas/{empresaId:int}/perfil")]
     public async Task<IActionResult> AplicarPerfil(int empresaId, AplicarPerfilRequest request)
@@ -78,7 +78,7 @@ public class AdminController : ControllerBase
             return Forbid();
 
         if (request.Perfil is null || !PerfisDeAcesso.Modulos.TryGetValue(request.Perfil, out var doPerfil))
-            return BadRequest(new { mensagem = "Perfil inválido. Use Salao, Loja ou Completo." });
+            return BadRequest(new { mensagem = "Perfil inválido. Use Salao, Loja, Alimentacao ou Completo." });
 
         var empresa = await _context.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId);
         if (empresa is null)

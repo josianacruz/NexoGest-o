@@ -500,7 +500,7 @@ function VendasConteudo() {
 
           {carrinho.length > 0 && (
             <div className="rounded-lg border border-black/10 dark:border-white/10 overflow-hidden mb-4">
-              <table className="w-full text-sm">
+              <table className="tabela-cartoes w-full text-sm">
                 <thead>
                   <tr className="text-left text-black/60 dark:text-white/60 bg-black/[0.02] dark:bg-white/[0.03]">
                     <th className="py-2 px-3 font-medium">Produto</th>
@@ -757,7 +757,7 @@ function VendasConteudo() {
               </div>
             </div>
             <div className="rounded-lg border border-black/10 dark:border-white/10 overflow-hidden">
-              <table className="w-full text-sm">
+              <table className="tabela-cartoes w-full text-sm">
                 <thead>
                   <tr className="text-left text-black/60 dark:text-white/60 bg-black/[0.02] dark:bg-white/[0.03]">
                     <th className="py-2 px-3 font-medium">Produto</th>
@@ -798,7 +798,7 @@ function VendasConteudo() {
         )}
 
         <div className={`${cardStyle} overflow-x-auto`}>
-          <table className="w-full text-sm min-w-[720px]">
+          <table className="tabela-cartoes w-full text-sm min-w-[720px]">
             <thead>
               <tr className="text-left text-black/60 dark:text-white/60 border-b border-black/10 dark:border-white/10">
                 <th className="py-2.5 px-4 font-medium">Data</th>
@@ -907,7 +907,7 @@ function VendasConteudo() {
             </div>
 
             <div className="rounded-lg border border-black/10 dark:border-white/10 overflow-hidden mt-1">
-              <table className="w-full text-sm">
+              <table className="tabela-cartoes w-full text-sm">
                 <thead>
                   <tr className="text-left text-black/60 dark:text-white/60 bg-black/[0.02] dark:bg-white/[0.03]">
                     <th className="py-2 px-3 font-medium">Produto</th>

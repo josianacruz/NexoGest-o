@@ -74,6 +74,7 @@ public class AgendamentoPublicoController : ControllerBase
     public async Task<IActionResult> Pagina(int empresaId, [FromQuery] bool completa = false)
     {
         Context.EmpresaAtualId = empresaId; // os filtros por empresa valem para a lista de serviços
+        var agora = DateTime.UtcNow;
 
         var dados = await Context.Empresas
             .AsNoTracking()
@@ -87,7 +88,14 @@ public class AgendamentoPublicoController : ControllerBase
                 Servicos = Context.Servicos
                     .Where(s => s.Ativo && (completa || s.PermiteAutoagendamento))
                     .OrderBy(s => s.Nome)
-                    .Select(s => new { s.Id, s.Nome, s.DuracaoMinutos, s.Preco, s.PermiteAutoagendamento })
+                    .Select(s => new { s.Id, s.Nome, s.DuracaoMinutos, s.Preco })
+                    .ToList(),
+                // Promoções no ar: ativas, dentro da validade, de serviço que a cliente pode agendar e com preço realmente menor.
+                Promocoes = Context.PromocoesServico
+                    .Where(p => p.Ativa && p.InicioEm <= agora && p.FimEm > agora && p.Servico.Ativo && p.Servico.PermiteAutoagendamento && p.PrecoPromocional < p.Servico.Preco)
+                    .OrderBy(p => p.FimEm)
+                    .Take(PromocaoServico.MaxNoAr)
+                    .Select(p => new { p.Id, p.ServicoId, p.Titulo, p.Descricao, p.PrecoPromocional, PrecoNormal = p.Servico.Preco, p.FimEm })
                     .ToList(),
             })
             .FirstOrDefaultAsync();
@@ -97,10 +105,22 @@ public class AgendamentoPublicoController : ControllerBase
             return NotFound(new { mensagem = "Empresa não encontrada ou agendamento indisponível." });
 
         Response.Headers.CacheControl = "public, max-age=30, stale-while-revalidate=300";
-        return Ok(new { dados.Nome, dados.WhatsApp, dados.Servicos });
+        return Ok(new { dados.Nome, dados.WhatsApp, dados.Servicos, dados.Promocoes });
     }
 
     [EnableRateLimiting("publico-leitura")]
+    // Preço que a cliente paga agora por este serviço: o promocional, se houver promoção no ar; senão o normal.
+    [NonAction]
+    public async Task<decimal> PrecoEfetivoAsync(Servico servico, DateTime agora)
+    {
+        var promocional = await Context.PromocoesServico
+            .Where(p => p.ServicoId == servico.Id && p.Ativa && p.InicioEm <= agora && p.FimEm > agora && p.PrecoPromocional < servico.Preco)
+            .OrderBy(p => p.PrecoPromocional)
+            .Select(p => (decimal?)p.PrecoPromocional)
+            .FirstOrDefaultAsync();
+        return promocional ?? servico.Preco;
+    }
+
     [HttpGet("servicos")]
     public async Task<IActionResult> ListarServicos(int empresaId)
     {
@@ -298,6 +318,9 @@ public class AgendamentoPublicoController : ControllerBase
             return Conflict(new { mensagem = "Esse horário acabou de ficar indisponível. Escolha outro horário." });
         }
 
+        // Promoção no ar para este serviço: o valor do agendamento é o promocional (quem decide é o servidor, nunca a tela).
+        var valorFinal = await PrecoEfetivoAsync(servico, DateTime.UtcNow);
+
         var agendamento = new Agendamento
         {
             EmpresaId = empresaId,
@@ -306,7 +329,7 @@ public class AgendamentoPublicoController : ControllerBase
             ServicoNome = servico.Nome,
             DataHora = inicio,
             DuracaoMinutos = servico.DuracaoMinutos,
-            Valor = servico.Preco,
+            Valor = valorFinal,
             Status = StatusAgendamento.Agendado,
             Origem = OrigemAgendamento.Autoagendamento,
         };

@@ -43,6 +43,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<ProdutoAfiliadoSnapshot> ProdutoAfiliadoSnapshots => Set<ProdutoAfiliadoSnapshot>();
     public DbSet<StoryLoja> StoriesLoja => Set<StoryLoja>();
     public DbSet<MidiaLoja> MidiasLoja => Set<MidiaLoja>();
+    public DbSet<PromocaoServico> PromocoesServico => Set<PromocaoServico>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -96,6 +97,12 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         builder.Entity<StoryLoja>().Property(s => s.Texto).HasMaxLength(StoryLoja.MaxTexto);
         builder.Entity<StoryLoja>().HasIndex(s => new { s.EmpresaId, s.ExpiraEm });
         builder.Entity<StoryLoja>().HasOne(s => s.Midia).WithMany().HasForeignKey(s => s.MidiaId).OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<PromocaoServico>().HasQueryFilter(p => EmpresaAtualId != null && p.EmpresaId == EmpresaAtualId);
+        builder.Entity<PromocaoServico>().HasOne(p => p.Servico).WithMany().HasForeignKey(p => p.ServicoId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<PromocaoServico>().HasIndex(p => new { p.EmpresaId, p.Ativa, p.FimEm });
+        builder.Entity<PromocaoServico>().Property(p => p.Titulo).HasMaxLength(PromocaoServico.MaxTitulo);
+        builder.Entity<PromocaoServico>().Property(p => p.Descricao).HasMaxLength(PromocaoServico.MaxDescricao);
+        builder.Entity<PromocaoServico>().Property(p => p.PrecoPromocional).HasPrecision(18, 2);
         builder.Entity<MidiaLoja>().HasQueryFilter(m => EmpresaAtualId != null && m.EmpresaId == EmpresaAtualId);
         builder.Entity<MidiaLoja>().HasIndex(m => new { m.EmpresaId, m.Hash }).IsUnique();
         builder.Entity<MidiaLoja>().HasIndex(m => new { m.EmpresaId, m.UltimoUsoEm });

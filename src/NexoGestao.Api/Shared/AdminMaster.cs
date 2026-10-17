@@ -35,6 +35,8 @@ public static class PerfisDeAcesso
         ["Salao"] = new[] { Modulo.Clientes, Modulo.Agenda, Modulo.Servicos, Modulo.Marketing },
         // Loja/varejo: estoque (produtos), vendas/caixa e clientes.
         ["Loja"] = new[] { Modulo.Clientes, Modulo.Produtos, Modulo.Vendas },
+        // Alimentação (lanchonete, restaurante, confeitaria): comandas, cardápio (Marketing), estoque, vendas/caixa e clientes.
+        ["Alimentacao"] = new[] { Modulo.Clientes, Modulo.Produtos, Modulo.Vendas, Modulo.Comandas, Modulo.Marketing },
         // Tudo (exceto Afiliados, que continua de ligação explícita).
         ["Completo"] = ModulosPadrao.LiberadosSemConfiguracao.ToArray(),
     };
@@ -43,6 +45,7 @@ public static class PerfisDeAcesso
     {
         "salao" => NichoLoja.BelezaServicos,
         "loja" => NichoLoja.Moda,
+        "alimentacao" => NichoLoja.Alimentos,
         _ => null,
     };
 

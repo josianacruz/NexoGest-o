@@ -241,7 +241,7 @@ export default function CobrancasPage() {
         {erro && <p className="text-sm text-red-600 mb-4">{erro}</p>}
 
         <div className={`${cardStyle} overflow-x-auto`}>
-          <table className="w-full text-sm min-w-[720px]">
+          <table className="tabela-cartoes w-full text-sm min-w-[720px]">
             <thead>
               <tr className="text-left text-black/60 dark:text-white/60 border-b border-black/10 dark:border-white/10">
                 <th className="py-2.5 px-4 font-medium">Cliente</th>

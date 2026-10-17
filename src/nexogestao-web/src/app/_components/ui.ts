@@ -14,7 +14,7 @@ export const botaoSecundario = `${botaoBase} bg-slate-100 text-slate-700 hover:b
 
 export const botaoPerigo = `${botaoBase} bg-rose-200 text-rose-950 hover:bg-rose-300 dark:bg-rose-400/25 dark:text-rose-50 dark:hover:bg-rose-400/35`;
 
-export const botaoTexto = "text-violet-800 dark:text-violet-200 hover:underline text-sm font-semibold disabled:opacity-40 disabled:no-underline cursor-pointer disabled:cursor-not-allowed";
+export const botaoTexto = "inline-flex min-h-11 items-center px-1 text-violet-800 dark:text-violet-200 hover:underline text-sm font-semibold disabled:opacity-40 disabled:no-underline cursor-pointer disabled:cursor-not-allowed";
 
 export const cardStyle = "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm";
 

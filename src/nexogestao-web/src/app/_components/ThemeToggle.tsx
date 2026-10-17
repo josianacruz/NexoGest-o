@@ -54,7 +54,7 @@ export default function ThemeToggle({ className = "", suave = false }: { classNa
   }, []);
 
   const base =
-    "h-8 px-2.5 inline-flex items-center gap-1.5 text-xs font-medium transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500";
+    "h-11 sm:h-8 px-3 sm:px-2.5 inline-flex items-center gap-1.5 text-sm sm:text-xs font-medium transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500";
   // O botão ativo é pintado pelo próprio CSS (variante dark:), então acerta de primeira, sem esperar o React
   // hidratar e sem piscar o botão errado.
   // "suave": versão pastel (lilás) usada na pré-visualização do novo visual.

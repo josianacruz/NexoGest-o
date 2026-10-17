@@ -13,7 +13,7 @@ import { escolherEmpresa } from "../../../lib/empresaAtiva";
 export default function MarketingPage() {
   const [empresaNome, setEmpresaNome] = useState("");
   const [comandasHabilitadas, setComandasHabilitadas] = useState(true);
-  const [temProdutos, setTemProdutos] = useState(true);
+  const [temCardapio, setTemCardapio] = useState(false);
   const [temServicos, setTemServicos] = useState(false);
   const router = useRouter();
 
@@ -35,7 +35,9 @@ export default function MarketingPage() {
       if (empresas.length > 0) {
         setEmpresaNome(escolherEmpresa(empresas).nome);
         setComandasHabilitadas(escolherEmpresa(empresas).comandasHabilitadas ?? true);
-        setTemProdutos(temModulo(escolherEmpresa(empresas).modulos ?? [], "Produtos"));
+        // Cardápio é do ramo de comida: precisa do estoque ligado e do nicho Alimentação.
+        const ativa = escolherEmpresa(empresas);
+        setTemCardapio(temModulo(ativa.modulos ?? [], "Produtos") && ativa.nicho === "Alimentos");
         setTemServicos(temModulo(escolherEmpresa(empresas).modulos ?? [], "Servicos"));
       }
     })();
@@ -59,7 +61,7 @@ export default function MarketingPage() {
             </p>
           </Link>
 
-          {temProdutos ? (
+          {temCardapio ? (
             <Link
               href="/marketing/cardapio"
               className={`${cardStyle} p-6 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md transition-all`}

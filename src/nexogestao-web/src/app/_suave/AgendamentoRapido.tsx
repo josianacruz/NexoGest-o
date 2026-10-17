@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { criarLinkWhatsApp } from "../../lib/whatsapp";
+import { janelaDoDia, type DiaTrabalho } from "../../lib/horarioTrabalho";
 import { useEmpresa } from "./EmpresaContext";
-import { SUAVE, brl, gerarHorarios, horarioOcupado, isoDoDia, pad, rotuloDoDia, somarDias } from "./tokens";
+import { SUAVE, brl, gerarHorarios, horarioOcupado, isoDoDia, minutosDe, pad, rotuloDoDia, somarDias } from "./tokens";
 
 export interface ClienteResumo {
   id: number;
@@ -45,7 +46,7 @@ export default function AgendamentoRapido({
 
   const [clientes, setClientes] = useState<ClienteResumo[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
-  const [expediente, setExpediente] = useState({ inicio: "08:00", fim: "18:00" });
+  const [semana, setSemana] = useState<DiaTrabalho[] | null>(null); // horário de trabalho (Configurações)
   const [carregado, setCarregado] = useState(false);
 
   const [clienteId, setClienteId] = useState<number | null>(null);
@@ -79,7 +80,7 @@ export default function AgendamentoRapido({
     pulouHoje.current = false;
     setClienteId(clienteInicial?.id ?? null);
     (async () => {
-      const [rc, rs, rcfg] = await Promise.all([api("/clientes"), api("/servicos"), api("/agenda/configuracao")]);
+      const [rc, rs, rcfg] = await Promise.all([api("/clientes"), api("/servicos"), api("/agenda/perfil")]);
       if (rc.ok) setClientes(await rc.json());
       if (rs.ok) {
         const lista: Servico[] = await rs.json();
@@ -87,10 +88,7 @@ export default function AgendamentoRapido({
         const ultimo = Number(localStorage.getItem(`nexo_ultimo_servico_${empresa.id}`));
         setServicoId(lista.find((s) => s.id === ultimo)?.id ?? lista[0]?.id ?? null);
       }
-      if (rcfg.ok) {
-        const c = await rcfg.json();
-        setExpediente({ inicio: c.horaInicioAtendimento ?? "08:00", fim: c.horaFimAtendimento ?? "18:00" });
-      }
+      if (rcfg.ok) setSemana(await rcfg.json());
       setCarregado(true);
     })();
   }, [aberto, empresa?.id]);
@@ -107,20 +105,25 @@ export default function AgendamentoRapido({
   const servico = servicos.find((s) => s.id === servicoId) ?? null;
   const duracao = servico?.duracaoMinutos ?? 30;
 
+  // Janela de trabalho do dia escolhido; nulo = a loja não atende nesse dia.
+  const janela = useMemo(() => janelaDoDia(semana, dia), [semana, dia]);
+
   const livres = useMemo(() => {
     const agora = new Date();
     const horaAgora = `${pad(agora.getHours())}:${pad(agora.getMinutes())}`;
-    return gerarHorarios(expediente.inicio, expediente.fim, 30).filter(
-      (h) => !(dia === hoje && h <= horaAgora) && !horarioOcupado(h, duracao, doDia)
+    if (!janela) return [];
+    return gerarHorarios(janela.inicio, janela.fim, 30).filter(
+      (h) => !(dia === hoje && h <= horaAgora) && !horarioOcupado(h, duracao, doDia) && minutosDe(h) + duracao <= minutosDe(janela.fim)
     );
-  }, [expediente, dia, hoje, duracao, doDia]);
+  }, [janela, dia, hoje, duracao, doDia]);
 
   // Hoje já acabou o expediente (ou lotou)? Começa no dia seguinte, em vez de deixar a pessoa sem opção.
   useEffect(() => {
     if (!aberto || !carregado || horarioInicial || pulouHoje.current) return;
     if (dia === hoje && livres.length === 0) {
       pulouHoje.current = true;
-      setDia(isoDoDia(somarDias(new Date(), 1)));
+      // hoje não tem mais horário: vai para o próximo dia em que a loja atende
+      setDia([1, 2, 3, 4, 5, 6, 7].map((n) => isoDoDia(somarDias(new Date(), n))).find((d) => janelaDoDia(semana, d)) ?? isoDoDia(somarDias(new Date(), 1)));
       setHora(null);
     }
   }, [aberto, carregado, dia, hoje, livres.length, horarioInicial]);
@@ -309,7 +312,9 @@ export default function AgendamentoRapido({
                     </button>
                   ))}
                 </div>
-                {livres.length === 0 && !(horarioInicial && dia === horarioInicial.dia) ? (
+                {!janela && !(horarioInicial && dia === horarioInicial.dia) ? (
+                  <p className={`text-sm ${SUAVE.textoFraco}`}>Fechado nesse dia (horário de trabalho em Configurações). Escolha outro dia.</p>
+                ) : livres.length === 0 && !(horarioInicial && dia === horarioInicial.dia) ? (
                   <p className={`text-sm ${SUAVE.textoFraco}`}>Sem horário livre nesse dia. Escolha outro dia.</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">

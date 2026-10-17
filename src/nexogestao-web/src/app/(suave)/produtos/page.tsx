@@ -7,7 +7,8 @@ import Modal from "../../_components/Modal";
 import PageHeader from "../../_components/PageHeader";
 import SearchInput from "../../_components/SearchInput";
 import { inputStyle, labelStyle, botaoPrimario, botaoSecundario, botaoTexto, cardStyle, badgeEstoque } from "../../_components/ui";
-import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
+import { API_URL, MODULO_INDISPONIVEL_MSG, moduloIndisponivel, textoDoErro } from "../../../lib/api";
+import { apagarRascunho, lerRascunho, useRascunho } from "../../../lib/rascunho";
 import { separarNomeEslogan } from "../../../lib/modulos";
 import { blobParaDataUrl } from "../../../lib/imagem";
 import BibliotecaRapida, { type MidiaResumo } from "../../_suave/BibliotecaRapida";
@@ -121,17 +122,39 @@ export default function ProdutosPage() {
     carregarEmpresaEProdutos();
   }, []);
 
+  // Rascunho automático: se o celular fechar o app no meio do cadastro, o que foi digitado volta ao reabrir.
+  const [recuperado, setRecuperado] = useState(false);
+  const chaveRascunho = modalAberto === "editar" && produtoEditando ? `produto-${produtoEditando.id}` : "produto-novo";
+  useRascunho(chaveRascunho, { form, atrib }, modalAberto !== null, (v) => modalAberto === "novo" && !v.form.nome.trim() && !v.form.preco.trim() && !v.form.fotoUrl);
+
+  function restaurar(r: { form: typeof formVazio; atrib: AtributosForm } | null) {
+    setRecuperado(!!r);
+    return r;
+  }
+
   function abrirNovo() {
     setErro(null);
-    setForm(formVazio);
-    setAtrib(atributosVazios());
+    const r = restaurar(lerRascunho<{ form: typeof formVazio; atrib: AtributosForm }>("produto-novo"));
+    setForm(r?.form ?? formVazio);
+    setAtrib(r?.atrib ?? atributosVazios());
     setModalAberto("novo");
   }
 
-  function abrirEdicao(p: Produto) {
+  function descartarRascunho() {
+    apagarRascunho(chaveRascunho);
+    setRecuperado(false);
+    if (modalAberto === "editar" && produtoEditando) abrirEdicao(produtoEditando, true);
+    else {
+      setForm(formVazio);
+      setAtrib(atributosVazios());
+    }
+  }
+
+  function abrirEdicao(p: Produto, ignorarRascunho = false) {
     setErro(null);
     setProdutoEditando(p);
-    setForm({
+    const r = ignorarRascunho ? restaurar(null) : restaurar(lerRascunho<{ form: typeof formVazio; atrib: AtributosForm }>(`produto-${p.id}`));
+    setForm(r?.form ?? {
       nome: p.nome,
       categoria: p.categoria ?? "",
       preco: String(p.preco),
@@ -140,7 +163,7 @@ export default function ProdutosPage() {
       estoqueMinimo: String(p.estoqueMinimo),
       fotoUrl: p.fotoUrl ?? "",
     });
-    setAtrib(atributosDaApi(p.atributos));
+    setAtrib(r?.atrib ?? atributosDaApi(p.atributos));
     setModalAberto("editar");
   }
 
@@ -186,8 +209,11 @@ export default function ProdutosPage() {
         return;
       }
 
+      apagarRascunho(chaveRascunho); // salvou: o rascunho não é mais necessário
       fecharModal();
       await carregarEmpresaEProdutos();
+    } catch (e) {
+      setErro(textoDoErro(e, "Sem conexão com o servidor. O que você digitou continua aqui; tente de novo."));
     } finally {
       setSalvando(false);
     }
@@ -355,7 +381,7 @@ export default function ProdutosPage() {
         {erro && !modalAberto && <p className="text-sm text-red-600 mb-4">{erro}</p>}
 
         <div className={`${cardStyle} overflow-x-auto`}>
-          <table className="w-full text-sm min-w-[640px]">
+          <table className="tabela-cartoes w-full text-sm min-w-[640px]">
             <thead>
               <tr className="text-left text-black/60 dark:text-white/60 border-b border-black/10 dark:border-white/10">
                 <th className="py-2.5 px-4 font-medium">Nome</th>
@@ -422,6 +448,14 @@ export default function ProdutosPage() {
           onFechar={fecharModal}
         >
           <form onSubmit={salvar} className="flex flex-col gap-3">
+            {recuperado && (
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-sky-100 p-3 text-sm text-sky-900 dark:bg-sky-400/20 dark:text-sky-100">
+                <span className="flex-1">Recuperamos o que você tinha digitado.</span>
+                <button type="button" onClick={descartarRascunho} className="font-bold underline">
+                  Começar do zero
+                </button>
+              </div>
+            )}
             <div className="flex flex-col gap-1">
               <label className={labelStyle}>Nome</label>
               <input

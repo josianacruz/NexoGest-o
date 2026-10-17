@@ -145,3 +145,84 @@ select option {
 [data-arte] {
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ---------------------------------------------------------------------------------------------------------
+   Tabelas em cartões no celular. Qualquer <table class="tabela-cartoes"> deixa de ter colunas lado a lado em telas
+   estreitas: cada linha vira um cartão, com o nome da coluna ao lado de cada valor (os rótulos vêm do cabeçalho,
+   copiados por lib/tabelasEmCartoes.ts). No computador a tabela continua igual.
+   --------------------------------------------------------------------------------------------------------- */
+@media (max-width: 639px) {
+  table.tabela-cartoes {
+    min-width: 0 !important;
+    display: block;
+    width: 100%;
+  }
+  table.tabela-cartoes thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  table.tabela-cartoes tbody,
+  table.tabela-cartoes tr {
+    display: block;
+  }
+  table.tabela-cartoes tbody tr {
+    margin: 0.75rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid rgb(226 232 240);
+    border-radius: 1rem;
+    background: rgb(255 255 255);
+  }
+  .dark table.tabela-cartoes tbody tr {
+    border-color: rgb(51 65 85);
+    background: rgb(30 41 59);
+  }
+  table.tabela-cartoes td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: 0.4rem 0 !important;
+    border: 0 !important;
+    text-align: right !important;
+    overflow-wrap: anywhere;
+  }
+  table.tabela-cartoes td[data-rotulo]::before {
+    content: attr(data-rotulo);
+    flex: 0 0 38%;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgb(71 85 105);
+  }
+  .dark table.tabela-cartoes td[data-rotulo]::before {
+    color: rgb(203 213 225);
+  }
+  /* a primeira coluna (nome, data) vira o título do cartão */
+  table.tabela-cartoes td:first-child {
+    justify-content: flex-start;
+    text-align: left !important;
+    font-weight: 600;
+    font-size: 1rem;
+  }
+  table.tabela-cartoes td:first-child::before {
+    display: none;
+  }
+  /* linha de aviso ("nenhum registro") ocupa o cartão inteiro */
+  table.tabela-cartoes td[colspan] {
+    justify-content: center;
+    text-align: center !important;
+  }
+}
+
+/* Alvos de toque de pelo menos 44 px no celular (botões e abas das telas; ícones pequenos de "remover" ficam de fora). */
+@media (max-width: 639px) {
+  main button:not([class*="h-4"]):not([class*="h-5"]):not([class*="h-6"]):not(.sr-only),
+  main [role="tab"],
+  main select {
+    min-height: 44px;
+  }
+}

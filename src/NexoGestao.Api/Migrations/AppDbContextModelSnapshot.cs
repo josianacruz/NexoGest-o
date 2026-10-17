@@ -1135,6 +1135,54 @@ namespace NexoGestao.Api.Migrations
                     b.ToTable("ProdutoAfiliadoSnapshots");
                 });
 
+            modelBuilder.Entity("NexoGestao.Api.Domain.PromocaoServico", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Ativa")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("DataCriacao")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Descricao")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("FimEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("InicioEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("PrecoPromocional")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("ServicoId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServicoId");
+
+                    b.HasIndex("EmpresaId", "Ativa", "FimEm");
+
+                    b.ToTable("PromocoesServico");
+                });
+
             modelBuilder.Entity("NexoGestao.Api.Domain.RadarConsulta", b =>
                 {
                     b.Property<int>("Id")
@@ -1946,6 +1994,25 @@ namespace NexoGestao.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("ProdutoAfiliado");
+                });
+
+            modelBuilder.Entity("NexoGestao.Api.Domain.PromocaoServico", b =>
+                {
+                    b.HasOne("NexoGestao.Api.Domain.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NexoGestao.Api.Domain.Servico", "Servico")
+                        .WithMany()
+                        .HasForeignKey("ServicoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("Servico");
                 });
 
             modelBuilder.Entity("NexoGestao.Api.Domain.RadarConsulta", b =>

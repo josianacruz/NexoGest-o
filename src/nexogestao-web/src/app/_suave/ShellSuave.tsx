@@ -7,6 +7,7 @@ import AvisoDeConexao from "../_components/AvisoDeConexao";
 import PagamentoConfirmado from "../_components/PagamentoConfirmado";
 import ThemeToggle from "../_components/ThemeToggle";
 import { separarNomeEslogan } from "../../lib/modulos";
+import { observarTabelas } from "../../lib/tabelasEmCartoes";
 import { EmpresaProvider, useEmpresa, type Avisos } from "./EmpresaContext";
 import { SUAVE } from "./tokens";
 
@@ -140,6 +141,9 @@ function Estrutura({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Tabelas das telas viram cartões no celular (os rótulos das colunas são copiados para as células).
+  useEffect(() => observarTabelas(document.body), []);
+
   function alternarMenu() {
     setRecolhido((v) => {
       try {
@@ -233,7 +237,7 @@ function Estrutura({ children }: { children: React.ReactNode }) {
             )}
           </div>
           <ThemeToggle suave />
-          <button type="button" onClick={sair} className={`${SUAVE.botaoSecundario} !px-4 !py-2`}>
+          <button type="button" onClick={sair} className={`${SUAVE.botaoSecundario} !px-4 !py-2 min-h-11`}>
             Sair
           </button>
         </header>

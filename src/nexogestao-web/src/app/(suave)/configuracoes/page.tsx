@@ -9,6 +9,7 @@ import { inputStyle, labelStyle, botaoPrimario, cardStyle } from "../../_compone
 import { API_URL } from "../../../lib/api";
 import { separarNomeEslogan } from "../../../lib/modulos";
 import { NICHOS, type Nicho } from "../../_suave/CamposDoNicho";
+import HorarioDeTrabalho from "../../_suave/HorarioDeTrabalho";
 import { escolherEmpresa } from "../../../lib/empresaAtiva";
 
 // 5511912345678 → (11) 91234-5678 (só para mostrar; a API guarda os dígitos)
@@ -258,6 +259,8 @@ export default function ConfiguracoesPage() {
             </button>
           </form>
         </section>
+
+        <HorarioDeTrabalho />
 
         <section className={`${cardStyle} p-5`}>
           <h2 className="font-semibold mb-1">WhatsApp da loja</h2>

@@ -13,17 +13,18 @@ interface EmpresaAdmin {
   tipoNegocio: string | null;
   nicho: string;
   dataCriacao: string;
-  perfil: "Salao" | "Loja" | "Completo" | "Personalizado";
+  perfil: "Salao" | "Loja" | "Alimentacao" | "Completo" | "Personalizado";
   modulos: string[];
   donos: string[];
 }
 
-type PerfilAplicavel = "Salao" | "Loja" | "Completo";
+type PerfilAplicavel = "Salao" | "Loja" | "Alimentacao" | "Completo";
 
 // Perfis de acesso (mesma regra do servidor): o que cada tipo de cliente enxerga.
 const PERFIS: Record<PerfilAplicavel, { nome: string; descricao: string; modulos: string[] }> = {
   Salao: { nome: "Salão de beleza", descricao: "Agenda, agendamento público, serviços e tabela, promoções e Stories, clientes.", modulos: ["Clientes", "Agenda", "Servicos", "Marketing"] },
   Loja: { nome: "Loja / varejo", descricao: "Estoque (produtos), vendas e caixa, clientes.", modulos: ["Clientes", "Produtos", "Vendas"] },
+  Alimentacao: { nome: "Alimentação", descricao: "Comandas, cardápio, estoque, vendas e caixa, clientes. Sem agenda.", modulos: ["Clientes", "Produtos", "Vendas", "Comandas", "Marketing"] },
   Completo: { nome: "Completo", descricao: "Todos os módulos (menos Afiliados, que é ligado à parte).", modulos: ["Clientes", "Produtos", "Vendas", "Comandas", "Cobrancas", "Agenda", "Servicos", "Marketing", "Financeiro", "Interesses"] },
 };
 
@@ -41,7 +42,7 @@ const ROTULO: Record<string, string> = {
   Afiliados: "Afiliados",
 };
 
-const NOME_PERFIL: Record<string, string> = { Salao: "Salão", Loja: "Loja", Completo: "Completo", Personalizado: "Personalizado" };
+const NOME_PERFIL: Record<string, string> = { Salao: "Salão", Loja: "Loja", Alimentacao: "Alimentação", Completo: "Completo", Personalizado: "Personalizado" };
 
 // Console da administradora máster: todas as empresas, o perfil de cada uma e atalho para entrar no ambiente dela.
 export default function AdminPage() {

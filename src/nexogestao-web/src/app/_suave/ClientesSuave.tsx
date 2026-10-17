@@ -68,10 +68,10 @@ export default function ClientesSuave({ atualizar, aoAgendar }: { atualizar: num
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-bold">Clientes</h2>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => setNovo((v) => !v)} className={`${SUAVE.botaoSecundario} !px-4 !py-2`}>
+          <button type="button" onClick={() => setNovo((v) => !v)} className={`${SUAVE.botaoSecundario} !px-4 !py-2 min-h-11`}>
             {novo ? "Cancelar" : "+ Novo cliente"}
           </button>
-          <Link href="/clientes" className="text-sm font-semibold text-violet-700 underline dark:text-violet-200">
+          <Link href="/clientes" className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-violet-700 underline dark:text-violet-200">
             Ver todos
           </Link>
         </div>

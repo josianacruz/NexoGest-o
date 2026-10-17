@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { MODULO_INDISPONIVEL_MSG, moduloIndisponivel } from "../../../lib/api";
+import { MODULO_INDISPONIVEL_MSG, moduloIndisponivel, textoDoErro } from "../../../lib/api";
+import { apagarRascunho, lerRascunho, useRascunho } from "../../../lib/rascunho";
 import {
   abrirWhatsApp,
   mensagemAgradecerCompra,
@@ -75,16 +76,21 @@ export default function ClientesPage() {
   const temAgenda = !!empresa?.modulos.includes("Agenda");
 
   const carregar = useCallback(async () => {
-    const res = await api("/clientes");
-    if (moduloIndisponivel(res)) {
-      setErroGeral(MODULO_INDISPONIVEL_MSG);
-    } else if (res.ok) {
-      setClientes(await res.json());
-      setErroGeral(null);
-    } else {
-      setErroGeral("Não consegui carregar os clientes. Tente de novo.");
+    try {
+      const res = await api("/clientes");
+      if (moduloIndisponivel(res)) {
+        setErroGeral(MODULO_INDISPONIVEL_MSG);
+      } else if (res.ok) {
+        setClientes(await res.json());
+        setErroGeral(null);
+      } else {
+        setErroGeral("Não consegui carregar os clientes. Tente de novo.");
+      }
+    } catch (e) {
+      setErroGeral(textoDoErro(e, "Não consegui carregar os clientes."));
+    } finally {
+      setCarregando(false);
     }
-    setCarregando(false);
   }, [api]);
 
   useEffect(() => {
@@ -97,10 +103,25 @@ export default function ClientesPage() {
     return clientes.filter((c) => c.nome.toLowerCase().includes(t) || (c.telefone ?? "").toLowerCase().includes(t) || (c.email ?? "").toLowerCase().includes(t));
   }, [clientes, busca]);
 
+  // Rascunho automático: se o celular fechar o app no meio do cadastro, o que foi digitado volta ao reabrir.
+  const [recuperado, setRecuperado] = useState(false);
+  const chaveRascunho = formAberto === "novo" || formAberto === null ? "cliente-novo" : `cliente-${formAberto.id}`;
+  useRascunho(chaveRascunho, form, formAberto !== null, (f) => formAberto === "novo" && !f.nome.trim() && !f.telefone.trim() && !f.email.trim());
+
+  const dosDados = (c: Cliente) => ({ nome: c.nome, telefone: c.telefone ?? "", email: c.email ?? "" });
+
   function abrirForm(c: "novo" | Cliente) {
     setErroForm(null);
-    setForm(c === "novo" ? formVazio : { nome: c.nome, telefone: c.telefone ?? "", email: c.email ?? "" });
+    const r = lerRascunho<typeof formVazio>(c === "novo" ? "cliente-novo" : `cliente-${c.id}`);
+    setForm(r ?? (c === "novo" ? formVazio : dosDados(c)));
+    setRecuperado(!!r);
     setFormAberto(c);
+  }
+
+  function descartarRascunho() {
+    apagarRascunho(chaveRascunho);
+    setRecuperado(false);
+    setForm(formAberto && formAberto !== "novo" ? dosDados(formAberto) : formVazio);
   }
 
   async function salvar(e: React.FormEvent) {
@@ -116,6 +137,7 @@ export default function ClientesPage() {
         return;
       }
       const criado = editando ? null : await res.json().catch(() => null);
+      apagarRascunho(chaveRascunho); // salvou: o rascunho não é mais necessário
       setFormAberto(null);
       await carregar();
       // Cliente novo e a loja usa agenda: já oferece marcar o primeiro horário.
@@ -123,6 +145,8 @@ export default function ClientesPage() {
         setAgendarPara({ id: criado.id, nome: criado.nome ?? form.nome, telefone: form.telefone || null });
         setAgendarAberto(true);
       }
+    } catch (err) {
+      setErroForm(textoDoErro(err, "Não foi possível salvar o cliente. Tente de novo."));
     } finally {
       setSalvando(false);
     }
@@ -260,6 +284,14 @@ export default function ClientesPage() {
       {formAberto && (
         <Folha titulo={formAberto === "novo" ? "Novo cliente" : `Editar ${formAberto.nome}`} aoFechar={() => setFormAberto(null)}>
           <form onSubmit={salvar} className="grid gap-3">
+            {recuperado && (
+              <div className={`flex flex-wrap items-center gap-2 rounded-2xl p-3 text-sm ${SUAVE.seloInfo}`}>
+                <span className="flex-1">Recuperamos o que você tinha digitado.</span>
+                <button type="button" onClick={descartarRascunho} className="font-bold underline">
+                  Começar do zero
+                </button>
+              </div>
+            )}
             <div>
               <label htmlFor="cli-nome" className={SUAVE.rotulo}>
                 Nome

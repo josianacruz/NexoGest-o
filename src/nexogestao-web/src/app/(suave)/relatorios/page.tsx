@@ -365,7 +365,7 @@ export default function RelatoriosPage() {
             {/* Pagamentos recebidos */}
             <h2 className="text-sm font-semibold mb-3">Pagamentos recebidos</h2>
             <div className={`${cardStyle} overflow-x-auto`}>
-              <table className="w-full text-sm min-w-[560px]">
+              <table className="tabela-cartoes w-full text-sm min-w-[560px]">
                 <thead>
                   <tr className="text-left text-black/60 dark:text-white/60 border-b border-black/10 dark:border-white/10">
                     <th className="py-2.5 px-4 font-medium">Cliente</th>

@@ -226,6 +226,26 @@ public class PermissoesTests
         Assert.IsType<OkObjectResult>(await admin.AplicarPerfil(2, new AplicarPerfilRequest("loja")));
         var loja = await db.ModulosEmpresa.IgnoreQueryFilters().Where(m => m.EmpresaId == 2 && m.Habilitado).Select(m => m.Modulo).ToListAsync();
         Assert.Equal(new[] { Modulo.Clientes, Modulo.Produtos, Modulo.Vendas }.OrderBy(x => x), loja.OrderBy(x => x));
+        Assert.DoesNotContain(Modulo.Comandas, loja);   // comanda é de comida, não de loja nem de salão
+    }
+
+    [Fact]
+    public async Task Perfil_alimentacao_liga_comandas_e_cardapio_e_nao_liga_agenda()
+    {
+        var db = await Cenario();
+        var admin = Console(db, Usuario("josiana-id", "josiana@x.com"), "josiana@x.com");
+
+        var r = Assert.IsType<OkObjectResult>(await admin.AplicarPerfil(2, new AplicarPerfilRequest("Alimentacao")));
+        var ligados = await db.ModulosEmpresa.IgnoreQueryFilters().Where(m => m.EmpresaId == 2 && m.Habilitado).Select(m => m.Modulo).ToListAsync();
+        Assert.Equal(new[] { Modulo.Clientes, Modulo.Produtos, Modulo.Vendas, Modulo.Comandas, Modulo.Marketing }.OrderBy(x => x), ligados.OrderBy(x => x));
+        Assert.DoesNotContain(Modulo.Agenda, ligados);
+        Assert.DoesNotContain(Modulo.Servicos, ligados);
+        Assert.Contains("\"Perfil\":\"Alimentacao\"", Json(r.Value));
+        Assert.Equal(NichoLoja.Alimentos, (await db.Empresas.IgnoreQueryFilters().SingleAsync(e => e.Id == 2)).Nicho);
+
+        // Salão e Loja nunca enxergam comandas
+        Assert.DoesNotContain(Modulo.Comandas, PerfisDeAcesso.Modulos["Salao"]);
+        Assert.DoesNotContain(Modulo.Comandas, PerfisDeAcesso.Modulos["Loja"]);
     }
 
     [Fact]
@@ -245,6 +265,7 @@ public class PermissoesTests
     [Theory]
     [InlineData("Clientes,Agenda,Servicos,Marketing", "Salao")]
     [InlineData("Clientes,Produtos,Vendas", "Loja")]
+    [InlineData("Clientes,Produtos,Vendas,Comandas,Marketing", "Alimentacao")]
     [InlineData("Clientes,Agenda", "Personalizado")]
     public void Perfil_e_reconhecido_pelo_conjunto_de_modulos(string modulos, string esperado) =>
         Assert.Equal(esperado, PerfisDeAcesso.Inferir(modulos.Split(',').Select(Enum.Parse<Modulo>)));

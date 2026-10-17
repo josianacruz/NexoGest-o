@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { criarLinkWhatsApp } from "../../lib/whatsapp";
+import { janelaDoDia, type DiaTrabalho } from "../../lib/horarioTrabalho";
 import { useEmpresa } from "./EmpresaContext";
 import { SELO_STATUS, SUAVE, TEXTO_STATUS, brl, gerarHorarios, horaDoAgendamento, horarioOcupado, isoDoDia, pad, rotuloDoDia, somarDias } from "./tokens";
 
@@ -32,18 +33,15 @@ export default function AgendaDia({
   const dias = useMemo(() => [0, 1, 2, 3, 4].map((n) => isoDoDia(somarDias(new Date(), n))), []);
   const [dia, setDia] = useState(hoje);
   const [lista, setLista] = useState<Agendamento[]>([]);
-  const [expediente, setExpediente] = useState({ inicio: "08:00", fim: "18:00" });
+  const [semana, setSemana] = useState<DiaTrabalho[] | null>(null);
   const [carregando, setCarregando] = useState(true);
   const temAgenda = empresa?.modulos.includes("Agenda");
 
   useEffect(() => {
     if (!empresa || !temAgenda) return;
     (async () => {
-      const r = await api("/agenda/configuracao");
-      if (r.ok) {
-        const c = await r.json();
-        setExpediente({ inicio: c.horaInicioAtendimento ?? "08:00", fim: c.horaFimAtendimento ?? "18:00" });
-      }
+      const r = await api("/agenda/perfil");
+      if (r.ok) setSemana(await r.json());
     })();
   }, [empresa?.id]);
 
@@ -68,11 +66,12 @@ export default function AgendaDia({
     const agora = `${pad(new Date().getHours())}:${pad(new Date().getMinutes())}`;
     const ativos = lista.filter((a) => a.status !== "Cancelado");
     const marcados = lista.map((a) => ({ hora: horaDoAgendamento(a.dataHora), tipo: "agendamento" as const, a }));
-    const livres = gerarHorarios(expediente.inicio, expediente.fim, 60)
+    const janela = janelaDoDia(semana, dia);
+    const livres = (janela ? gerarHorarios(janela.inicio, janela.fim, 60) : [])
       .filter((h) => !(dia === hoje && h <= agora) && !horarioOcupado(h, 60, ativos))
       .map((h) => ({ hora: h, tipo: "livre" as const, a: null }));
     return [...marcados, ...livres].sort((x, y) => x.hora.localeCompare(y.hora));
-  }, [lista, expediente, dia, hoje]);
+  }, [lista, semana, dia, hoje]);
 
   if (!temAgenda) return null;
 
