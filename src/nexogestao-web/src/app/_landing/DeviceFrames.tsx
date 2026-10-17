@@ -173,6 +173,53 @@ export function TelaClientes() {
   );
 }
 
+export function TelaStoryPromo() {
+  return (
+    <div className="relative flex aspect-[9/16] w-full flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-rose-400 p-4 text-white shadow-lg">
+      <span className="self-start rounded-full bg-white/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wide backdrop-blur">
+        Promoção da semana
+      </span>
+      <div>
+        <p className="text-lg font-bold leading-tight">Corte + Escova</p>
+        <p className="text-sm opacity-90">De R$ 90,00 por R$ 69,90</p>
+      </div>
+      <div className="rounded-xl bg-white/90 px-3 py-2 text-center text-xs font-bold text-violet-900">Agendar pelo link da bio →</div>
+    </div>
+  );
+}
+
+export function TelaAgendamentoPublico() {
+  const horarios = ["09:00", "10:30", "14:00", "15:30", "17:00", "18:30"];
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <Barra largura="w-20" cor="bg-slate-200 dark:bg-slate-700" />
+        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-900 dark:bg-emerald-400/20 dark:text-emerald-100">
+          Passo 2 de 3
+        </span>
+      </div>
+      <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Escolha o dia e horário</p>
+      <div className="grid grid-cols-3 gap-2">
+        {horarios.map((h, i) => (
+          <div
+            key={h}
+            className={`rounded-lg border px-2 py-2 text-center text-xs font-semibold ${
+              i === 1
+                ? "border-violet-400 bg-violet-100 text-violet-900 dark:border-violet-400/60 dark:bg-violet-300/20 dark:text-violet-100"
+                : "border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300"
+            }`}
+          >
+            {h}
+          </div>
+        ))}
+      </div>
+      <button type="button" className="rounded-xl bg-violet-600 px-3 py-2.5 text-xs font-semibold text-white">
+        Confirmar horário
+      </button>
+    </div>
+  );
+}
+
 export function TelaCardapio() {
   const itens = [
     { nome: "Combo Lanche + Refri", preco: "R$ 32,90" },

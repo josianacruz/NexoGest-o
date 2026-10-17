@@ -12,22 +12,51 @@ import {
   TelaRelatorios,
   TelaClientes,
   TelaCardapio,
+  TelaStoryPromo,
+  TelaAgendamentoPublico,
 } from "./DeviceFrames";
 
 const DIAS_TESTE_GRATIS = 14;
 
+const JORNADA = [
+  {
+    numero: "1",
+    icone: "📸",
+    titulo: "Crie o Story ou a arte",
+    texto: "Gere uma Story profissional, banner de promoção ou tabela de serviços/cardápio direto no sistema — sem precisar abrir o Canva.",
+  },
+  {
+    numero: "2",
+    icone: "🔗",
+    titulo: "Poste o link na Bio e no Status",
+    texto: "Um único link leva o cliente direto pra agenda ou pro catálogo — no Instagram, no WhatsApp, onde você já divulga hoje.",
+  },
+  {
+    numero: "3",
+    icone: "✅",
+    titulo: "Cliente agenda sozinho, 24h por dia",
+    texto: "Ele escolhe o serviço, o dia e o horário com o próprio dedo. Você só recebe a confirmação pronta — zero troca de mensagem.",
+  },
+];
+
 const BENEFICIOS = [
+  {
+    icone: "🔗",
+    dor: "Cansado de digitar \"tem horário disponível?\" 50 vezes por dia?",
+    titulo: "Agendamento Automático 24h",
+    texto: "O cliente escolhe o serviço, o dia e o horário sozinho pelo link. Você só recebe a confirmação pronta, sem trocar mensagem.",
+  },
+  {
+    icone: "🎨",
+    dor: "Sem tempo (ou jeito) pra mexer no Canva?",
+    titulo: "Materiais Prontos em 1 Clique",
+    texto: "Gere Stories, banners de promoção e tabela de serviços ou cardápio direto no sistema, em segundos.",
+  },
   {
     icone: "💸",
     dor: "Cansado de \"esquecer\" quem ainda te deve?",
     titulo: "Controle de Fiado",
     texto: "Veja o total em aberto por cliente e cobre com um toque. É dinheiro seu voltando pro caixa — não mais um favor esquecido.",
-  },
-  {
-    icone: "📲",
-    dor: "Perdendo venda por falta de divulgação?",
-    titulo: "Divulgação & WhatsApp",
-    texto: "Catálogo, link e texto prontos pra mandar no Status e nos grupos. Sem saber nada de design, sem perder cliente por sumir do feed.",
   },
   {
     icone: "📊",
@@ -47,12 +76,6 @@ const BENEFICIOS = [
     titulo: "Estoque Sob Controle",
     texto: "Alerta automático antes de faltar produto. Você sabe exatamente o que tem disponível, sempre.",
   },
-  {
-    icone: "📅",
-    dor: "Cliente esqueceu o horário de novo?",
-    titulo: "Agenda Sem Furo",
-    texto: "Confirmação e lembrete automáticos. Menos ausência, menos prejuízo, mais atendimento no seu dia.",
-  },
 ];
 
 const NICHOS = [
@@ -60,40 +83,36 @@ const NICHOS = [
     emoji: "💇‍♀️",
     titulo: "Salões, Barbearias e Estética",
     gancho: "Pra quem vive de agenda cheia",
-    texto:
-      "Chega de cliente que marca e não aparece, ou de agenda feita no caderninho. Confirme horários automaticamente, controle comissão e descubra qual serviço mais vende.",
+    texto: "Agenda online pelo seu link: fim dos furos de horário e dos lembretes manuais. A cliente marca sozinha, você só confirma.",
   },
   {
     emoji: "🍔",
     titulo: "Lanchonetes, Marmitas e Alimentação",
     gancho: "Pra quem vive de pedido certo e entrega rápida",
-    texto:
-      "Monte seu cardápio digital, mande no grupo do WhatsApp e já receba o pedido organizado. Sem anotar em post-it, sem perder encomenda no fim de semana.",
+    texto: "Cardápio digital pronto pra postar nos Stories, comandas organizadas e controle rápido de vendas — sem post-it, sem perder pedido.",
   },
   {
     emoji: "💎",
     titulo: "Lojas, Semijoias e Revenda",
     gancho: "Pra quem vive de giro de estoque",
-    texto:
-      "Saiba o que vendeu, o que sobrou e o que já era pra ter repetido. Catálogo pronto pra divulgar nos Stories em poucos cliques.",
+    texto: "Catálogo completo no link pra divulgar nos Stories, vendas registradas em segundos, estoque e controle total de fiado.",
   },
   {
     emoji: "🧰",
     titulo: "Prestadores de Serviço e Autônomos",
     gancho: "Pra quem vive sozinho de um negócio inteiro",
-    texto:
-      "Orçamento, agenda, cobrança e histórico de cliente, tudo num só lugar — sem precisar mais anotar serviço no bloco de notas do celular.",
+    texto: "Histórico de cada cliente, cobranças organizadas e materiais prontos pra divulgar e atrair mais gente, sem depender de ninguém.",
   },
 ];
 
 const DIFERENCIAIS = [
   {
-    titulo: "Caderno e Planilha",
+    titulo: "Caderno, Planilha e WhatsApp Manual",
     ruim: true,
     itens: [
+      "Você digita a mesma resposta dezenas de vezes por dia",
       "Fácil de perder, rasgar ou errar a conta",
       "Nenhum relatório, nenhum lembrete automático",
-      "Ninguém mais além de você entende a bagunça",
     ],
   },
   {
@@ -109,17 +128,11 @@ const DIFERENCIAIS = [
     titulo: "NexoGestão",
     ruim: false,
     itens: [
+      "Cliente agenda e compra sozinho pelo link, 24h por dia",
       "Simples o bastante pra usar ainda hoje, sem curso",
-      "Só o que o seu negócio pequeno realmente precisa",
       "Suporte humano e preço que cabe no bolso",
     ],
   },
-];
-
-const PASSOS = [
-  { numero: "1", titulo: "Crie sua conta grátis", texto: "Leva menos de 2 minutos. Só precisamos do seu e-mail e do nome do seu negócio." },
-  { numero: "2", titulo: "Configure do seu jeito", texto: "Cadastre produtos, serviços ou o que você vende. O sistema te guia passo a passo." },
-  { numero: "3", titulo: "Comece a usar", texto: "Registre vendas, acompanhe o estoque e a agenda, e veja seu negócio organizado." },
 ];
 
 const BENEFICIOS_TESTE = [
@@ -140,12 +153,12 @@ const ABAS_DEMO: { chave: AbaDemo; label: string; descricao: string }[] = [
   {
     chave: "agenda",
     label: "Agenda",
-    descricao: "Clientes marcam, você confirma. Fim dos horários esquecidos e dos \"furos\" na agenda.",
+    descricao: "Clientes marcam pelo link, você confirma. Fim dos horários esquecidos e dos \"furos\" na agenda.",
   },
   {
     chave: "cardapio",
-    label: "Cardápio/Divulgação",
-    descricao: "Gere um catálogo com link pronto pra mandar no Status do WhatsApp — e venda enquanto dorme.",
+    label: "Cardápio & Divulgação",
+    descricao: "Gere Stories, banners e catálogo com link pronto pra postar — e venda enquanto dorme.",
   },
   {
     chave: "clientes",
@@ -185,14 +198,14 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <span className="text-lg font-bold tracking-tight">NexoGestão</span>
           <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300 md:flex">
+            <a href="#jornada" className="hover:text-violet-700 dark:hover:text-violet-300">
+              Como funciona
+            </a>
             <a href="#demonstracao" className="hover:text-violet-700 dark:hover:text-violet-300">
               Veja por dentro
             </a>
             <a href="#nichos" className="hover:text-violet-700 dark:hover:text-violet-300">
               Pra quem é
-            </a>
-            <a href="#beneficios" className="hover:text-violet-700 dark:hover:text-violet-300">
-              Benefícios
             </a>
             <a href="#teste-gratis" className="hover:text-violet-700 dark:hover:text-violet-300">
               Teste grátis
@@ -220,15 +233,15 @@ export default function LandingPage() {
               Feito para quem toca o negócio sozinho (ou quase)
             </span>
             <h1 className="mt-4 text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-              Pare de perder dinheiro com caderno, planilha e <span className="text-violet-700 dark:text-violet-300">5 apps diferentes</span>
+              Pare de perder horas no WhatsApp. <span className="text-violet-700 dark:text-violet-300">Deixe um link vender e agendar por você</span>
             </h1>
             <p className="mt-5 text-lg text-slate-600 dark:text-slate-300">
-              O NexoGestão junta vendas, estoque, agenda, fiado e divulgação num só lugar. Simples o bastante pra usar
-              ainda hoje — sem curso, sem planilha quebrada e sem precisar entender nada de tecnologia.
+              Crie Stories e catálogos profissionais em segundos, poste o link na bio e deixe o cliente escolher o serviço, o
+              dia e o horário sozinho — 24 horas por dia, sem você precisar digitar uma palavra.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link href="/cadastro" className={`${botaoPrimario} h-12 justify-center px-6 text-base`}>
-                Testar Grátis no Meu Negócio
+                Testar Grátis Agora
               </Link>
               <a href="#demonstracao" className={`${botaoSecundario} h-12 justify-center px-6 text-base`}>
                 Ver o sistema por dentro
@@ -252,8 +265,51 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Do Story ao agendamento fechado */}
+      <section id="jornada" className="border-t border-slate-200 bg-white py-16 dark:border-slate-700 dark:bg-slate-800/40">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight">Do Story ao agendamento fechado — sem trocar uma mensagem sequer</h2>
+            <p className="mt-3 text-slate-600 dark:text-slate-300">
+              Pare de digitar &ldquo;oi, tem horário disponível?&rdquo; o dia inteiro. Deixe o link fazer esse trabalho por você.
+            </p>
+          </div>
+
+          <div className="mt-12 grid items-center gap-10 lg:grid-cols-2">
+            <div className="flex flex-col gap-8">
+              {JORNADA.map((j) => (
+                <div key={j.numero} className="flex gap-4">
+                  <div className="flex shrink-0 flex-col items-center">
+                    <div className="grid h-11 w-11 place-items-center rounded-full bg-violet-200 text-lg font-bold text-violet-950 dark:bg-violet-300/25 dark:text-violet-50">
+                      {j.numero}
+                    </div>
+                    {j.numero !== "3" && <div className="mt-2 h-full w-px flex-1 bg-violet-200 dark:bg-violet-300/20" />}
+                  </div>
+                  <div className="pb-2">
+                    <p className="text-sm font-semibold text-violet-700 dark:text-violet-300">
+                      {j.icone} {j.titulo}
+                    </p>
+                    <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">{j.texto}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-center gap-4">
+              <MoldiraCelular className="w-[170px] rotate-[-3deg]">
+                <TelaStoryPromo />
+              </MoldiraCelular>
+              <span className="shrink-0 text-2xl text-slate-300 dark:text-slate-600">→</span>
+              <MoldiraCelular className="w-[170px] rotate-[3deg]">
+                <TelaAgendamentoPublico />
+              </MoldiraCelular>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Demonstração */}
-      <section id="demonstracao" className="border-t border-slate-200 bg-white py-16 dark:border-slate-700 dark:bg-slate-800/40">
+      <section id="demonstracao" className="py-16">
         <div className="mx-auto max-w-4xl px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight">Veja o sistema por dentro antes de criar sua conta</h2>
@@ -292,7 +348,7 @@ export default function LandingPage() {
       </section>
 
       {/* Nichos */}
-      <section id="nichos" className="py-16">
+      <section id="nichos" className="border-t border-slate-200 bg-white py-16 dark:border-slate-700 dark:bg-slate-800/40">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight">Feito Sob Medida Para o Seu Negócio</h2>
@@ -302,7 +358,7 @@ export default function LandingPage() {
           </div>
           <div className="mt-10 grid gap-5 sm:grid-cols-2">
             {NICHOS.map((n) => (
-              <div key={n.titulo} className="rounded-2xl border border-slate-200 bg-white p-6 transition hover:shadow-md dark:border-slate-700 dark:bg-slate-800">
+              <div key={n.titulo} className="rounded-2xl border border-slate-200 bg-slate-50 p-6 transition hover:shadow-md dark:border-slate-700 dark:bg-slate-800">
                 <span className="text-3xl">{n.emoji}</span>
                 <h3 className="mt-3 text-lg font-semibold">{n.titulo}</h3>
                 <p className="mt-1 text-sm font-semibold text-violet-700 dark:text-violet-300">{n.gancho}</p>
@@ -314,7 +370,7 @@ export default function LandingPage() {
       </section>
 
       {/* Benefícios reais */}
-      <section id="beneficios" className="border-t border-slate-200 bg-white py-16 dark:border-slate-700 dark:bg-slate-800/40">
+      <section id="beneficios" className="py-16">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight">Isso não é &ldquo;mais um sistema&rdquo;. É o fim da sua dor de cabeça.</h2>
@@ -322,7 +378,7 @@ export default function LandingPage() {
           </div>
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {BENEFICIOS.map((b) => (
-              <div key={b.titulo} className="rounded-2xl border border-slate-200 bg-slate-50 p-6 transition hover:shadow-md dark:border-slate-700 dark:bg-slate-800">
+              <div key={b.titulo} className="rounded-2xl border border-slate-200 bg-white p-6 transition hover:shadow-md dark:border-slate-700 dark:bg-slate-800">
                 <span className="text-3xl">{b.icone}</span>
                 <p className="mt-3 text-sm font-semibold text-rose-600 dark:text-rose-400">{b.dor}</p>
                 <h3 className="mt-1 text-lg font-semibold">{b.titulo}</h3>
@@ -334,10 +390,10 @@ export default function LandingPage() {
       </section>
 
       {/* Diferenciais */}
-      <section id="diferenciais" className="py-16">
+      <section id="diferenciais" className="border-t border-slate-200 bg-white py-16 dark:border-slate-700 dark:bg-slate-800/40">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight">Por que trocar o caderno por isso?</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Por que trocar o caderno (e o WhatsApp manual) por isso?</h2>
             <p className="mt-3 text-slate-600 dark:text-slate-300">Compare e veja por que o NexoGestão é a escolha óbvia.</p>
           </div>
           <div className="mt-10 grid gap-5 sm:grid-cols-3">
@@ -369,34 +425,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Passo a passo simples */}
-      <section id="como-funciona" className="border-t border-slate-200 bg-white py-16 dark:border-slate-700 dark:bg-slate-800/40">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight">Comece em 3 passos simples</h2>
-            <p className="mt-3 text-slate-600 dark:text-slate-300">Sem complicação: do cadastro ao primeiro uso em poucos minutos.</p>
-          </div>
-          <div className="mt-10 grid gap-8 sm:grid-cols-3">
-            {PASSOS.map((p) => (
-              <div key={p.numero} className="text-center">
-                <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-violet-200 text-lg font-bold text-violet-950 dark:bg-violet-300/25 dark:text-violet-50">
-                  {p.numero}
-                </div>
-                <h3 className="mt-4 text-lg font-semibold">{p.titulo}</h3>
-                <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">{p.texto}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Teste grátis */}
       <section id="teste-gratis" className="py-16">
         <div className="mx-auto max-w-3xl px-4 sm:px-6">
           <div className="rounded-3xl border border-violet-200 bg-violet-50 p-8 text-center shadow-sm dark:border-violet-300/20 dark:bg-violet-300/10 sm:p-12">
-            <h2 className="text-3xl font-bold tracking-tight">Seu negócio merece sair da bagunça hoje</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Seu negócio merece parar de depender do seu WhatsApp o dia todo</h2>
             <p className="mt-3 text-slate-600 dark:text-slate-300">
-              Toda semana sem controle é dinheiro que você não sabe se está ganhando ou perdendo. Teste grátis por{" "}
+              Toda semana sem um link de agendamento é tempo e dinheiro que você está deixando na mesa. Teste grátis por{" "}
               {DIAS_TESTE_GRATIS} dias, sem compromisso.
             </p>
             <ul className="mx-auto mt-6 grid max-w-md gap-2.5 text-left text-sm">
@@ -408,10 +443,10 @@ export default function LandingPage() {
               ))}
             </ul>
             <Link href="/cadastro" className={`${botaoPrimario} mt-8 h-12 w-full justify-center px-6 text-base sm:w-auto`}>
-              Quero Organizar Meu Negócio Agora
+              Quero Meu Link de Vendas e Agenda Grátis
             </Link>
             <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-              Leva 2 minutos pra criar sua conta. Depois disso, não tem mais desculpa pra continuar na bagunça.
+              Leva 2 minutos pra criar sua conta. Sem cartão de crédito, sem desculpa pra continuar na bagunça.
             </p>
           </div>
         </div>
